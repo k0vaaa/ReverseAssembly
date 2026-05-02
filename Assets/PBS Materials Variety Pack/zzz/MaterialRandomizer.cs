@@ -1,26 +1,28 @@
-using UnityEngine;
-using System.Collections;
 using UnityEditor;
+using UnityEngine;
 
-[CustomEditor(typeof(MaterialRandomizerScript))]
-public class MaterialRandomizer : Editor 
+namespace PBS_Materials_Variety_Pack.zzz
 {
-    public override void OnInspectorGUI()
+    [CustomEditor(typeof(MaterialRandomizerScript))]
+    public class MaterialRandomizer : Editor 
     {
-        DrawDefaultInspector();
+        public override void OnInspectorGUI()
+        {
+            DrawDefaultInspector();
 
-        MaterialRandomizerScript myScript = (MaterialRandomizerScript)target;
-        if(GUILayout.Button("Find Materials"))
-        {
-            myScript.findMaterials();
-        }
-        if(GUILayout.Button("Find Spheres"))
-        {
-            myScript.findMaterialSpheres();
-        }
-        if(GUILayout.Button("Randomize Materials"))
-        {
-            myScript.randomizeMaterials();
+            MaterialRandomizerScript myScript = (MaterialRandomizerScript)target;
+            if(GUILayout.Button("Find Materials"))
+            {
+                myScript.findMaterials();
+            }
+            if(GUILayout.Button("Find Spheres"))
+            {
+                myScript.findMaterialSpheres();
+            }
+            if(GUILayout.Button("Randomize Materials"))
+            {
+                myScript.randomizeMaterials();
+            }
         }
     }
 }
