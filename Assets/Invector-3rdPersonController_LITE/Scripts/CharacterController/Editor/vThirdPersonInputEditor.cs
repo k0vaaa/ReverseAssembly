@@ -1,30 +1,33 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-[CanEditMultipleObjects]
-[CustomEditor(typeof(Invector.vCharacterController.vThirdPersonInput), true)]
-public class vThirdPersonInputEditor : Editor
+namespace Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor
 {
-    GUISkin skin;
-
-    public override void OnInspectorGUI()
+    [CanEditMultipleObjects]
+    [CustomEditor(typeof(vThirdPersonInput), true)]
+    public class vThirdPersonInputEditor : UnityEditor.Editor
     {
-        if (!skin) skin = Resources.Load("vSkin") as GUISkin;
-        GUI.skin = skin;
+        GUISkin skin;
 
-        GUILayout.BeginVertical("INPUT MANAGER", "window");
+        public override void OnInspectorGUI()
+        {
+            if (!skin) skin = UnityEngine.Resources.Load("vSkin") as GUISkin;
+            GUI.skin = skin;
 
-        GUILayout.Space(30);
+            GUILayout.BeginVertical("INPUT MANAGER", "window");
 
-        EditorGUILayout.BeginVertical();
+            GUILayout.Space(30);
 
-        base.OnInspectorGUI();
+            EditorGUILayout.BeginVertical();
 
-        GUILayout.Space(10);
+            base.OnInspectorGUI();
 
-        GUILayout.EndVertical();
-        EditorGUILayout.EndVertical();
+            GUILayout.Space(10);
 
-        GUILayout.Space(2);
+            GUILayout.EndVertical();
+            EditorGUILayout.EndVertical();
+
+            GUILayout.Space(2);
+        }
     }
 }

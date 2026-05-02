@@ -81,9 +81,10 @@
 //
 //
 
+using Core.Events;
 using Gameplay.Combat.Interfaces;
-using Gameplay.Combat.Offensive;
 using Gameplay.Combat.Offensive.Base;
+using Gameplay.Events;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -96,10 +97,18 @@ namespace Gameplay.Combat.Health
         public float Stability
         {
             get => _stability;
-            set
+            private set
             {
                 _stability = value;
                 onStabilityChanged?.Invoke(_stability, MaxStability);
+                if (_controller == null)
+                {
+                    EventBus.Raise(new PlayerStabilityChangedEvent()
+                    {
+                        IsGlitched = false,
+                        StabilityPercent = _stability / MaxStability
+                    });
+                }
             }
         }
 

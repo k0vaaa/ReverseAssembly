@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
-using System.Collections;
-namespace Invector
+
+namespace Invector_3rdPersonController_LITE._3D_Models.Others.HealthItem
 {
     public class vAnimateUV : MonoBehaviour
     {

@@ -1,8 +1,8 @@
-﻿using System;
+﻿using Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor.Resources;
 using UnityEditor;
 using UnityEngine;
 
-namespace Invector.vCharacterController
+namespace Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor
 {
     [InitializeOnLoad]
     public class vInvectorWelcomeWindow : EditorWindow
@@ -92,20 +92,20 @@ namespace Invector.vCharacterController
 
         void InitStyle()
         {
-            if (!skin) skin = Resources.Load("welcomeWindowSkin") as GUISkin;
+            if (!skin) skin = UnityEngine.Resources.Load("welcomeWindowSkin") as GUISkin;
             
-            invectorBanner = (Texture2D)Resources.Load("invectorBanner", typeof(Texture2D));
-            mobileIcon = (Texture2D)Resources.Load("mobileIcon", typeof(Texture2D));
-            topdownIcon = (Texture2D)Resources.Load("topdownIcon", typeof(Texture2D));
-            pointAndClickIcon = (Texture2D)Resources.Load("clickToMoveIcon", typeof(Texture2D));
-            platformIcon = (Texture2D)Resources.Load("platformIcon", typeof(Texture2D));
-            vMansionIcon = (Texture2D)Resources.Load("vMansionIcon", typeof(Texture2D));
-            assetStoreIcon = (Texture2D)Resources.Load("Unity-Asset-Store", typeof(Texture2D));
-            climbAddon = (Texture2D)Resources.Load("climbAddon", typeof(Texture2D));
-            swimmingAddon = (Texture2D)Resources.Load("swimmingAddon", typeof(Texture2D));
-            stealthKillAddon = (Texture2D)Resources.Load("stealthKillAddon", typeof(Texture2D));
-            builderAddon = (Texture2D)Resources.Load("builderAddon", typeof(Texture2D));
-            ziplineAddon = (Texture2D)Resources.Load("ziplineAddon", typeof(Texture2D));
+            invectorBanner = (Texture2D)UnityEngine.Resources.Load("invectorBanner", typeof(Texture2D));
+            mobileIcon = (Texture2D)UnityEngine.Resources.Load("mobileIcon", typeof(Texture2D));
+            topdownIcon = (Texture2D)UnityEngine.Resources.Load("topdownIcon", typeof(Texture2D));
+            pointAndClickIcon = (Texture2D)UnityEngine.Resources.Load("clickToMoveIcon", typeof(Texture2D));
+            platformIcon = (Texture2D)UnityEngine.Resources.Load("platformIcon", typeof(Texture2D));
+            vMansionIcon = (Texture2D)UnityEngine.Resources.Load("vMansionIcon", typeof(Texture2D));
+            assetStoreIcon = (Texture2D)UnityEngine.Resources.Load("Unity-Asset-Store", typeof(Texture2D));
+            climbAddon = (Texture2D)UnityEngine.Resources.Load("climbAddon", typeof(Texture2D));
+            swimmingAddon = (Texture2D)UnityEngine.Resources.Load("swimmingAddon", typeof(Texture2D));
+            stealthKillAddon = (Texture2D)UnityEngine.Resources.Load("stealthKillAddon", typeof(Texture2D));
+            builderAddon = (Texture2D)UnityEngine.Resources.Load("builderAddon", typeof(Texture2D));
+            ziplineAddon = (Texture2D)UnityEngine.Resources.Load("ziplineAddon", typeof(Texture2D));
         }
 
         public void OnGUI()

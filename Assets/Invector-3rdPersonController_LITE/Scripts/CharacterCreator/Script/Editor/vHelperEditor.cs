@@ -1,7 +1,7 @@
-﻿using UnityEngine;
-using UnityEditor;
+﻿using UnityEditor;
+using UnityEngine;
 
-namespace Invector
+namespace Invector_3rdPersonController_LITE.Scripts.CharacterCreator.Script.Editor
 {
     class vHelperEditor : EditorWindow
     {

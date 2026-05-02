@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace Invector.vCharacterController
+namespace Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor.Resources
 {
     [Serializable]
     public class vEditorStartupPrefs : ScriptableObject
@@ -14,7 +14,7 @@ namespace Invector.vCharacterController
             {
                 if (instance == null)
                 {
-                    instance = Resources.Load<vEditorStartupPrefs>("vEditorStartupPrefs");
+                    instance = UnityEngine.Resources.Load<vEditorStartupPrefs>("vEditorStartupPrefs");
                     if (instance == null)
                     {
                         instance = CreateInstance<vEditorStartupPrefs>();
@@ -45,7 +45,7 @@ namespace Invector.vCharacterController
             {
                 var copy = CreateInstance<vEditorStartupPrefs>();
                 EditorUtility.CopySerialized(Instance, copy);
-                instance = Resources.Load<vEditorStartupPrefs>("vEditorStartupPrefs");
+                instance = UnityEngine.Resources.Load<vEditorStartupPrefs>("vEditorStartupPrefs");
                 if (instance == null)
                 {
                     AssetDatabase.CreateAsset(copy, "Assets/Invector-3rdPersonController/Basic Locomotion/Resources/vEditorStartupPrefs.asset");

@@ -15,6 +15,10 @@ namespace Core.Input
         public event Action OnEscapePressed;
         public event Action OnJumpPressed;
         public event Action OnRightClick;
+        
+        public event Action OnInteractPressed;
+        public event Action OnScannerPressed;
+        public event Action OnBranchTogglePressed;
 
         public Vector2 MoveInput { get; private set; }
         public bool SprintInput { get; private set; }
@@ -37,9 +41,13 @@ namespace Core.Input
 
         private void Subscribe()
         {
-            _uiActions.Cancel.performed += ctx => OnEscapePressed?.Invoke();
+            _uiActions.Cancel.performed += _ => OnEscapePressed?.Invoke();
+            
             _playerActions.Jump.performed += OnJumpPress;
             _playerActions.RightClick.performed += OnRightClickPress;
+            _playerActions.Interact.performed += ctx => OnInteractPressed?.Invoke();
+            _playerActions.Scanner.performed += ctx => OnScannerPressed?.Invoke();
+            _playerActions.BranchToggle.performed += ctx => OnBranchTogglePressed?.Invoke();
         }
 
         private void SubscribePlayerActions()
