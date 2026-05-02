@@ -1,0 +1,1405 @@
+
+
+=== Scripts\Core\Audio\AudioManager.cs ===
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Core.DI;
+using Core.Events;
+using Core.Pause;
+using UnityEngine;
+using UnityEngine.Audio;
+using UnityEngine.Pool;
+
+namespace Core.Audio
+{
+    public class AudioManager : MonoBehaviour, IInjectable
+    {
+        public VolumeSettings Settings { get; private set; }
+        
+        [SerializeField] private AudioSource _musicSourceA;
+        [SerializeField] private AudioSource _musicSourceB;
+        [SerializeField] private AudioSource _uiSource;
+        [SerializeField] private bool _sfxIgnorePause;
+        private ObjectPool<AudioSource> _sfxSources;
+        private GameObject _sfxContainer;
+        [Inject] private AudioMixer _mainMixer;
+
+
+        private void Awake()
+        {
+            Settings = new VolumeSettings(_mainMixer);
+            _sfxContainer = new GameObject("SfxContainer");
+            CreateSfxAudioSource();
+
+            ConfigureMusicSources();
+
+            _uiSource.outputAudioMixerGroup = Settings.UIGroup;
+        }
+
+        private void ConfigureMusicSources()
+        {
+            _musicSourceA.outputAudioMixerGroup = Settings.MusicGroup;
+            _musicSourceB.outputAudioMixerGroup = Settings.MusicGroup;
+
+            _musicSourceA.loop = true;
+            _musicSourceB.loop = true;
+
+            _musicSourceA.ignoreListenerPause = true;
+            _musicSourceB.ignoreListenerPause = true;
+        }
+
+        private void CreateSfxAudioSource()
+        {
+            _sfxSources = new ObjectPool<AudioSource>(
+                () =>
+                {
+                    var go = new GameObject($"sfxSource{_sfxSources.CountAll}");
+                    go.transform.SetParent(_sfxContainer.transform);
+                    go.transform.position = Vector3.zero;
+                    go.SetActive(false);
+                    var source = go.AddComponent<AudioSource>();
+                    source.outputAudioMixerGroup = Settings.SFXGroup;
+                    return source;
+                },
+                source => source.gameObject.SetActive(true),
+                source => source.gameObject.SetActive(false)
+            );
+        }
+
+        private void Start()
+        {
+            EventBus.Subscribe<GamePauseEvent>(OnGamePaused);
+        }
+
+        private void Play(AudioClip clip, Vector3 pos, float spatialBlend, float volume, bool ignorePause, AudioSource source)
+        {
+            source.transform.position = pos;
+            source.spatialBlend = spatialBlend;
+            source.volume = volume;
+            source.ignoreListenerPause = ignorePause;
+
+            source.PlayOneShot(clip);
+            
+        }
+
+        public async Task PlaySFX(AudioClip clip, Vector3 pos, float volume)
+        {
+            var source = _sfxSources.Get();
+            
+            bool ignorePause;
+            if (_sfxIgnorePause)
+            {
+                ignorePause = false;
+            }
+            else
+            {
+                ignorePause = true;
+            }
+
+            Play(clip, pos, 1, volume, ignorePause, source);
+            
+            try
+            {
+                if (ignorePause)
+                {
+                    await Task.Delay((int)(clip.length * 1000), destroyCancellationToken);
+                }
+                else
+                {
+                    await Awaitable.WaitForSecondsAsync(clip.length, destroyCancellationToken);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            finally
+            {
+                if (this != null && source != null)
+                {
+                    _sfxSources.Release(source);
+                }
+            }
+        }
+
+        public void PlayUI(AudioClip clip, float volume)
+        {
+            Play(clip, Vector3.zero, 0, volume, true, _uiSource);
+        }
+
+        private void OnGamePaused(GamePauseEvent eventData)
+        {
+            Settings.SetPause(eventData.IsPaused);
+            if (eventData.IsPaused)
+            {
+                Settings.SetSFXLowPass(600);
+                Settings.SetMusicVolume(.2f);
+            }
+            else
+            {
+                Settings.SetSFXLowPass(22000);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            _sfxSources.Dispose();
+        }
+    }
+}
+
+=== Scripts\Core\Audio\VolumeSettings.cs ===
+﻿using Core.Utilities;
+using UnityEngine;
+using UnityEngine.Audio;
+
+namespace Core.Audio
+{
+    public class VolumeSettings
+    {
+        public AudioMixer MainMixer => _mainMixer;
+        public AudioMixerGroup MusicGroup => _musicGroup;
+        public AudioMixerGroup SFXGroup => _sfxGroup;
+        public AudioMixerGroup UIGroup => _uiGroup;
+
+        private readonly AudioMixer _mainMixer;
+        private readonly AudioMixerGroup _musicGroup;
+        private readonly AudioMixerGroup _sfxGroup;
+        private readonly AudioMixerGroup _uiGroup;
+
+        private const string MasterParam = "MasterVolume";
+        private const string MusicParam = "MusicVolume";
+        private const string SFXParam = "SFXVolume";
+        private const string UIParam = "UIVolume";
+        private const string SFXLowPassParam = "SFXLowPass";
+
+
+        public VolumeSettings(AudioMixer mainMixer)
+        {
+            _mainMixer = mainMixer;
+            _musicGroup = mainMixer.FindMatchingGroups("Music")[0];
+            _sfxGroup = mainMixer.FindMatchingGroups("SFX")[0];
+            _uiGroup = mainMixer.FindMatchingGroups("UI")[0];
+        }
+
+        public void RetrieveVolumeSettings()
+        {
+            
+        }
+
+        public void SetMasterVolume(float value)
+        {
+            value = Utils.ToDBf(value);
+            _mainMixer.SetFloat(MasterParam, value);
+        }
+
+        public float GetMasterVolume()
+        {
+            _mainMixer.GetFloat(MasterParam, out float value);
+            return Utils.FromDBf(value);
+        }
+
+        public void SetMusicVolume(float value)
+        {
+            value = Utils.ToDBf(value);
+            _mainMixer.SetFloat(MusicParam, value);
+        }
+
+        public float GetMusicVolume()
+        {
+            _mainMixer.GetFloat(MusicParam, out float value);
+            return Utils.FromDBf(value);
+        }
+
+        public void SetSFXVolume(float value)
+        {
+            value = Utils.ToDBf(value);
+            _mainMixer.SetFloat(SFXParam, value);
+        }
+
+        public float GetSFXVolume()
+        {
+            _mainMixer.GetFloat(SFXParam, out float value);
+            return Utils.FromDBf(value);
+        }
+
+        public void SetUIVolume(float value)
+        {
+            value = Utils.ToDBf(value);
+            _mainMixer.SetFloat(UIParam, value);
+        }
+
+        public float GetUIVolume()
+        {
+            _mainMixer.GetFloat(UIParam, out float value);
+            return Utils.FromDBf(value);
+        }
+
+        public void SetSFXLowPass(float value)
+        {
+            _mainMixer.SetFloat(SFXLowPassParam, value);
+        }
+
+        public float GetSFXLowPass()
+        {
+            _mainMixer.GetFloat(SFXLowPassParam, out float value);
+            return value;
+        }
+
+
+        public void SetMusicOutputGroup(AudioSource source)
+        {
+            source.outputAudioMixerGroup = _musicGroup;
+        }
+
+        public void SetSFXOutputGroup(AudioSource source)
+        {
+            source.outputAudioMixerGroup = _sfxGroup;
+        }
+
+        public void SetPause(bool isPaused)
+        {
+            AudioListener.pause = isPaused;
+        }
+    }
+}
+
+=== Scripts\Core\Bootstrap\GameEntryPoint.cs ===
+using System.Collections.Generic;
+using System.Reflection;
+using Core.DI;
+using UnityEngine;
+
+namespace Core.Bootstrap
+{
+    [DefaultExecutionOrder(-999)]
+    public class GameEntryPoint : MonoBehaviour
+    {
+        public static bool IsGameReady = false;
+        [SerializeField] private Services _services;
+        private readonly DIContainer _diContainer = new();
+
+        private List<IInjectable> _injectables = new();
+        private List<IInitializable> _initializables = new();
+
+
+        private void Awake()
+        {
+            RegisterServices();
+
+            FindAndSortScripts();
+            
+            InjectAll();
+            
+            InitializeAll();
+            
+            IsGameReady = true;
+            print("Game is ready");
+        }
+
+        private void FindAndSortScripts()
+        {
+            var scripts = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
+            foreach (var script in scripts)
+            {
+                if (script is IInjectable injectable)
+                {
+                    _injectables.Add(injectable);
+                }
+                else if (script is IInitializable initializable)
+                {
+                    _initializables.Add(initializable);
+                }
+            }
+        }
+
+        private void InjectAll()
+        {
+            foreach (var injectable in _injectables)
+            {
+                _diContainer.Inject(injectable);
+            }
+        }
+
+        private void InitializeAll()
+        {
+            foreach (var initializable in _initializables)
+            {
+                initializable.Init();
+            }
+        }
+
+
+        private void RegisterServices()
+        {
+            var type = _services.GetType();
+            var fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            foreach (var fieldInfo in fields)
+            {
+                var serviceInstance = fieldInfo.GetValue(_services);
+                if (serviceInstance == null) continue;
+                _diContainer.Register(fieldInfo.FieldType, serviceInstance);
+            }
+        }
+    }
+}
+
+=== Scripts\Core\Bootstrap\IInitializable.cs ===
+﻿namespace Core.Bootstrap
+{
+    public interface IInitializable
+    {
+        public void Init();
+    }
+}
+
+=== Scripts\Core\Bootstrap\Services.cs ===
+﻿using Core.Audio;
+using Core.Scenes;
+using UnityEngine;
+using UnityEngine.Audio;
+
+namespace Core.Bootstrap
+{
+    [DefaultExecutionOrder(-1000)]
+    public class Services : MonoBehaviour
+    {
+        [SerializeField] private AudioManager _audioManager;
+        [SerializeField] private AudioMixer _mainMixer;
+        private SceneLoader _sceneLoader;
+
+        private void Awake()
+        {
+            CreateServices();
+        }
+
+        private void CreateServices()
+        {
+            _sceneLoader = new SceneLoader();
+        }
+    }
+}
+
+=== Scripts\Core\DI\DIContainer.cs ===
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using UnityEngine;
+
+namespace Core.DI
+{
+    public class DIContainer
+    {
+        private readonly Dictionary<Type, object> _services = new();
+
+        public void Register<T>(T serviceInstance) where T : class
+        {
+            Register(typeof(T), serviceInstance);
+        }
+
+        public void Register(Type type, object serviceInstance)
+        {
+            if (!_services.TryAdd(type, serviceInstance)) 
+                Debug.LogError($"Service with type {type} can not be registered");
+        }
+
+        public T Resolve<T>()
+        {
+            if (_services.TryGetValue(typeof(T), out var service))
+            {
+                return (T)service;
+            }
+
+            throw new Exception($"Service with type {typeof(T)} is not registered");
+        }
+
+        public void Inject(object target)
+        {
+            Type targetType = target.GetType();
+            FieldInfo[] targetFieldInfo =
+                targetType.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            foreach (var field in targetFieldInfo)
+            {
+                if (field.GetCustomAttribute<InjectAttribute>() != null)
+                {
+                    var type = field.FieldType;
+                    if (_services.TryGetValue(type, out var service))
+                    {
+                        field.SetValue(target, service);
+                    }
+                    else
+                    {
+                        throw new Exception($"Service with type {type} is not registered");
+                    }
+                }
+            }
+        }
+    }
+}
+
+=== Scripts\Core\DI\IInjectable.cs ===
+﻿namespace Core.DI
+{
+    public interface IInjectable
+    {}
+}
+
+=== Scripts\Core\DI\InjectAttribute.cs ===
+﻿using System;
+
+namespace Core.DI
+{
+    [AttributeUsage(AttributeTargets.Field)]
+    public class InjectAttribute : Attribute
+    { }
+}
+
+=== Scripts\Core\Events\DisposableTracker.cs ===
+﻿using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Core.Events
+{
+    public class DisposableTracker : MonoBehaviour
+    {
+        private readonly List<IDisposable> _disposables = new();
+        public void Add(IDisposable disposable) => _disposables.Add(disposable);
+
+        private void OnDestroy()
+        {
+            foreach (var disposable in _disposables)
+                disposable.Dispose();
+        }
+    }
+}
+
+=== Scripts\Core\Events\EventBinding.cs ===
+﻿using System;
+
+namespace Core.Events
+{
+    public class EventBinding<T> : IDisposable where T : IEvent
+    {
+        private Action<T> _onEvent;
+        private Action _onDispose;
+        
+        public EventBinding(Action<T> onEvent, Action onDispose)
+        {
+            _onEvent = onEvent;
+            _onDispose = onDispose;
+        }
+
+
+        public void Dispose()
+        {
+            _onDispose?.Invoke();
+            _onEvent = null;
+            _onDispose = null;
+        }
+    }
+}
+
+=== Scripts\Core\Events\EventBus.cs ===
+﻿using System;
+using System.Collections.Generic;
+
+namespace Core.Events
+{
+    public static class EventBus
+    {
+        private static readonly Dictionary<Type, Delegate> _subscribers = new();
+
+
+        public static EventBinding<T> Subscribe<T>(Action<T> callback) where T : IEvent
+        {
+            Type eventType = typeof(T);
+
+            if (_subscribers.ContainsKey(eventType))
+            {
+                _subscribers[eventType] = Delegate.Combine(_subscribers[eventType], callback);
+            }
+            else
+            {
+                _subscribers[eventType] = callback;
+            }
+            return new EventBinding<T>(callback, () => Unsubscribe(callback));
+        }
+
+        public static void Unsubscribe<T>(Action<T> callback) where T : IEvent
+        {
+            Type eventType = typeof(T);
+
+            if (_subscribers.ContainsKey(eventType))
+            {
+                var currentDelegate = _subscribers[eventType];
+                _subscribers[eventType] = Delegate.Remove(currentDelegate, callback);
+
+                if (_subscribers[eventType] == null)
+                {
+                    _subscribers.Remove(eventType);
+                }
+            }
+        }
+
+        public static void Raise<T>(T eventData) where T : IEvent
+        {
+            Type eventType = typeof(T);
+
+            if (_subscribers.TryGetValue(eventType, out Delegate callback))
+            {
+                (callback as Action<T>)?.Invoke(eventData);
+            }
+        }
+
+        public static void Clear()
+        {
+            _subscribers.Clear();
+        }
+    }
+}
+
+=== Scripts\Core\Events\IEvent.cs ===
+﻿namespace Core.Events
+{
+    public interface IEvent
+    {
+    }
+}
+
+=== Scripts\Core\Extensions\DisposableExtensions.cs ===
+﻿using System;
+using Core.Events;
+using UnityEngine;
+
+namespace Core.Extensions
+{
+    public static class DisposableExtensions
+    {
+        public static void AddTo(this IDisposable disposable, GameObject gameObject)
+        {
+            var tracker = gameObject.GetComponent<DisposableTracker>() ?? gameObject.AddComponent<DisposableTracker>();
+            tracker.Add(disposable);
+        }
+    }
+}
+
+=== Scripts\Core\Extensions\FloatExtensions.cs ===
+﻿using UnityEngine;
+
+namespace Core.Extensions
+{
+    public static class FloatExtensions
+    {
+        public static float Round(this float num)
+        {
+            return Mathf.Round(num);
+        }
+    }
+}
+
+=== Scripts\Core\Extensions\TransformExtensions.cs ===
+﻿using UnityEngine;
+
+namespace Core.Extensions
+{
+    public static class TransformExtensions
+    {
+        public static void ResetPosition(this Transform transform)
+        {
+            transform.position = Vector3.zero;
+        }
+
+        public static void ResetRotation(this Transform transform)
+        {
+            transform.rotation = Quaternion.identity;
+        }
+        
+        public static void ResetScale(this Transform transform)
+        {
+            transform.localScale = Vector3.one;
+        }
+        
+        public static void ResetAll(this Transform transform)
+        {
+            transform.position = Vector3.zero;
+            transform.rotation = Quaternion.identity;
+            transform.localScale = Vector3.one;
+        }
+        
+        public static void LocalResetPosition(this Transform transform)
+        {
+            transform.localPosition = Vector3.zero;
+        }
+
+        public static void LocalResetScale(this Transform transform)
+        {
+            transform.localScale = Vector3.one;
+        }
+
+        public static void LocalResetRotation(this Transform transform)
+        {
+            transform.localRotation = Quaternion.identity;
+        }
+        
+        public static void LocalResetAll(this Transform transform)
+        {
+            transform.localPosition = Vector3.zero;
+            transform.localRotation = Quaternion.identity;
+            transform.localScale = Vector3.one;
+        }
+    }
+}
+
+=== Scripts\Core\Extensions\Vector3Extensions.cs ===
+﻿using UnityEngine;
+
+namespace Core.Extensions
+{
+    public static class Vector3Extensions
+    {
+        public static Vector3 Add(this Vector3 vector, float x = 0, float y = 0, float z = 0)
+        {
+            return vector + new Vector3(x, y, z);
+        }
+
+        public static Vector3 WithX(this Vector3 vector, float x)
+        {
+            return new Vector3(x, vector.y, vector.z);
+        }
+
+        public static Vector3 WithY(this Vector3 vector, float y)
+        {
+            return new Vector3(vector.x, y, vector.z);
+        }
+
+        public static Vector3 WithZ(this Vector3 vector, float z)
+        {
+            return new Vector3(vector.x, vector.y, z);
+        }
+    }
+}
+
+=== Scripts\Core\Gameplay\LevelManager.cs ===
+﻿using Core.DI;
+using Core.Input;
+using Core.Pause;
+using UnityEngine;
+
+namespace Core.Gameplay
+{
+    public class LevelManager : MonoBehaviour, IInjectable
+    {
+        [Inject] private InputManager _inputManager;
+        
+        private void OnEnable()
+        {
+            _inputManager.OnEscapePressed += TogglePause;
+        }
+        private void OnDisable()
+        {
+            _inputManager.OnEscapePressed -= TogglePause;
+        }
+
+        private void TogglePause()
+        {
+            PauseManager.TogglePause();
+        }
+        
+    }
+}
+
+=== Scripts\Core\Input\InputManager.cs ===
+﻿using System;
+using Core.Bootstrap;
+
+namespace Core.Input
+{
+    public class InputManager : IInitializable
+    {
+        private InputSystemActions _inputSystemActions;
+        private InputSystemActions.PlayerActions _playerActions;
+        private InputSystemActions.UIActions _uiActions;
+        
+        public event Action OnEscapePressed;
+        
+        public void Init()
+        {
+            _inputSystemActions = new InputSystemActions();
+            _playerActions = _inputSystemActions.Player;
+            _uiActions = _inputSystemActions.UI;
+            _playerActions.Enable();
+            _uiActions.Enable();
+        }
+
+        public void Subscribe()
+        {
+            _uiActions.Cancel.performed += ctx => OnEscapePressed?.Invoke();
+        }
+        
+        
+        
+        public void Dispose()
+        {
+            _inputSystemActions.Dispose();
+        }
+    }
+}
+
+=== Scripts\Core\Observers\TriggerObserver.cs ===
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+namespace Core.Observers
+{
+    public class TriggerObserver : MonoBehaviour
+    {
+        public event Action<Collider> OnTriggerEnterEvent;
+        public event Action<Collider> OnTriggerExitEvent;
+
+        private HashSet<Collider> _others = new();
+
+        private void OnTriggerEnter(Collider other)
+        {
+            HandleEnter(other);
+        }
+
+        private void HandleEnter(Collider other)
+        {
+            if (_others.Add(other))
+            {
+                OnTriggerEnterEvent?.Invoke(other);
+            }
+        }
+
+        private void FixedUpdate()
+        {
+            var disabled = _others.Where(x => !x.gameObject.activeInHierarchy).ToList();
+            foreach (var item in disabled)
+            {
+                HandleExit(item);
+            }
+        }
+
+        private void OnTriggerExit(Collider other)
+        {
+            HandleExit(other);
+        }
+
+        private void HandleExit(Collider other)
+        {
+            if (_others.Remove(other))
+            {
+                OnTriggerExitEvent?.Invoke(other);
+            }
+        }
+    }
+}
+
+=== Scripts\Core\Pause\GamePauseEvent.cs ===
+﻿using Core.Events;
+
+namespace Core.Pause
+{
+    public class GamePauseEvent : IEvent
+    {
+        public bool IsPaused;
+
+        public GamePauseEvent() {}
+
+        public GamePauseEvent(bool isPaused)
+        {
+            IsPaused = isPaused;
+        }
+    }
+}
+
+=== Scripts\Core\Pause\PauseManager.cs ===
+﻿using Core.Events;
+using UnityEngine;
+
+namespace Core.Pause
+{
+    public static class PauseManager
+    {
+        public static bool IsPaused;
+
+        public static void SetPause(bool isPaused)
+        {
+            if (IsPaused == isPaused) return;
+            IsPaused = isPaused;
+            Time.timeScale = isPaused ? 0f : 1f;
+            
+            EventBus.Raise(new GamePauseEvent
+            {
+                IsPaused = isPaused
+            });
+        }
+        
+        public static void TogglePause()
+        {
+            SetPause(!IsPaused);
+        }
+    }
+}
+
+=== Scripts\Core\SaveLoad\Interactors\PlayerPrefsInteractor.cs ===
+﻿namespace Core.SaveLoad.Settings
+{
+    public class PlayerPrefsInteractor
+    {
+        
+    }
+}
+
+=== Scripts\Core\SaveLoad\Interactors\SettingsInteractor.cs ===
+﻿using Core.SaveLoad.Saveables;
+
+namespace Core.SaveLoad.Settings
+{
+    public class SettingsInteractor
+    {
+        private const string SettingsKey = "gameSettings";
+        private readonly IDataRepository _playerPrefsRepository;
+
+        public SettingsInteractor(IDataRepository playerPrefsRepository)
+        {
+            _playerPrefsRepository = playerPrefsRepository;
+        }
+
+        public void SaveSettings(GameSettings settings)
+        {
+            _playerPrefsRepository.Save(SettingsKey, settings);
+        }
+
+        public GameSettings LoadSettings()
+        {
+            return _playerPrefsRepository.Load(SettingsKey,new GameSettings());
+        }
+
+        public bool HasSettings()
+        {
+            return _playerPrefsRepository.HasKey(SettingsKey);
+        }
+
+        public void DeleteSettings()
+        {
+            _playerPrefsRepository.Delete(SettingsKey);
+        }
+        
+    }
+}
+
+=== Scripts\Core\SaveLoad\PlayerSaves\PlayerDataInteractor.cs ===
+﻿using System.Collections.Generic;
+using Core.SaveLoad.Saveables;
+
+namespace Core.SaveLoad.PlayerSaves
+{
+    public class PlayerDataInteractor
+    {
+        private const string PlayerDataKey = "playerData";
+        private readonly IPlayerDataRepository _playerDataRepository;
+        public PlayerData CurrentSave { get; private set; }
+
+        public PlayerDataInteractor(IPlayerDataRepository playerDataRepository)
+        {
+            _playerDataRepository = playerDataRepository;
+        }
+        
+        public void StartNewGame()
+        {
+            CurrentSave = new PlayerData
+            {
+                Health = 100f,
+                Position = default,
+                Enemies = new List<EnemyData>()
+            };
+            _playerDataRepository.Save(PlayerDataKey, CurrentSave);
+        }
+        
+        public void SavePlayerData(PlayerData playerData)
+        {
+            CurrentSave = playerData;
+            _playerDataRepository.Save(PlayerDataKey, CurrentSave);
+        }
+        
+        public PlayerData LoadLatestPlayerData()
+        {
+            CurrentSave = _playerDataRepository.Load(PlayerDataKey, new PlayerData { Enemies = new List<EnemyData>() });
+            return CurrentSave;
+        }
+
+        public PlayerData LoadByTimestamp(string timestamp)
+        {
+            CurrentSave = _playerDataRepository.Load(PlayerDataKey, timestamp, new PlayerData { Enemies = new List<EnemyData>() });
+            return CurrentSave;
+        }
+
+        public List<string> GetAllSaves()
+        {
+            return _playerDataRepository.GetAllTimestamps();
+        }
+
+        public bool HasPlayerData()
+        {
+            return _playerDataRepository.HasKey(PlayerDataKey);
+        }
+
+        public void DeletePlayerData()
+        {
+            _playerDataRepository.Delete(PlayerDataKey);
+        }
+    }
+}
+
+=== Scripts\Core\SaveLoad\Repos\IDataRepository.cs ===
+﻿namespace Core.SaveLoad
+{
+    public interface IDataRepository
+    {
+        public void Save<T>(string key, T data);
+        public T Load<T>(string key, T defaultValue = default);
+        bool HasKey(string key);
+        void Delete(string key);
+    }
+}
+
+=== Scripts\Core\SaveLoad\Repos\IPlayerDataRepository.cs ===
+﻿using System.Collections.Generic;
+
+namespace Core.SaveLoad
+{
+    public interface IPlayerDataRepository : IDataRepository
+    {
+        public T Load<T>(string key, string timestamp, T defaultValue = default);
+        public List<string> GetAllTimestamps();
+    }
+}
+
+=== Scripts\Core\SaveLoad\Repos\JsonRepository.cs ===
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using UnityEngine;
+
+namespace Core.SaveLoad
+{
+    public class JsonRepository : IDataRepository
+    {
+        private readonly string _basePath;
+        private readonly string _filePrefix;
+
+        public JsonRepository(string fileName)
+        {
+            _filePrefix = Path.GetFileNameWithoutExtension(fileName);
+            _basePath = Path.Combine(Application.persistentDataPath, _filePrefix);
+        }
+
+        public void Save<T>(string key, T data)
+        {
+            // Формируем имя файла с таймстемпом (например, player_data_20250414123045.json)
+            //string timestamp = DateTime.Now.ToString("dd.MM.yyyy-HH_mm_ss");
+            string timestamp = "01.01.2025-00_00_00";
+            string filePath = Path.Combine(Application.persistentDataPath, $"{_filePrefix}_{timestamp}.json");
+
+            // Создаем или обновляем словарь
+            var dataDict = new SerializableDictionary
+            {
+                [key] = data
+            };
+
+            try
+            {
+                // Записываем данные в новый файл
+                File.WriteAllText(filePath, JsonConvert.SerializeObject(dataDict, Formatting.Indented));
+                Debug.Log($"Saved data to {filePath}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to save to {filePath}: {ex.Message}");
+            }
+        }
+        
+
+        public T Load<T>(string key, T defaultValue)
+        {
+            return Load<T>(key, null);
+        }
+
+        public T Load<T>(string key, string timestamp)
+        {
+            string filePath = timestamp != null
+                ? Path.Combine(Application.persistentDataPath, $"{_filePrefix}_{timestamp}.json")
+                : GetLatestFile();
+
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            {
+                Debug.Log($"No file found: {filePath}");
+                return default;
+            }
+
+            try
+            {
+                var dataDict = JsonConvert.DeserializeObject<SerializableDictionary>(File.ReadAllText(filePath));
+                if (dataDict != null && dataDict.ContainsKey(key))
+                {
+                    if (dataDict[key] is JObject jObject)
+                    {
+                        return jObject.ToObject<T>();
+                    }
+                }
+
+                Debug.Log($"Key {key} not found in {filePath}");
+                return default;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to load from {filePath}: {ex.Message}");
+                return default;
+            }
+        }
+
+        public List<string> GetAllTimestamps()
+        {
+            string[] files = Directory.GetFiles(Application.persistentDataPath, $"{_filePrefix}_*.json");
+            List<string> timestamps = new List<string>();
+
+            foreach (string file in files)
+            {
+                string fileName = Path.GetFileNameWithoutExtension(file);
+                string timestamp = fileName.Substring(_filePrefix.Length + 1); // Убираем префикс и "_"
+                timestamps.Add(timestamp);
+            }
+
+            timestamps.Sort((a, b) => b.CompareTo(a)); // Сортируем от новых к старым
+            return timestamps;
+        }
+
+        public bool HasKey(string key)
+        {
+            string latestFile = GetLatestFile();
+            if (string.IsNullOrEmpty(latestFile))
+            {
+                Debug.Log($"No file found: {latestFile}");
+                return false;
+            }
+
+            try
+            {
+                var dataDict = JsonConvert.DeserializeObject<SerializableDictionary>(File.ReadAllText(latestFile));
+                return dataDict != null && dataDict.ContainsKey(key);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to check key in {latestFile}: {ex.Message}");
+                return false;
+            }
+        }
+
+        public void Delete(string key)
+        {
+            string latestFile = GetLatestFile();
+            if (string.IsNullOrEmpty(latestFile))
+                return;
+
+            try
+            {
+                var dataDict = JsonConvert.DeserializeObject<SerializableDictionary>(File.ReadAllText(latestFile));
+                if (dataDict != null && dataDict.ContainsKey(key))
+                {
+                    dataDict.Remove(key);
+                    File.WriteAllText(latestFile, JsonConvert.SerializeObject(dataDict));
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to delete key from {latestFile}: {ex.Message}");
+            }
+        }
+
+        private string GetLatestFile()
+        {
+            // Находим все файлы с префиксом _filePrefix
+            string[] files = Directory.GetFiles(Application.persistentDataPath, $"{_filePrefix}_*.json");
+            if (files.Length == 0)
+                return null;
+
+            // Сортируем по имени файла (таймстемп в имени обеспечивает хронологический порядок)
+            Array.Sort(files);
+            return files[^1]; // Возвращаем последний (самый новый) файл
+        }
+
+        [Serializable]
+        private class SerializableDictionary : Dictionary<string, object>
+        {
+        }
+    }
+}
+
+=== Scripts\Core\SaveLoad\Repos\PlayerPrefsRepository.cs ===
+﻿using UnityEngine;
+
+namespace Core.SaveLoad
+{
+    public class PlayerPrefsRepository : IDataRepository
+    {
+        public void Save<T>(string key, T data)
+        {
+            switch (data)
+            {
+                case int valueInt:
+                    PlayerPrefs.SetInt(key,valueInt);
+                    break;
+                case float valueFloat:
+                    PlayerPrefs.SetFloat(key,valueFloat);
+                    break;
+                case string valueString:
+                    PlayerPrefs.SetString(key,valueString);
+                    break;
+                case bool valueBool:
+                    PlayerPrefs.SetInt(key, valueBool ? 1 : 0);
+                    break;
+                default:
+                {
+                    string json = JsonUtility.ToJson(data);
+                    PlayerPrefs.SetString(key, json);
+                    break;
+                }
+            }
+
+            PlayerPrefs.Save();
+        }
+
+        public T Load<T>(string key, T defaultValue = default)
+        {
+            if (!PlayerPrefs.HasKey(key))
+                return default;
+            if (typeof(T) == typeof(float))
+                return (T)(object)PlayerPrefs.GetFloat(key, (float)(object)defaultValue);
+            if (typeof(T) == typeof(int))
+                return (T)(object)PlayerPrefs.GetInt(key, (int)(object)defaultValue);
+            if (typeof(T) == typeof(string))
+                return (T)(object)PlayerPrefs.GetString(key, (string)(object)defaultValue);
+            if (typeof(T) == typeof(bool))
+                return (T)(object)(PlayerPrefs.GetInt(key, (bool)(object)defaultValue ? 1 : 0) == 1);
+            string json = PlayerPrefs.GetString(key, "");
+            return string.IsNullOrEmpty(json) ? defaultValue : JsonUtility.FromJson<T>(json);
+        }
+        
+
+        public bool HasKey(string key)
+        {
+            return PlayerPrefs.HasKey(key);
+        }
+
+        public void Delete(string key)
+        {
+            PlayerPrefs.DeleteKey(key);
+            PlayerPrefs.Save();
+        }
+    }
+}
+
+=== Scripts\Core\SaveLoad\Saveables\GameSettings.cs ===
+﻿using System;
+
+namespace Core.SaveLoad.Saveables
+{
+    [Serializable]
+    public class GameSettings
+    {
+        public float EnemiesPower = 1f;
+        public bool PeaceMode;
+    }
+}
+
+=== Scripts\Core\SaveLoad\Saveables\PlayerData.cs ===
+﻿using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Core.SaveLoad.Saveables
+{
+    [Serializable]
+    public class PlayerData
+    {
+        public float Health;
+        public Vector3 Position;
+        public List<EnemyData> Enemies; 
+    }
+
+    [Serializable]
+    public class EnemyData
+    {
+        public string Id;
+        public float Health;
+        public Vector3 Position;
+        public int PrefabIndex;
+        public bool IsBoss;
+    }
+    
+}
+
+=== Scripts\Core\Scenes\SceneLoader.cs ===
+﻿namespace Core.Scenes
+{
+    public class SceneLoader
+    {
+        
+    }
+}
+
+=== Scripts\Core\UI\View.cs ===
+﻿using UnityEngine;
+using UnityEngine.Events;
+
+namespace Core.UI
+{
+    public abstract class View : MonoBehaviour
+    {
+        public UnityEvent onShow = new();
+        public UnityEvent onHide = new();
+
+        public void Show()
+        {
+            gameObject.SetActive(true);
+            onShow?.Invoke();
+        }
+
+        public void Hide()
+        {
+            gameObject.SetActive(false);
+            onHide?.Invoke();
+        }
+    }
+}
+
+=== Scripts\Core\UI\ViewManager.cs ===
+﻿using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Core.UI
+{
+    public class ViewManager : MonoBehaviour
+    {
+        [SerializeField] List<View> _viewsList;
+        private Dictionary<Type, View> _views = new();
+
+        private void Awake()
+        {
+            foreach (var view in _viewsList)
+            {
+                if (!_views.TryAdd(view.GetType(), view))
+                {
+                    Debug.LogError($"Error adding view {view.GetType()} to dictionary");
+                }
+            }
+        }
+
+        public T GetView<T>() where T : class
+        {
+            if (_views.TryGetValue(typeof(T), out var view))
+            {
+                return view as T;
+            }
+            Debug.LogError($"View of type {typeof(T)} not found");
+            return default;
+        }
+
+        public void SwitchViews<T, T1>(T from, T1 to) where T : View where T1 : View
+        {
+            from.Hide();
+            to.Show();
+        }
+    }
+}
+
+=== Scripts\Core\UI\Views\SettingsView.cs ===
+﻿using System;
+using Core.Audio;
+using Core.DI;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Core.UI.Views
+{
+    public class SettingsView : MonoBehaviour, IInjectable
+    {
+        [SerializeField] private Slider _musicSlider;
+        [SerializeField] private Slider _sfxSlider;
+        [SerializeField] private Slider _uiSlider;
+        [Inject] private AudioManager _audioManager;
+        
+        [SerializeField] private AudioClip _uiClickClip;
+
+        private void Awake()
+        {
+            _musicSlider.onValueChanged.AddListener(_audioManager.Settings.SetMusicVolume);
+            _sfxSlider.onValueChanged.AddListener(_audioManager.Settings.SetSFXVolume);
+            _uiSlider.onValueChanged.AddListener(_audioManager.Settings.SetUIVolume);
+
+            _musicSlider.onValueChanged.AddListener(value => _audioManager.PlayUI(_uiClickClip, 1));
+            _sfxSlider.onValueChanged.AddListener(value => _audioManager.PlayUI(_uiClickClip, 1));
+            _uiSlider.onValueChanged.AddListener(value => _audioManager.PlayUI(_uiClickClip, 1));
+            
+            _musicSlider.value = _audioManager.Settings.GetMusicVolume();
+            _sfxSlider.value = _audioManager.Settings.GetSFXVolume();
+            _uiSlider.value = _audioManager.Settings.GetUIVolume();
+        }
+    }
+}
+
+=== Scripts\Core\UI\Views\SliderScrollHandler.cs ===
+﻿using System;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+namespace Core.UI.Views
+{
+    public class SliderScrollHandler : MonoBehaviour, IScrollHandler
+    {
+        [SerializeField] private float _scrollSpeed = .003f;
+        
+        private Slider _slider;
+
+        private void Awake()
+        {
+            _slider = GetComponent<Slider>();
+        }
+
+        public void OnScroll(PointerEventData eventData)
+        {
+            _slider.value += eventData.scrollDelta.y * _scrollSpeed;
+        }
+    }
+}
+
+=== Scripts\Core\Utilities\Utils.cs ===
+﻿using UnityEngine;
+
+namespace Core.Utilities
+{
+    public static class Utils
+    {
+        public static float ToDBf(float normalizedValue)
+        {
+            if (normalizedValue <= 0) normalizedValue = 0.0001f;
+            
+            normalizedValue = Mathf.Pow(normalizedValue, 2);
+            
+            return Mathf.Log10(normalizedValue) * 20;
+        }
+        public static float FromDBf(float dbf)
+        {
+            return Mathf.Sqrt(Mathf.Pow(10, dbf / 20));
+            
+        }
+    }
+}
