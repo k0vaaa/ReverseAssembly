@@ -1,6 +1,7 @@
-﻿using UnityEditor;
+﻿using Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor.Resources;
+using UnityEditor;
 
-namespace Invector.vCharacterController
+namespace Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor
 {
     [InitializeOnLoad]
     public class vInvectorStartup

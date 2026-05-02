@@ -5,7 +5,7 @@ using UnityEngine;
 
 #endregion
 
-namespace Bitgem.Editor
+namespace Bitgem.StylisedWater.URP.Scripts.Bitgem.Editor
 {
     [CustomPropertyDrawer(typeof(Core.FlagEnumAttribute))]
     public class EnumFlagsAttributeDrawer : PropertyDrawer

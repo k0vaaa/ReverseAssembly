@@ -1,47 +1,49 @@
-﻿using Invector.vCharacterController;
-using UnityEditor;
+﻿using UnityEditor;
 using UnityEngine;
 
-[CustomEditor(typeof(vThirdPersonMotor), true)]
-public class vCharacterEditor : Editor
+namespace Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor
 {
-    GUISkin skin;
-    SerializedObject character;
-    bool showWindow;
-
-    void OnEnable()
+    [CustomEditor(typeof(vThirdPersonMotor), true)]
+    public class vCharacterEditor : UnityEditor.Editor
     {
-        vThirdPersonMotor motor = (vThirdPersonMotor)target;
-    }
+        GUISkin skin;
+        SerializedObject character;
+        bool showWindow;
 
-    public override void OnInspectorGUI()
-    {
-        if (!skin) skin = Resources.Load("vSkin") as GUISkin;
-        GUI.skin = skin;
-
-        vThirdPersonMotor motor = (vThirdPersonMotor)target;
-
-        if (!motor) return;
-
-        GUILayout.BeginVertical("BASIC CONTROLLER LITE BY Invector", "window");
-
-        GUILayout.Space(30);
-
-        if (GUILayout.Button("Purchase FULL Version"))
+        void OnEnable()
         {
-            Application.OpenURL("https://assetstore.unity.com/publishers/13943");
+            vThirdPersonMotor motor = (vThirdPersonMotor)target;
         }
 
-        EditorGUILayout.Space();
+        public override void OnInspectorGUI()
+        {
+            if (!skin) skin = UnityEngine.Resources.Load("vSkin") as GUISkin;
+            GUI.skin = skin;
 
-        EditorGUILayout.BeginVertical();
+            vThirdPersonMotor motor = (vThirdPersonMotor)target;
 
-        base.OnInspectorGUI();
+            if (!motor) return;
 
-        GUILayout.EndVertical();
-        EditorGUILayout.EndVertical();
+            GUILayout.BeginVertical("BASIC CONTROLLER LITE BY Invector", "window");
 
-        EditorGUILayout.Space();
-        EditorGUILayout.Space();
+            GUILayout.Space(30);
+
+            if (GUILayout.Button("Purchase FULL Version"))
+            {
+                Application.OpenURL("https://assetstore.unity.com/publishers/13943");
+            }
+
+            EditorGUILayout.Space();
+
+            EditorGUILayout.BeginVertical();
+
+            base.OnInspectorGUI();
+
+            GUILayout.EndVertical();
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.Space();
+            EditorGUILayout.Space();
+        }
     }
 }

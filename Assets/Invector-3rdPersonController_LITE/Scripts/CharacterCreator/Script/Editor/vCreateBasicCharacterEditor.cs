@@ -1,9 +1,9 @@
-﻿using UnityEngine;
+﻿using Invector_3rdPersonController_LITE.Scripts.Camera;
+using Invector_3rdPersonController_LITE.Scripts.CharacterController;
 using UnityEditor;
-using UnityEngine.UI;
-using UnityEngine.EventSystems;
+using UnityEngine;
 
-namespace Invector.vCharacterController
+namespace Invector_3rdPersonController_LITE.Scripts.CharacterCreator.Script.Editor
 {
     public class vCreateBasicCharacterEditor : EditorWindow
     {
@@ -14,7 +14,7 @@ namespace Invector.vCharacterController
         public GameObject hud;
         Vector2 rect = new Vector2(500, 540);
         Vector2 scrool;
-        Editor humanoidpreview;
+        UnityEditor.Editor humanoidpreview;
         Texture2D m_Logo;
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace Invector.vCharacterController
             if (charObj)
             {
                 charAnimator = charObj.GetComponent<Animator>();
-                humanoidpreview = Editor.CreateEditor(charObj);
+                humanoidpreview = UnityEditor.Editor.CreateEditor(charObj);
             }
                 
             charExist = charAnimator != null;
@@ -68,7 +68,7 @@ namespace Invector.vCharacterController
             charObj = EditorGUILayout.ObjectField("FBX Model", charObj, typeof(GameObject), true, GUILayout.ExpandWidth(true)) as GameObject;
 
             if (GUI.changed && charObj != null && charObj.GetComponent<vThirdPersonController>() == null)
-                humanoidpreview = Editor.CreateEditor(charObj);
+                humanoidpreview = UnityEditor.Editor.CreateEditor(charObj);
             if (charObj != null && charObj.GetComponent<vThirdPersonController>() != null)
                 EditorGUILayout.HelpBox("This gameObject already contains the component vThirdPersonController", MessageType.Warning);
 
@@ -138,20 +138,20 @@ namespace Invector.vCharacterController
 
             // camera
             GameObject camera = null;
-            if (Camera.main == null)
+            if (UnityEngine.Camera.main == null)
             {
                 var cam = new GameObject("vThirdPersonCamera");
-                cam.AddComponent<Camera>();
+                cam.AddComponent<UnityEngine.Camera>();
                 cam.AddComponent<AudioListener>();
                 camera = cam;
-                camera.GetComponent<Camera>().tag = "MainCamera";
-                camera.GetComponent<Camera>().nearClipPlane = 0.03f;
+                camera.GetComponent<UnityEngine.Camera>().tag = "MainCamera";
+                camera.GetComponent<UnityEngine.Camera>().nearClipPlane = 0.03f;
             }
             else
             {
-                camera = Camera.main.gameObject;
-                camera.GetComponent<Camera>().tag = "MainCamera";
-                camera.GetComponent<Camera>().nearClipPlane = 0.03f;
+                camera = UnityEngine.Camera.main.gameObject;
+                camera.GetComponent<UnityEngine.Camera>().tag = "MainCamera";
+                camera.GetComponent<UnityEngine.Camera>().nearClipPlane = 0.03f;
                 camera.gameObject.name = "vThirdPersonCamera";
             }
             var tpcamera = camera.GetComponent<vThirdPersonCamera>();

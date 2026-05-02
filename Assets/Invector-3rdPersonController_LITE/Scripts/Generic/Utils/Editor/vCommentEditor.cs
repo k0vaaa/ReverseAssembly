@@ -1,10 +1,10 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-namespace Invector.Utils
+namespace Invector_3rdPersonController_LITE.Scripts.Generic.Utils.Editor
 {
     [CustomEditor(typeof(vComment))]
-    public class vCommentEditor : Editor
+    public class vCommentEditor : UnityEditor.Editor
     {
         SerializedProperty inEdit;
         SerializedProperty comment;
