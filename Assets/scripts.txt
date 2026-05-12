@@ -355,6 +355,7 @@ namespace Core.Bootstrap
 
 === Scripts\Core\Bootstrap\Services.cs ===
 ﻿using Core.Audio;
+using Core.Input;
 using Core.Scenes;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -366,6 +367,7 @@ namespace Core.Bootstrap
     {
         [SerializeField] private AudioManager _audioManager;
         [SerializeField] private AudioMixer _mainMixer;
+        private InputManager _inputManager;
         private SceneLoader _sceneLoader;
 
         private void Awake()
@@ -376,6 +378,7 @@ namespace Core.Bootstrap
         private void CreateServices()
         {
             _sceneLoader = new SceneLoader();
+            _inputManager = new InputManager();
         }
     }
 }
@@ -515,14 +518,11 @@ namespace Core.Events
         {
             Type eventType = typeof(T);
 
-            if (_subscribers.ContainsKey(eventType))
+            if (!_subscribers.TryAdd(eventType, callback))
             {
                 _subscribers[eventType] = Delegate.Combine(_subscribers[eventType], callback);
             }
-            else
-            {
-                _subscribers[eventType] = callback;
-            }
+
             return new EventBinding<T>(callback, () => Unsubscribe(callback));
         }
 
@@ -680,6 +680,14 @@ namespace Core.Extensions
     }
 }
 
+=== Scripts\Core\Gameplay\GameplayManager.cs ===
+﻿namespace Core.Gameplay
+{
+    public class GameplayManager
+    {
+    }
+}
+
 === Scripts\Core\Gameplay\LevelManager.cs ===
 ﻿using Core.DI;
 using Core.Input;
@@ -712,17 +720,34 @@ namespace Core.Gameplay
 === Scripts\Core\Input\InputManager.cs ===
 ﻿using System;
 using Core.Bootstrap;
+using UnityEngine;
+using static InputSystemActions;
+using static UnityEngine.InputSystem.InputAction;
 
 namespace Core.Input
 {
     public class InputManager : IInitializable
     {
         private InputSystemActions _inputSystemActions;
-        private InputSystemActions.PlayerActions _playerActions;
-        private InputSystemActions.UIActions _uiActions;
-        
+        private PlayerActions _playerActions;
+        private UIActions _uiActions;
+
         public event Action OnEscapePressed;
+        public event Action OnJumpPressed;
+        public event Action OnRightClick;
         
+        public event Action OnInteractPressed;
+        public event Action OnScannerPressed;
+        public event Action OnBranchTogglePressed;
+
+        public Vector2 MoveInput { get; private set; }
+        public bool SprintInput { get; private set; }
+        public bool MeleeInput { get; private set; }
+        public bool RMBInput { get; private set; }
+
+        //public bool SpellInput { get; private set; }
+        //public bool IsSheathed { get; private set; }
+
         public void Init()
         {
             _inputSystemActions = new InputSystemActions();
@@ -730,14 +755,39 @@ namespace Core.Input
             _uiActions = _inputSystemActions.UI;
             _playerActions.Enable();
             _uiActions.Enable();
+            Subscribe();
+            SubscribePlayerActions();
         }
 
-        public void Subscribe()
+        private void Subscribe()
         {
-            _uiActions.Cancel.performed += ctx => OnEscapePressed?.Invoke();
+            _uiActions.Cancel.performed += _ => OnEscapePressed?.Invoke();
+            
+            _playerActions.Jump.performed += OnJumpPress;
+            _playerActions.RightClick.performed += OnRightClickPress;
+            _playerActions.Interact.performed += ctx => OnInteractPressed?.Invoke();
+            _playerActions.Scanner.performed += ctx => OnScannerPressed?.Invoke();
+            _playerActions.BranchToggle.performed += ctx => OnBranchTogglePressed?.Invoke();
         }
-        
-        
+
+        private void SubscribePlayerActions()
+        {
+            _playerActions.Move.performed += ctx => MoveInput = ctx.ReadValue<Vector2>();
+            _playerActions.Move.canceled += ctx => MoveInput = Vector2.zero;
+            _playerActions.Sprint.performed += ctx => SprintInput = true;
+            _playerActions.Sprint.canceled += ctx => SprintInput = false;
+            _playerActions.Attack.performed += ctx => MeleeInput = true;
+            _playerActions.Attack.canceled += ctx => MeleeInput = false;
+            //_playerActions.Spell.performed += ctx => SpellInput = true;
+            //_playerActions.Spell.canceled += ctx => SpellInput = false;
+            _playerActions.RightClick.performed += ctx => RMBInput = true;
+            _playerActions.RightClick.canceled += ctx => RMBInput = false;
+            //_playerActions.Sheath.performed += ctx => IsSheathed = !IsSheathed;
+        }
+
+        private void OnJumpPress(CallbackContext ctx) => OnJumpPressed?.Invoke();
+        private void OnRightClickPress(CallbackContext ctx) => OnRightClick?.Invoke();
+
         
         public void Dispose()
         {
@@ -846,7 +896,7 @@ namespace Core.Pause
 }
 
 === Scripts\Core\SaveLoad\Interactors\PlayerPrefsInteractor.cs ===
-﻿namespace Core.SaveLoad.Settings
+﻿namespace Core.SaveLoad.Interactors
 {
     public class PlayerPrefsInteractor
     {
@@ -855,9 +905,10 @@ namespace Core.Pause
 }
 
 === Scripts\Core\SaveLoad\Interactors\SettingsInteractor.cs ===
-﻿using Core.SaveLoad.Saveables;
+﻿using Core.SaveLoad.Repos;
+using Core.SaveLoad.Saveables;
 
-namespace Core.SaveLoad.Settings
+namespace Core.SaveLoad.Interactors
 {
     public class SettingsInteractor
     {
@@ -894,6 +945,7 @@ namespace Core.SaveLoad.Settings
 
 === Scripts\Core\SaveLoad\PlayerSaves\PlayerDataInteractor.cs ===
 ﻿using System.Collections.Generic;
+using Core.SaveLoad.Repos;
 using Core.SaveLoad.Saveables;
 
 namespace Core.SaveLoad.PlayerSaves
@@ -956,7 +1008,7 @@ namespace Core.SaveLoad.PlayerSaves
 }
 
 === Scripts\Core\SaveLoad\Repos\IDataRepository.cs ===
-﻿namespace Core.SaveLoad
+﻿namespace Core.SaveLoad.Repos
 {
     public interface IDataRepository
     {
@@ -970,7 +1022,7 @@ namespace Core.SaveLoad.PlayerSaves
 === Scripts\Core\SaveLoad\Repos\IPlayerDataRepository.cs ===
 ﻿using System.Collections.Generic;
 
-namespace Core.SaveLoad
+namespace Core.SaveLoad.Repos
 {
     public interface IPlayerDataRepository : IDataRepository
     {
@@ -987,7 +1039,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-namespace Core.SaveLoad
+namespace Core.SaveLoad.Repos
 {
     public class JsonRepository : IDataRepository
     {
@@ -1144,7 +1196,7 @@ namespace Core.SaveLoad
 === Scripts\Core\SaveLoad\Repos\PlayerPrefsRepository.cs ===
 ﻿using UnityEngine;
 
-namespace Core.SaveLoad
+namespace Core.SaveLoad.Repos
 {
     public class PlayerPrefsRepository : IDataRepository
     {
@@ -1245,12 +1297,52 @@ namespace Core.SaveLoad.Saveables
     
 }
 
+=== Scripts\Core\Scenes\LoadingSceneTrigger.cs ===
+﻿using Core.Bootstrap;
+using Core.DI;
+using UnityEngine;
+
+namespace Core.Scenes
+{
+    public class LoadingSceneTrigger : MonoBehaviour, IInjectable, IInitializable
+    {
+        [Inject] private SceneLoader _sceneLoader;
+
+        public void Init()
+        {
+            _sceneLoader.LoadNextSceneAsync();
+        }
+    }
+}
+
 === Scripts\Core\Scenes\SceneLoader.cs ===
-﻿namespace Core.Scenes
+﻿using UnityEngine;
+using UnityEngine.SceneManagement;
+
+namespace Core.Scenes
 {
     public class SceneLoader
     {
+        public static string NextSceneName;
+
+        // Метод для вызова из других скриптов
+        public void LoadScene(string sceneName)
+        {
+            NextSceneName = sceneName;
+            SceneManager.LoadScene("LoadingScene");
+        }
+
+        // Этот метод будет вызываться самим LoadingSceneManager на сцене загрузки
+        public async void LoadNextSceneAsync()
+        {
+            if (string.IsNullOrEmpty(NextSceneName)) return;
         
+            AsyncOperation operation = SceneManager.LoadSceneAsync(NextSceneName);
+            while (!operation.isDone)
+            {
+                await System.Threading.Tasks.Task.Yield();
+            }
+        }
     }
 }
 
@@ -1400,6 +1492,4390 @@ namespace Core.Utilities
         {
             return Mathf.Sqrt(Mathf.Pow(10, dbf / 20));
             
+        }
+    }
+}
+
+=== Scripts\Gameplay\Anims\PlayerAnimator.cs ===
+﻿using Core.DI;
+using Core.Input;
+using UnityEngine;
+
+namespace Gameplay.Anims
+{
+    public class PlayerAnimator : MonoBehaviour, IInjectable
+    {
+        [Inject] public InputManager InputManager;
+        private static readonly int Attack = Animator.StringToHash("Attack");
+        private static readonly int Spell = Animator.StringToHash("Spell");
+        
+        private static readonly int Walk = Animator.StringToHash("Walk");
+        private static readonly int Run = Animator.StringToHash("Run");
+        private static readonly int Jump = Animator.StringToHash("Jump");
+        private static readonly int Falling = Animator.StringToHash("Falling");
+        private static readonly int Landed = Animator.StringToHash("Landed");
+        private static readonly int Sheath = Animator.StringToHash("Sheath");
+        private static readonly int Withdraw = Animator.StringToHash("Withdraw");
+        private static readonly int IsRMB = Animator.StringToHash("IsRMB");
+        private static readonly int MoveX = Animator.StringToHash("MoveX");
+        private static readonly int MoveY = Animator.StringToHash("MoveY");
+        private static readonly int Death = Animator.StringToHash("Death");
+        
+        private static readonly int Hitted = Animator.StringToHash("Hitted");
+
+        private Animator _animator;
+        
+        private void Awake()
+        {
+            _animator = GetComponent<Animator>();
+        }
+
+        private void Update()
+        {
+            SetRMB();
+            SetBlend();
+        }
+
+        
+        
+        public bool CheckAnimationState(int layerIndex, float time, string stateName) => 
+            _animator.GetCurrentAnimatorStateInfo(layerIndex).normalizedTime >= time && 
+            _animator.GetCurrentAnimatorStateInfo(layerIndex).IsName(stateName);
+        
+        
+        public void DoAttack()
+        {
+            _animator.SetTrigger(Attack);
+        }
+        
+        public void DoSheath()
+        {
+            _animator.SetTrigger(Sheath);
+        }
+        
+        public void DoWithdraw()
+        {
+            _animator.SetTrigger(Withdraw);
+        }
+
+        public void DoSpell()
+        {
+            _animator.SetTrigger(Spell);
+        }
+        
+        public void DoHit()
+        {
+            _animator.SetTrigger(Hitted);
+        }
+        
+        public void DoJump()
+        {
+            _animator.SetTrigger(Jump);
+        }
+        
+        public void DoWalk()
+        {   
+            _animator.SetBool(Run, false);
+            _animator.SetBool(Walk, true);
+        }
+        
+        
+        public void DoRun() 
+        {
+            _animator.SetBool(Walk, false);
+            _animator.SetBool(Run, true);
+        }
+        
+        public void DoIdleMove() 
+        {
+            _animator.SetBool(Walk, false);
+            _animator.SetBool(Run, false);
+        }
+
+        public void DoFalling()
+        {
+            _animator.SetBool(Falling, true);
+        }
+
+        public void DoLanding()
+        {
+            _animator.SetBool(Falling, false);
+            _animator.SetTrigger(Landed);
+        }
+
+        private void SetBlend()
+        {
+            Vector2 moveInput = InputManager.MoveInput;
+            _animator.SetFloat(MoveX, SnapInput(moveInput.x));
+            _animator.SetFloat(MoveY, SnapInput(moveInput.y));
+        }
+        
+        private float SnapInput(float value)
+        {
+            float threshold = 0.5f;
+
+            if (Mathf.Abs(value) > threshold)
+            {
+                return Mathf.Sign(value); // Возвращает -1 или 1
+            }
+            return 0; 
+        }
+
+        private void SetRMB()
+        {
+            bool isRMB = InputManager.RMBInput;
+            _animator.SetBool(IsRMB, isRMB);
+        }
+        public void DoDeath()
+        {
+            _animator.SetTrigger(Death);
+        }
+        
+
+    }
+    public enum LayerNames
+    {
+        Movement = 1,
+        Fight = 2
+    }
+}
+
+=== Scripts\Gameplay\Anims\UpperBodyRotation.cs ===
+using Core.Input;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+
+namespace Gameplay.Anims
+{
+    public class UpperBodyRotation : StateMachineBehaviour
+    {
+        private InputManager _inputManager;
+        private Vector3 _currentLookAtPoint;
+        public float rotationSpeed = 5f;
+        private bool _isInitialized;
+        private float _currentWeight;
+        public float weightSpeed = 2f;
+        private FightController _fightController;
+        private Transform _camera;
+
+        private float _maxArmLength = 0.8f;
+        
+        
+        
+        public override void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
+        {
+            _inputManager = animator.GetComponent<InputManager>();
+            _fightController = animator.GetComponent<FightController>();
+            _isInitialized = false;
+            _camera = Camera.main.transform;
+            Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+            if (head != null)
+            {
+                _currentLookAtPoint = head.position + head.forward * 10f;
+            }
+
+            animator.GetBehaviour<UpperBodyRotation>();
+        }
+
+        public override void OnStateIK(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
+        {
+            Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+            Transform rightShoulder = animator.GetBoneTransform(HumanBodyBones.RightShoulder);
+            if (head == null || rightShoulder == null) return;
+
+            Vector3 LookDirection()
+            {
+                var lookDirection = _camera.forward;
+                //lookDirection.y = Mathf.Clamp(lookDirection.y, -45f, 60f);
+                lookDirection.Normalize();
+                return lookDirection;
+            }
+
+            Vector3 targetLookDirection = LookDirection();
+            Vector3 targetLookAtPoint = _camera.position + targetLookDirection * 100f;
+            
+            _currentLookAtPoint = Vector3.Lerp(_currentLookAtPoint, targetLookAtPoint, Time.deltaTime * rotationSpeed);
+
+            if (_inputManager.RMBInput && _fightController.IsSheathed)
+            {
+                if (!_isInitialized)
+                {
+                    _currentLookAtPoint = targetLookAtPoint;
+                    _isInitialized = true;
+                }
+                _currentWeight = Mathf.Lerp(_currentWeight, 1f, Time.deltaTime * weightSpeed);
+            }
+            else
+            {
+                _currentWeight = Mathf.Lerp(_currentWeight, 0f, Time.deltaTime * weightSpeed * 3f);
+                _isInitialized = false;
+            }
+
+            // Ограничение позиции руки
+            Vector3 constrainedHandPosition = ConstrainHandPosition(rightShoulder.position, _currentLookAtPoint, animator);
+
+            animator.SetIKPosition(AvatarIKGoal.RightHand, constrainedHandPosition);
+            animator.SetIKPositionWeight(AvatarIKGoal.RightHand, _currentWeight);
+
+            animator.SetLookAtPosition(_currentLookAtPoint);
+            animator.SetLookAtWeight(headWeight: _currentWeight, bodyWeight: _currentWeight * 0.25f, weight: _currentWeight);
+            
+        }
+
+        private Vector3 ConstrainHandPosition(Vector3 shoulderPosition, Vector3 targetPosition, Animator animator)
+        {
+            // Ограничение углов
+            Vector3 shoulderToTarget = targetPosition - shoulderPosition;
+            shoulderToTarget.Normalize();
+            Vector3 rightDirection = animator.transform.right; // Направление персонажа
+            rightDirection.Normalize();
+            float angle = Vector3.SignedAngle(rightDirection, shoulderToTarget, animator.transform.up);
+
+            // Ограничиваем угол в диапазоне от -15 до 90 градусов
+            float clampedAngle = Mathf.Clamp(angle, -90f, 15f);
+            
+            Vector3 currentDirection = (targetPosition - shoulderPosition).normalized;
+            Vector3 constrainedDirection = Vector3.RotateTowards(rightDirection, -currentDirection, clampedAngle * Mathf.Deg2Rad, 0f);
+            constrainedDirection = Vector3.Lerp(constrainedDirection, currentDirection, Time.deltaTime * rotationSpeed);
+
+            
+            Vector3 constrainedPosition = shoulderPosition + constrainedDirection * _maxArmLength;
+
+            return constrainedPosition;
+        }
+    }
+}
+
+=== Scripts\Gameplay\Bootstrap\GameplayBootstrap.cs ===
+﻿using Core.DI;
+using Core.Gameplay;
+using Core.Input;
+using Core.SaveLoad.Interactors;
+using Core.SaveLoad.PlayerSaves;
+using Core.UI;
+using Gameplay.Combat.Health;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Controllers.Player;
+using Gameplay.Enemies;
+using Gameplay.UI.Views.Gameplay;
+using Unity.VisualScripting;
+using UnityEngine;
+
+namespace Gameplay.Bootstrap
+{
+    public class GameplayBootstrap : MonoBehaviour,IInjectable,IInitializable
+    {
+        [Header("Player")]
+        [SerializeField] private Transform _playerSpawnPoint;
+        [SerializeField] private GameObject _playerPrefab;
+        [SerializeField] private Camera _camera;
+        [SerializeField] private CooldownView _cooldownView;
+        [SerializeField] private StabilityBarView _stabilityBarView;
+        [Inject] private InputManager _inputManager;
+        [Inject] private PlayerDataInteractor _playerDataInteractor;
+        [Inject] private SettingsInteractor _settingsInteractor;
+        [Inject] private ViewManager _viewManager;
+        private GameObject _player;
+        private StabilitySystem _playerStabilitySystem;
+  
+
+
+        [Header("Enemies")]
+        [SerializeField] private GameObject[] _enemies;
+        [SerializeField] private Vector2 _enemiesSpawnAreaExtents;
+        [SerializeField] private int _enemiesCount;
+        [SerializeField] private Transform _enemiesSpawnPoint;
+       
+
+        [Header("Boss")]
+        [SerializeField] private GameObject _boss;
+        [SerializeField] private Vector3 _bossSpawnPoint;
+        
+
+        public void Initialize()
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+            //var uiManager = new GameplayUIManager(_playerDataInteractor, viewManager);
+            SetUpPlayer();
+            var skillsController = _player.GetComponent<SkillsController>();
+            skillsController.Init(_camera);
+            _cooldownView.SetMeleeListener(() =>
+                _cooldownView.SetMeleeFillAmount(skillsController.Skills[SkillType.Melee].GetReadyPercent()));
+            _cooldownView.SetSpellListener(() =>
+                _cooldownView.SetSpellFillAmount(skillsController.Skills[SkillType.Fireball].GetReadyPercent()));
+            _bossSpawnPoint = new Vector3(323.6f,261.71f, -103.5f);
+            
+            var enemyManager = new EnemyManager(_settingsInteractor,
+                _enemiesSpawnAreaExtents,
+                _enemies,
+                _enemiesSpawnPoint.position,
+                _enemiesCount,
+                _boss, _bossSpawnPoint,_player.GetComponent<CharacterController>());
+            //gameplayManager.Init(_inputManager, _playerStabilitySystem, viewManager, _playerDataInteractor, enemyManager);
+            enemyManager.LoadEnemies(_playerDataInteractor.CurrentSave.Enemies); // Восстанавливаем врагов
+            
+        }
+        
+        
+        private void SetUpPlayer()
+        {   
+            Debug.Log(_playerDataInteractor.CurrentSave.Position);
+            _player = Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
+            Debug.Log(_player.transform.position);
+            _playerStabilitySystem = _player.GetComponent<StabilitySystem>();
+            // healthBarView.Init(_playerHealthSystem.onHealthChanged);
+            _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeHp);
+            _playerStabilitySystem.Init(1);
+            _player.GetComponent<MovementController>().Init(_camera);
+            _playerStabilitySystem.SetStability(_playerDataInteractor.CurrentSave.Health);
+      
+            if (_playerDataInteractor.CurrentSave.Position == default) return;
+            //_player.transform.position = _playerDataInteractor.CurrentSave.Position;
+            /*Vector3 position = _playerDataInteractor.CurrentSave.Position;
+            position.y += 3f;
+            _player.transform.position = position;*/
+            Debug.Log(_player.transform.position);
+            Invoke(nameof(SetPos),.05f);
+            Invoke(nameof(LogPos), 1f);
+        }
+
+        private void LogPos()
+        {
+            Debug.Log(_player.transform.position);
+        }
+        
+        private void SetPos()
+        {
+            _player.transform.position = _playerDataInteractor.CurrentSave.Position;
+        }
+        
+    }
+}
+
+=== Scripts\Gameplay\Bootstrap\MainMenuBootstrap.cs ===
+﻿using Core.Bootstrap;
+using Core.DI;
+using Core.SaveLoad.Interactors;
+using Core.SaveLoad.PlayerSaves;
+using Core.SaveLoad.Saveables;
+using Core.Scenes;
+using Core.UI;
+using Gameplay.UI.Views.MainMenu;
+using UnityEngine;
+
+namespace Gameplay.Bootstrap
+{
+    public class MainMenuBootstrap : MonoBehaviour, IInjectable, IInitializable
+    {
+        [Inject] private ViewManager _viewManager;
+        [Inject] private SettingsInteractor _settingsInteractor;
+        [Inject] private PlayerDataInteractor _playerDataInteractor;
+        [Inject] private SceneLoader _sceneLoader;
+
+        public void Init()
+        {
+            InitializeSettings();
+            BindMenuButtons();
+        }
+
+        private void InitializeSettings()
+        {
+            if (!_settingsInteractor.HasSettings())
+            {
+                _settingsInteractor.SaveSettings(new GameSettings());
+            }
+        }
+
+        private void BindMenuButtons()
+        {
+            var mainMenuView = _viewManager.GetView<MainMenuView>();
+            var settingsView = _viewManager.GetView<SettingsView>();
+            var loadView = _viewManager.GetView<LoadGameView>();
+
+            // Кнопки главного меню
+            mainMenuView.SetNewGameAction(() =>
+            {
+                _playerDataInteractor.StartNewGame();
+                _sceneLoader.LoadScene("GameScene"); // Укажите имя вашей игровой сцены
+            });
+
+            mainMenuView.SetResumeAction(() =>
+            {
+                if (_playerDataInteractor.HasPlayerData())
+                {
+                    _playerDataInteractor.LoadLatestPlayerData();
+                    _sceneLoader.LoadScene("GameScene");
+                }
+                else
+                {
+                    _playerDataInteractor.StartNewGame();
+                    _sceneLoader.LoadScene("GameScene");
+                }
+            });
+
+            mainMenuView.SetSettingsAction(() => _viewManager.SwitchViews(mainMenuView, settingsView));
+        
+            mainMenuView.SetLoadAction(() =>
+            {
+                _viewManager.SwitchViews(mainMenuView, loadView);
+                loadView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), (timestamp) =>
+                {
+                    _playerDataInteractor.LoadByTimestamp(timestamp);
+                    _sceneLoader.LoadScene("GameScene");
+                });
+            });
+
+            // Кнопка возврата из меню загрузки
+            loadView.SetBackButtonListener(() => _viewManager.SwitchViews(loadView, mainMenuView));
+        }
+    }
+}
+
+=== Scripts\Gameplay\Combat\Health\StabilitySystem.cs ===
+// using System;
+// using Controllers.Entities.HealthController.Interfaces;
+// using Enemy;
+// using UnityEngine;
+// using UnityEngine.Events;
+// using Weapons;
+// using Weapons.Base;
+//
+// namespace Controllers.Entities.HealthController
+// {
+//     public class HealthSystem : MonoBehaviour, IDamageable, IHealthChange, IHittable, IKillable
+//     {
+//         private EnemyController enemyController;
+//         private BossController bossController;
+//
+//         public void Awake()
+//         {
+//             enemyController = GetComponent<EnemyController>();
+//             bossController = GetComponent<BossController>();
+//             
+//         }
+//
+//         public float Health
+//         {
+//             get => _health;
+//             set
+//             {
+//                 _health = value;
+//                 onHealthChanged?.Invoke(_health,MaxHealth);
+//             }
+//         }
+//
+//         public float MaxHealth { get; private set; } = 100f;
+//         
+//         public UnityEvent<float, float> onHealthChanged { get; } = new();
+//         public UnityEvent<bool> onDeath { get; } = new();
+//         public UnityEvent onHit { get; } = new();
+//         [SerializeField] private float _health;
+//
+//         public void Init(float healthMultiplier)
+//         {
+//             MaxHealth *= healthMultiplier;
+//             SetHealthToMax();
+//         }
+//
+//         private void SetHealthToMax()
+//         {
+//             Health = MaxHealth;
+//         }
+//         
+//         public void SetHealth(float health)
+//         {
+//             Health = health;
+//         }
+//
+//         public void TakeDamage(Damage damage)
+//         {   
+//             if (Health - damage.Value <= 0)
+//             {   
+//                 
+//                 if(enemyController){enemyController.isDead = true;}
+//                 else if(bossController){bossController.isDead = true;}
+//                 
+//                 Health = 0;
+//                 onDeath?.Invoke(true);
+//             }
+//             else
+//             {
+//                 Health -= damage.Value;
+//                 onHit?.Invoke();
+//             }
+//         }
+//  
+//     }
+//
+//     public interface IKillable
+//     {
+//         public UnityEvent<bool> onDeath { get; }
+//     }
+// }
+//
+//
+
+using Core.Events;
+using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Events;
+using UnityEngine;
+using UnityEngine.Events;
+
+namespace Gameplay.Combat.Health
+{
+    public class StabilitySystem : MonoBehaviour, IDamageable, IHealthChange, IHittable, IKillable
+    {
+        private ICharacterController _controller;
+
+        public float Stability
+        {
+            get => _stability;
+            private set
+            {
+                _stability = value;
+                onStabilityChanged?.Invoke(_stability, MaxStability);
+                if (_controller == null)
+                {
+                    EventBus.Raise(new PlayerStabilityChangedEvent()
+                    {
+                        IsGlitched = false,
+                        StabilityPercent = _stability / MaxStability
+                    });
+                }
+            }
+        }
+
+        public float MaxStability { get; private set; } = 100f;
+
+        public UnityEvent<float, float> onStabilityChanged { get; } = new();
+
+        public UnityEvent<bool> OnDeath { get; } = new();
+
+        public UnityEvent onHit { get; } = new();
+
+        [SerializeField] private float _stability;
+
+        public void Awake()
+        {
+            _controller = GetComponent<ICharacterController>();
+        }
+
+        public void Init(float stabilityMultiplier)
+        {
+            MaxStability *= stabilityMultiplier;
+            SetStabilityToMax();
+        }
+
+        private void SetStabilityToMax()
+        {
+            Stability = MaxStability;
+        }
+
+        public void SetStability(float stability)
+        {
+            Stability = stability;
+        }
+
+        public void TakeDamage(Damage damage)
+        {
+            if (Stability - damage.Value <= 0)
+            {
+                if (_controller != null)
+                {
+                    _controller.isDead = true;
+                }
+
+                Stability = 0;
+                OnDeath?.Invoke(true);
+            }
+            else
+            {
+                Stability -= damage.Value;
+                onHit?.Invoke();
+            }
+        }
+
+        public void Die()
+        {
+            
+        }
+    }
+
+}
+
+=== Scripts\Gameplay\Combat\Interfaces\ICharacterController.cs ===
+﻿using Gameplay.Combat.Health;
+using UnityEngine;
+
+namespace Gameplay.Combat.Interfaces
+{
+    public interface ICharacterController
+    {
+        
+        bool isDead { get; set; }
+        string UniqueId { get; set; } // Если UniqueId используется
+        int PrefabIndex { get; set; } // Если PrefabIndex используется
+        Transform transform { get; } // Для доступа к позиции
+        GameObject gameObject { get; } // Для уничтожения объекта
+        StabilitySystem GetComponent<T>() where T : Component; // Для доступа к компонентам
+        T GetComponentInChildren<T>() where T : Component; // Для доступа к компонентам в дочерних объектах
+
+        void Init(bool isPeaceful);
+    }
+}
+
+=== Scripts\Gameplay\Combat\Interfaces\IDamageable.cs ===
+﻿using Gameplay.Combat.Offensive;
+using Gameplay.Combat.Offensive.Base;
+
+namespace Gameplay.Combat.Interfaces
+{
+    public interface IDamageable
+    {
+        void TakeDamage(Damage damage);
+    }
+}
+
+=== Scripts\Gameplay\Combat\Interfaces\IHealthChange.cs ===
+﻿using UnityEngine.Events;
+
+namespace Gameplay.Combat.Interfaces
+{
+    public interface IHealthChange
+    {
+        public UnityEvent<float, float> onStabilityChanged {get;}
+    }
+}
+
+=== Scripts\Gameplay\Combat\Interfaces\IHittable.cs ===
+﻿using UnityEngine.Events;
+
+namespace Gameplay.Combat.Interfaces
+{
+    public interface IHittable
+    {
+        public UnityEvent onHit { get; }
+    }
+}
+
+=== Scripts\Gameplay\Combat\Interfaces\IKillable.cs ===
+﻿using UnityEngine.Events;
+
+namespace Gameplay.Combat.Interfaces
+{
+    public interface IKillable
+    {
+        public void Die();
+        public UnityEvent<bool> OnDeath { get;}
+    }
+}
+
+=== Scripts\Gameplay\Combat\Interfaces\IStabilityChange.cs ===
+﻿using UnityEngine.Events;
+
+namespace Gameplay.Combat.Interfaces
+{
+    public interface IStabilityChange
+    {
+        public UnityEvent<float, float> OnStabilityChanged {get;}
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\Base\Damage.cs ===
+﻿using System;
+
+namespace Gameplay.Combat.Offensive.Base
+{
+    [Serializable] public struct Damage
+    {
+        public float Value;
+        public DamageType Type;
+
+
+        public Damage(DamageType type, float value)
+        {
+            Type = type;
+            Value = value;
+        }
+    }
+    
+    [Serializable] public enum DamageType
+    {
+        Physic,
+        Magic
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\Base\IDamaging.cs ===
+﻿using Gameplay.Combat.Interfaces;
+
+namespace Gameplay.Combat.Offensive.Base
+{
+    public interface IDamaging
+    {
+        void DoDamage(IDamageable damageable);
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\Base\ISkill.cs ===
+﻿namespace Gameplay.Combat.Offensive.Base
+{
+    public interface ISkill
+    {
+        public bool _isReady { get;}
+        float GetReadyPercent();
+        void Cast();
+        void Tick();
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\Base\Skill.cs ===
+﻿using Gameplay.Combat.Offensive.ScriptableObjects;
+using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.Base
+{
+    public abstract class Skill : ISkill
+    {
+        private SkillData SkillData;
+        public SkillType SkillType { get; private set; }
+        public Damage Damage { get; private set; }
+        private float _cooldownTime;
+        private float timeUntilReady { get; set; } = 0f;
+        public bool _isReady { get; private set; }
+
+        protected Skill(SkillData skillData)
+        {
+            Damage = skillData.damage;
+            SkillData = skillData;
+            SkillType = SkillData.skillType;
+            _cooldownTime = SkillData.cooldownTime;
+        }
+
+        private void CheckCooldown()
+        {
+            if (timeUntilReady <= 0)
+            {
+                _isReady = true;
+                timeUntilReady = 0;
+            }
+            else
+            {
+                _isReady = false;
+                timeUntilReady -= Time.deltaTime;
+            }
+        }
+
+        public float GetReadyPercent() => Mathf.Clamp(timeUntilReady / _cooldownTime,0f,1f);
+       
+
+        public void Tick()
+        {
+            CheckCooldown();
+        }
+
+
+        public virtual void Cast()
+        {
+            if(!_isReady) return;
+            timeUntilReady = _cooldownTime;
+            
+        }
+    }
+
+    public enum SkillType
+    {   
+        Melee,
+        Fireball,
+        Punch,
+        Heavy,
+        Meteor
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\Collision\AOESpell.cs ===
+﻿using System.Collections;
+using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.Collision
+{
+    public class AOESpell : MonoBehaviour, IDamaging
+    {
+        private Damage _damage;
+        private IDamageable _self;
+        private IDamageable _damageable;
+
+        public void Init(Damage damage, IDamageable self)
+        {
+            _damage = damage;
+            _self = self;
+        }
+        public void DoDamage(IDamageable damageable)
+        {
+            damageable.TakeDamage(_damage);
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            _damageable = other.gameObject.GetComponent<IDamageable>();
+            if (_damageable == null) return;
+            if (_damageable == _self) return;
+            
+            
+            
+            InvokeRepeating(nameof(DamageRepeating), 1f, 1f);
+
+        }
+        
+        private void DamageRepeating() => DoDamage(_damageable);
+
+        private void OnTriggerExit(Collider other)
+        {
+            _damageable = other.gameObject.GetComponent<IDamageable>();
+            if (_damageable == null) return;
+            if (_damageable == _self) return;
+            
+            CancelInvoke(nameof(DamageRepeating));
+        }
+        
+        public IEnumerator Ttl()
+        {
+            yield return new WaitForSeconds(5f);
+            Destroy(gameObject);
+        }
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\Collision\Projectile.cs ===
+﻿using System.Collections;
+using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.Collision
+{
+    public class Projectile : MonoBehaviour, IDamaging
+    {
+        private Damage _damage;
+        private IDamageable _self;
+
+        public void Init(Damage damage, IDamageable self)
+        {
+            _damage = damage;
+            _self = self;
+        }
+
+        public void DoDamage(IDamageable damageable)
+        {
+            damageable.TakeDamage(_damage);
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            IDamageable damageable = other.gameObject.GetComponent<IDamageable>();
+            if (damageable == null) return;
+            if (damageable == _self) return;
+            DoDamage(damageable);
+            Destroy(gameObject);
+        }
+
+        public IEnumerator Ttl()
+        {
+            yield return new WaitForSeconds(3f);
+            Destroy(gameObject);
+        }
+        
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\Collision\Sword.cs ===
+﻿using System.Collections.Generic;
+using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.Collision
+{
+    public class Sword : MonoBehaviour, IDamaging
+    {
+        private Damage _damage;
+        private IDamageable _self;
+        private List<IDamageable> _enemies = new();
+
+        public void Init(IDamageable self, Damage damage)
+        {
+            _self = self;
+            _damage = damage;
+        }
+
+        public void DoDamage(IDamageable damageable)
+        {
+            damageable.TakeDamage(_damage);
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            print($"Hit made by {_self}");
+            IDamageable damageable = other.gameObject.GetComponent<IDamageable>();
+            if (damageable == null) return;
+            if (damageable == _self) return;
+            print($"Hit Happened on {damageable}");
+            if (_enemies.Contains(damageable)) return;
+            print("Does Damage");
+            DoDamage(damageable);
+            _enemies.Add(damageable);
+        }
+
+        public void ClearEnemiesList()
+        {
+            _enemies.Clear();
+        }
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\ScriptableObjects\SkillData.cs ===
+﻿using Gameplay.Combat.Offensive.Base;
+using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.ScriptableObjects
+{
+    [CreateAssetMenu(fileName = "SkillData", menuName = "Skills/SkillData")]
+    public class SkillData : ScriptableObject
+    {
+        public SkillType skillType;
+        public string skillName;
+        public float cooldownTime;
+        public Sprite sprite;
+        public Damage damage;
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\ScriptableObjects\SkillEntry.cs ===
+﻿using System;
+using Gameplay.Combat.Offensive.Base;
+using UnityEditor;
+using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.ScriptableObjects
+{
+    [Serializable]
+    public class SkillEntry
+    {
+        [SerializeField] private MonoScript _skillClass;
+        [SerializeField] private SkillData _skillData;
+        
+        public SkillData SkillData => _skillData;
+        public Type SkillClass
+        {
+            get
+            {
+                if (_skillClass != null && typeof(ISkill).IsAssignableFrom(_skillClass.GetClass()))
+                {
+                    return _skillClass.GetClass();
+                }
+                throw new ArgumentException("Invalid skill script");
+            }
+        }
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\ScriptableObjects\SkillsArray.cs ===
+﻿using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.ScriptableObjects
+{
+    [CreateAssetMenu(menuName = "Skills/SkillsArray", fileName = "SkillsArray")]
+    public class SkillsArray : ScriptableObject
+    {
+        public SkillEntry[] skillEntries;
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\ScriptableObjects\SpellSkillData.cs ===
+﻿using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.ScriptableObjects
+{
+    [CreateAssetMenu(fileName = "SkillData", menuName = "Skills/SpellSkillData")]
+    public class SpellSkillData : SkillData
+    {
+        public GameObject _projectilePrefab;
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\Skills\HeavyAttack.cs ===
+﻿using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.Collision;
+using Gameplay.Combat.Offensive.ScriptableObjects;
+using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.Skills
+{
+    public class HeavyAttack : Skill
+    {
+        private readonly Sword _sword;
+
+        public HeavyAttack(SkillData skillData, Transform a, Transform b, GameObject sword, IDamageable self) : base(skillData)
+        {
+            _sword = sword.AddComponent<Sword>();
+            _sword.Init(self,skillData.damage);
+        }
+
+        public override void Cast()
+        {
+            base.Cast();
+            _sword.ClearEnemiesList();
+        }
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\Skills\MeleeSkill.cs ===
+﻿using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.Collision;
+using Gameplay.Combat.Offensive.ScriptableObjects;
+using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.Skills
+{
+    public class MeleeSkill : Skill
+    {
+        private Sword _sword;
+        public MeleeSkill(SkillData skillData, Transform a, Transform b, GameObject sword, IDamageable self) : base(skillData)
+        {
+            _sword = sword.AddComponent<Sword>();
+            _sword.Init(self,skillData.damage);
+        }
+
+        public override void Cast()
+        {
+            base.Cast();
+            _sword.ClearEnemiesList();
+        }
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\Skills\MeteorRain.cs ===
+﻿using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.Collision;
+using Gameplay.Combat.Offensive.ScriptableObjects;
+using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.Skills
+{
+    public class MeteorRain : Skill
+    {
+        private readonly Transform _caster;
+        private Transform _castPoint;
+        private GameObject _prefab;
+        private SpellSkillData _spellSkillData;
+
+        public MeteorRain(SkillData skillData,Transform castPoint, Transform caster, GameObject sword, IDamageable damageable) : base(skillData)
+        {
+            _caster = caster;
+            _spellSkillData = (SpellSkillData)skillData;
+            _prefab = _spellSkillData._projectilePrefab;
+        }
+
+        public override void Cast()
+        {
+            base.Cast();
+            _castPoint = GameObject.FindGameObjectWithTag("Player").transform;
+            var spell = Object.Instantiate(_prefab, _castPoint.position, Quaternion.identity).GetComponent<AOESpell>();
+            spell.Init(_spellSkillData.damage, _caster.GetComponent<IDamageable>());
+            spell.StartCoroutine(spell.Ttl());
+
+        }
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\Skills\PunchSkill.cs ===
+﻿using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.Collision;
+using Gameplay.Combat.Offensive.ScriptableObjects;
+using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.Skills
+{
+    public class PunchSkill : Skill
+    {
+        private readonly Sword _sword;
+
+        public PunchSkill(SkillData skillData, Transform a, Transform b, GameObject sword, IDamageable self) :
+            base(skillData)
+        {
+            _sword = sword.AddComponent<Sword>();
+            _sword.Init(self,skillData.damage);
+        }
+
+        public override void Cast()
+        {
+            base.Cast();
+            _sword.ClearEnemiesList();
+        }
+    }
+}
+
+=== Scripts\Gameplay\Combat\Offensive\Skills\SpellSkill.cs ===
+﻿using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.Collision;
+using Gameplay.Combat.Offensive.ScriptableObjects;
+using UnityEngine;
+
+namespace Gameplay.Combat.Offensive.Skills
+{
+    public class SpellSkill : Skill
+    {
+        private readonly GameObject _spellProjectile;
+        private readonly Transform _castPoint;
+        private readonly Transform _caster;
+
+
+        public SpellSkill(SkillData skillData,Transform castPoint, Transform caster, GameObject sword, IDamageable damageable) : base(skillData)
+        {
+            var _skillData = (SpellSkillData)skillData;
+            _spellProjectile = _skillData._projectilePrefab;
+            _castPoint = castPoint;
+            _caster = caster;
+        }
+
+        public override void Cast()
+        {
+            base.Cast();
+            var obj = Object.Instantiate(_spellProjectile,_castPoint.position, Quaternion.identity);
+            var proj = obj.AddComponent<Projectile>();
+            proj.Init(Damage, _castPoint.GetComponentInParent<IDamageable>());
+            var rb = obj.GetComponent<Rigidbody>();
+            int layerMask = ~LayerMask.GetMask(_castPoint.gameObject.tag);
+            Physics.Raycast(_castPoint.position, _caster.forward, out RaycastHit hit, 1000f,layerMask);
+            Vector3 castDir =  hit.point - _castPoint.position;
+            rb.AddForce(castDir.normalized * 1000f);
+            proj.StartCoroutine(proj.Ttl());
+        }
+
+        public void CastPlug()
+        {
+            base.Cast();
+        }
+    }
+}
+
+=== Scripts\Gameplay\Controllers\Player\FightController.cs ===
+﻿using Core.DI;
+using Core.Input;
+using Gameplay.Anims;
+using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.StateMachines;
+using Gameplay.StateMachines.PlayerStates.FightStates;
+using UnityEngine;
+
+namespace Gameplay.Controllers.Player
+{
+    public class FightController : MonoBehaviour, IInjectable
+    {
+        private StateMachine _fightStateMachine;
+        private PlayerAnimator _playerAnimator;
+        private SkillsController _skillsController;
+        [Inject] private InputManager _inputManager;
+
+        [HideInInspector] public bool IsSheathed;
+
+        [SerializeField] public GameObject swordGameObject;
+        [SerializeField] public GameObject hipSwordGameObject;
+        //public Sword Sword { get; private set; }
+        public Collider SwordCollider { get; private set; }
+
+
+        private void Awake()
+        {
+            
+            _fightStateMachine = new StateMachine();
+            _skillsController = GetComponent<SkillsController>();
+            _playerAnimator = GetComponent<PlayerAnimator>();
+            gameObject.GetComponent<IHittable>().onHit.AddListener(_playerAnimator.DoHit);
+            SwordCollider = swordGameObject.GetComponent<BoxCollider>();
+        }
+        
+
+        private void Start()
+        {
+            AttackStatesInit();
+        }
+
+        private void Update()
+        {
+            _fightStateMachine.Tick();
+        }
+        
+        private void AttackStatesInit()
+        {
+            var attackState = new AttackState(this,_skillsController, _playerAnimator);
+            var spellState = new SpellState(this,_skillsController, _playerAnimator);
+            var idleAttackState = new IdleAttackState(this, _skillsController, _playerAnimator);
+            var sheathState = new SheathedSwordState(this,_skillsController,_playerAnimator);
+
+
+            bool MeleeAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight,0.99f,"Attack");
+            bool SpellAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight,0.99f,"Spell");
+            bool SheathAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight,0.99f,"Sheath");
+
+            
+            //_fightStateMachine.AddTransition(idleAttackState,sheathState, () => _inputManager.IsSheathed);
+            //_fightStateMachine.AddTransition(sheathState,idleAttackState, () => !_inputManager.IsSheathed);
+            
+            _fightStateMachine.AddTransition(idleAttackState,attackState, () => _inputManager.MeleeInput && _skillsController.Skills[SkillType.Melee]._isReady);
+            _fightStateMachine.AddTransition(attackState,idleAttackState, MeleeAnimationEnded);
+            
+            //_fightStateMachine.AddTransition(sheathState,spellState, () => _inputManager.RMBInput && _inputManager.SpellInput && _skillsController.Skills[SkillType.Fireball]._isReady);
+            _fightStateMachine.AddTransition(spellState,sheathState, SpellAnimationEnded);
+            
+            _fightStateMachine.SetState(idleAttackState);
+            
+        }
+
+        
+    }
+}
+
+=== Scripts\Gameplay\Controllers\Player\MovementController.cs ===
+﻿using Core.DI;
+using Core.Input;
+using Gameplay.Anims;
+using Gameplay.Combat.Interfaces;
+using Gameplay.StateMachines;
+using Gameplay.StateMachines.PlayerStates.MoveStates;
+using UnityEngine;
+
+namespace Gameplay.Controllers.Player
+{
+    public class MovementController : MonoBehaviour, IInjectable
+    {
+        [Inject] private InputManager _inputManager;
+        private StateMachine _moveStateMachine;
+        private PlayerAnimator _playerAnimator;
+        private CharacterController _controller;
+        [SerializeField] private Transform _spine;
+        private Camera _camera;
+
+
+        public bool IsGrounded { get; private set; }
+
+        [SerializeField] public float moveSpeed = 2f;
+        [SerializeField] public float runSpeed = 2f;
+        [SerializeField] private float _velocityVertical = 0f;
+        [SerializeField] private float _jumpForce;
+        [SerializeField] private float _rotationSpeed = 1f;
+        private float _groundCheckDistance;
+        private bool _death;
+        private Vector3 _inertialMoveDirection;
+
+
+        [Header("Controller")]
+        [SerializeField]
+        private Transform _foot;
+
+        [SerializeField] private Transform _head;
+        [SerializeField] private Transform _root;
+
+
+        private void Awake()
+        {
+            _moveStateMachine = new StateMachine();
+            _playerAnimator = GetComponent<PlayerAnimator>();
+            _controller = GetComponent<CharacterController>();
+        }
+
+        public void Init(Camera camera)
+        {
+            _camera = camera;
+        }
+
+        private void Start()
+        {
+            _groundCheckDistance = (_controller.height / 2) + .1f;
+
+            MoveStatesInit();
+        }
+
+        private void Update()
+        {
+            _moveStateMachine.Tick();
+            //SetControllerParams();
+            Rotate();
+            ApplyGravity();
+            CheckGround();
+        }
+
+        private void MoveStatesInit()
+        {
+            var idleState = new IdleState(this, _playerAnimator);
+            var jumpingState = new JumpingState(this, _playerAnimator);
+            var walkingState = new WalkingState(this, _playerAnimator);
+            var sprintingState = new SprintingState(this, _playerAnimator);
+            var fallingState = new FallingState(this, _playerAnimator);
+            var deathState = new DeathState(this, _playerAnimator);
+            gameObject.GetComponent<IKillable>().OnDeath.AddListener(value => _death = value);
+
+            _moveStateMachine.AddTransition(idleState, walkingState, () => _inputManager.MoveInput != Vector2.zero);
+            _moveStateMachine.AddTransition(idleState, sprintingState, () => _inputManager.SprintInput);
+            _moveStateMachine.AddTransition(walkingState, idleState, () => _inputManager.MoveInput == Vector2.zero);
+            _moveStateMachine.AddTransition(walkingState, sprintingState, () => _inputManager.SprintInput);
+            _moveStateMachine.AddTransition(walkingState, fallingState, () => !IsGrounded);
+            _moveStateMachine.AddTransition(sprintingState, walkingState, () => !_inputManager.SprintInput);
+            _moveStateMachine.AddTransition(sprintingState, fallingState, () => !IsGrounded);
+            _moveStateMachine.AddTransition(jumpingState, fallingState, () => !IsGrounded);
+            _moveStateMachine.AddTransition(fallingState, idleState, () => IsGrounded);
+            _moveStateMachine.AddAntiState(fallingState, jumpingState);
+
+            void HandleJump()
+            {
+                if (IsGrounded)
+                {
+                    _moveStateMachine.SetState(jumpingState);
+                }
+            }
+
+            _inputManager.OnJumpPressed += HandleJump;
+            _moveStateMachine.AddAnyTransition(deathState, () => _death);
+
+            _moveStateMachine.SetState(idleState);
+        }
+
+        private void ApplyGravity()
+        {
+            if (!_controller.isGrounded)
+            {
+                _velocityVertical -= 15f * Time.deltaTime;
+                _controller.Move(Vector3.up * (_velocityVertical * Time.deltaTime));
+            }
+            else
+            {
+                _velocityVertical = 0;
+            }
+        }
+
+        private void Rotate()
+        {
+            if (!_camera) return;
+            Vector3 forwardDirection = _camera.transform.forward;
+            Vector3 rightDirection = _camera.transform.right;
+            forwardDirection.y = 0;
+            rightDirection.y = 0;
+            if (_inputManager.RMBInput)
+            {
+                Quaternion desiredRotation =
+                    Quaternion.LookRotation(forwardDirection, Vector3.up) * Quaternion.Euler(0, 30f, 0);
+                transform.rotation =
+                    Quaternion.Slerp(transform.rotation, desiredRotation, _rotationSpeed * Time.deltaTime);
+            }
+            else if (_inputManager.MoveInput != Vector2.zero)
+            {
+                Vector3 moveDirection = forwardDirection.normalized * _inputManager.MoveInput.y +
+                                        rightDirection.normalized * _inputManager.MoveInput.x;
+                Quaternion desiredRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
+                transform.rotation =
+                    Quaternion.Slerp(transform.rotation, desiredRotation, _rotationSpeed * Time.deltaTime);
+            }
+        }
+
+
+        public void Move()
+        {
+            Vector3 forwardDirection = _camera.transform.forward;
+            Vector3 rightDirection = _camera.transform.right;
+            forwardDirection.y = 0;
+            rightDirection.y = 0;
+            Vector3 moveDirection = forwardDirection.normalized * _inputManager.MoveInput.y +
+                                    rightDirection.normalized * _inputManager.MoveInput.x;
+            _inertialMoveDirection = moveDirection;
+
+            _controller.Move(moveDirection * (Time.deltaTime * moveSpeed));
+        }
+
+        public void InertialMove()
+        {
+            _controller.Move(_inertialMoveDirection * (Time.deltaTime * moveSpeed));
+        }
+
+        public void Jump()
+        {
+            _velocityVertical = _jumpForce;
+            _controller.Move(Vector3.up * (_velocityVertical * Time.deltaTime));
+        }
+
+        private void SetControllerParams()
+        {
+            var size = _head.position.y - _foot.position.y;
+            _controller.height = size + .4f;
+            _controller.center = _root.localPosition;
+        }
+
+
+        private void CheckGround()
+        {
+            IsGrounded = Physics.Raycast(transform.position, Vector3.down, _groundCheckDistance,
+                LayerMask.GetMask("Ground"));
+        }
+    }
+}
+
+=== Scripts\Gameplay\Controllers\Player\PlayerGlitchController.cs ===
+﻿using System;
+using Core.Bootstrap;
+using Core.DI;
+using Core.Events;
+using Gameplay.Events;
+using UnityEngine;
+
+namespace Gameplay.Controllers.Player
+{
+    public class PlayerGlitchController : MonoBehaviour, IInjectable, IInitializable, IDisposable
+    {
+        [Header("Visuals")]
+        [SerializeField] private SkinnedMeshRenderer _playerRenderer;
+        
+        // Переменные для кеширования
+        private Material _playerMaterial;
+        public bool IsCriticallyGlitched { get; private set; } // Читается в стейт-машине
+
+        public void Init()
+        {
+            if (_playerRenderer != null)
+            {
+                _playerMaterial = _playerRenderer.material;
+            }
+            
+            EventBus.Subscribe<PlayerStabilityChangedEvent>(OnStabilityChanged);
+        }
+
+        private void OnStabilityChanged(PlayerStabilityChangedEvent eventData)
+        {
+            IsCriticallyGlitched = eventData.IsGlitched;
+
+            // Обновляем материал (Шейдер должен иметь свойство _GlitchIntensity)
+            if (_playerMaterial != null)
+            {
+                // Если глитч критический (ХП < 30%) - ставим 1. Иначе - легкий эффект от потери ХП
+                float intensity = IsCriticallyGlitched ? 1f : (1f - eventData.StabilityPercent) * 0.3f;
+                _playerMaterial.SetFloat("_GlitchIntensity", intensity);
+            }
+        }
+
+        public void Dispose()
+        {
+            EventBus.Unsubscribe<PlayerStabilityChangedEvent>(OnStabilityChanged);
+        }
+    }
+}
+
+=== Scripts\Gameplay\Controllers\Player\ScannerController.cs ===
+﻿using System;
+using Core.Bootstrap;
+using Core.DI;
+using Gameplay.Interactables;
+using UnityEngine;
+using InputManager = Core.Input.InputManager;
+
+namespace Gameplay.Controllers.Player
+{
+    public class ScannerController : MonoBehaviour, IInjectable, IInitializable, IDisposable
+    {
+        [Inject] private InputManager _inputManager;
+        // [Inject] private ViewManager _viewManager; // Понадобится позже для UI сканера
+
+        [SerializeField] private Transform _cameraTransform;
+        [SerializeField] private float _scanDistance = 10f;
+        [SerializeField] private LayerMask _interactableLayer;
+
+        public bool IsScannerActive { get; private set; }
+        private IBuggable _currentTarget;
+
+        public void Init()
+        {
+            _inputManager.OnScannerPressed += ToggleScanner;
+            _inputManager.OnInteractPressed += TryInteract;
+        }
+
+        private void ToggleScanner()
+        {
+            IsScannerActive = !IsScannerActive;
+            
+            // TODO: Сообщить ViewManager включить синюю рамку на экране
+            // TODO: Включить PostProcessing (изменение цвета мира)
+
+            if (!IsScannerActive && _currentTarget != null)
+            {
+                _currentTarget.OnScanned(false);
+                _currentTarget = null;
+            }
+        }
+
+        private void Update()
+        {
+            if (!IsScannerActive) return;
+
+            // Рейкаст из центра экрана
+            if (Physics.Raycast(_cameraTransform.position, _cameraTransform.forward, out RaycastHit hit, _scanDistance, _interactableLayer))
+            {
+                var buggable = hit.collider.GetComponent<IBuggable>();
+                
+                if (buggable != null && buggable.IsBugged)
+                {
+                    if (_currentTarget != buggable)
+                    {
+                        _currentTarget?.OnScanned(false);
+                        _currentTarget = buggable;
+                        _currentTarget.OnScanned(true); // Подсвечиваем красным
+                    }
+                }
+            }
+            else
+            {
+                if (_currentTarget != null)
+                {
+                    _currentTarget.OnScanned(false);
+                    _currentTarget = null;
+                }
+            }
+        }
+
+        private void TryInteract()
+        {
+            if (IsScannerActive && _currentTarget != null)
+            {
+                _currentTarget.OnInteract(); // Запускаем мини-игру!
+            }
+        }
+
+        public void Dispose()
+        {
+            _inputManager.OnScannerPressed -= ToggleScanner;
+            _inputManager.OnInteractPressed -= TryInteract;
+        }
+    }
+}
+
+=== Scripts\Gameplay\Controllers\Player\SkillsController.cs ===
+﻿using System;
+using System.Collections.Generic;
+using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.ScriptableObjects;
+using UnityEngine;
+
+namespace Gameplay.Controllers.Player
+{
+    public class SkillsController : MonoBehaviour
+    {
+        [SerializeField] private SkillsArray _skillsArray;
+        [SerializeField] private Transform _castPoint;
+        [SerializeField] private Transform _caster;
+        [SerializeField] public GameObject _sword;
+
+        private Camera _camera;
+        public Dictionary<SkillType,ISkill> Skills = new ();
+
+        public void Awake()
+        {
+            /*var spell = new SpellSkill(_skillsArray.skillEntries[1],_castPoint, Camera.main.transform);
+            var melee = new MeleeSkill(_skillsArray.skillEntries[0]);
+            Skills.Add(spell.SkillType,spell);
+            Skills.Add(melee.SkillType,melee);*/
+            
+            
+        }
+
+        public void Init(Camera camera)
+        {
+            if (camera)
+            {
+                _camera = camera;
+                _caster = _camera.transform;
+            }
+            foreach (var skillEntry in _skillsArray.skillEntries)
+            {
+                var skill = CreateSkill(skillEntry.SkillClass, skillEntry.SkillData,_castPoint,_caster, _sword, gameObject.GetComponent<IDamageable>());
+                Skills.Add(skillEntry.SkillData.skillType,skill);
+            }
+        }
+
+        private ISkill CreateSkill(Type skillType, SkillData skillData, Transform castPoint, Transform caster, GameObject sword, IDamageable damageable)
+        {
+            if (!typeof(ISkill).IsAssignableFrom(skillType) || !typeof(Skill).IsAssignableFrom(skillType))
+            {
+                throw new ArgumentException($"Type {skillType.Name} must inherit from Skill and implement ISkill");
+            }
+
+            // Создаём экземпляр через Activator
+            return (ISkill)Activator.CreateInstance(skillType, skillData, castPoint, caster, sword, damageable);
+        }
+
+        private void Update()
+        {
+            foreach (var skill in Skills)
+            {
+                skill.Value.Tick();
+            }
+        }
+    }
+}
+
+=== Scripts\Gameplay\Controllers\Player\WristTerminalController.cs ===
+﻿using System;
+using Core.Bootstrap;
+using Core.DI;
+using Gameplay.Core;
+using UnityEngine;
+using InputManager = Core.Input.InputManager;
+
+namespace Gameplay.Controllers.Player
+{
+    public class WristTerminalController : MonoBehaviour, IInjectable, IInitializable, IDisposable
+    {
+        [Inject] private InputManager _inputManager;
+        [Inject] private BranchManager _branchManager;
+
+        public void Init()
+        {
+            _inputManager.OnBranchTogglePressed += HandleBranchToggle;
+        }
+
+        private void HandleBranchToggle()
+        {
+            // Здесь в будущем можно добавить проверку: если ХП < 20% или идет анимация атаки - не переключать
+            _branchManager.ToggleBranch();
+            // TODO: Вызвать анимацию левой руки (щелчок по терминалу) и звук
+        }
+
+        public void Dispose()
+        {
+            _inputManager.OnBranchTogglePressed -= HandleBranchToggle;
+        }
+    }
+}
+
+=== Scripts\Gameplay\Core\BranchManager.cs ===
+﻿using Core.Bootstrap;
+using Core.DI;
+using Core.Events;
+using Gameplay.Events;
+using UnityEngine;
+
+namespace Gameplay.Core
+{
+    public class BranchManager : MonoBehaviour, IInjectable, IInitializable
+    {
+        public WorldBranch CurrentBranch { get; private set; }
+
+        [Header("Environments")]
+        [SerializeField] private GameObject _mainBranchEnv;[SerializeField] private GameObject _alphaBranchEnv;
+
+        public void Init()
+        {
+            // По умолчанию начинаем в Main
+            SwitchBranch(WorldBranch.Main);
+        }
+
+        public void SwitchBranch(WorldBranch branch)
+        {
+            CurrentBranch = branch;
+
+            // Жестко переключаем объекты окружения
+            if (_mainBranchEnv != null) _mainBranchEnv.SetActive(CurrentBranch == WorldBranch.Main);
+            if (_alphaBranchEnv != null) _alphaBranchEnv.SetActive(CurrentBranch == WorldBranch.Alpha);
+
+            // Рассылаем глобальное событие (для звуков, партиклов или ИИ)
+            EventBus.Raise(new BranchSwitchedEvent(CurrentBranch));
+        }
+
+        // Метод для вызова из Терминала
+        public void ToggleBranch()
+        {
+            SwitchBranch(CurrentBranch == WorldBranch.Main ? WorldBranch.Alpha : WorldBranch.Main);
+        }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\BossAnimator.cs ===
+﻿using UnityEngine;
+
+namespace Gameplay.Enemies
+{
+    public class BossAnimator : MonoBehaviour
+    {
+        private static readonly int Death = Animator.StringToHash("Death");
+        private static readonly int Idle = Animator.StringToHash("Idle");
+        private static readonly int Walk = Animator.StringToHash("Walk");
+        private static readonly int Attack = Animator.StringToHash("Attack");
+        private static readonly int Hitted = Animator.StringToHash("Hitted");
+        private static readonly int SuperAttack = Animator.StringToHash("SuperAttack");
+        
+        public Animator _animator { get; private set; }
+        
+        public bool CheckAnimationState(int layerIndex, float time, string stateName) => 
+            _animator.GetCurrentAnimatorStateInfo(layerIndex).normalizedTime >= time && 
+            _animator.GetCurrentAnimatorStateInfo(layerIndex).IsName(stateName);
+
+        private void Awake()
+        {
+            _animator = GetComponent<Animator>();
+        }
+        
+        public void DeathEvent()
+        {
+            _animator.SetTrigger(Death);
+        }
+        
+        
+        public void WalkEvent()
+        {
+            _animator.SetBool(Walk, true);
+            _animator.SetBool(Idle,false);
+        }
+
+        public void IdleEvent()
+        {
+            _animator.SetBool(Walk, false);
+            _animator.SetBool(Idle, true);
+        }
+        
+        public void DoAttack()
+        {
+            _animator.SetTrigger(Attack);
+        }
+        
+        public void DoHitEvent()
+        {
+            _animator.SetTrigger(Hitted);
+        }
+
+        public void DoSuperAttack()
+        {
+            _animator.SetTrigger(SuperAttack);
+        }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\BossController.cs ===
+﻿using System.Threading.Tasks;
+using Gameplay.Combat.Health;
+using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Controllers.Player;
+using Gameplay.Enemies.BossStates;
+using Gameplay.StateMachines;
+using UnityEngine;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies
+{
+    public class BossController : MonoBehaviour, ICharacterController
+    {
+        [SerializeField] private GameObject[] _particles;
+        
+        // public bool isDead { get; set; }
+        // public string UniqueId { get; set; }
+        // public int PrefabIndex { get; set; }
+        // Transform ICharacterController.transform => transform;
+        // GameObject ICharacterController.gameObject => gameObject;
+        // HealthSystem ICharacterController.GetComponent<T>() => GetComponent<HealthSystem>();
+        // T ICharacterController.GetComponentInChildren<T>() => GetComponentInChildren<T>();
+        
+        
+        public bool isDead { get; set; }
+        public string UniqueId { get; set; }
+        public int PrefabIndex { get; set; }
+        Transform ICharacterController.transform => transform;
+        GameObject ICharacterController.gameObject => gameObject;
+        StabilitySystem ICharacterController.GetComponent<T>() => GetComponent<StabilitySystem>();
+        T ICharacterController.GetComponentInChildren<T>() => GetComponentInChildren<T>();
+        
+        
+        
+        
+        
+        
+        [SerializeField] private GameObject _fist;
+        
+        public Collider SwordCollider { get; private set; }
+        // public string UniqueId;
+        // public int PrefabIndex;
+        private Canvas hpCanvas;
+        private StateMachine enemyStateMachine;
+        private BossAnimator bossAnimator;
+        private StabilitySystem healthSystem;
+        private NavMeshAgent _agent;
+        private Transform _playerTransform;
+        private SkillsController _skillsController;
+        [SerializeField] private float _rotationSpeed;
+        [SerializeField] private float searchRadius;
+        [SerializeField] private float attackRange;
+
+        private bool _isPeaceful;
+        
+        public bool IsChasing { get; private set;}
+        // public bool isDead;
+        public bool IsInAttackRange { get; private set;}
+        //public bool _superAttack { get; private set; }
+        private void Awake()
+        {
+            enemyStateMachine = new StateMachine();
+            _skillsController = GetComponent<SkillsController>();
+            bossAnimator = GetComponent<BossAnimator>();
+            healthSystem = GetComponent<StabilitySystem>();
+            gameObject.GetComponent<IHittable>().onHit.AddListener(bossAnimator.DoHitEvent);
+            _agent = GetComponent<NavMeshAgent>();
+            hpCanvas = GetComponentInChildren<Canvas>();
+        }
+
+        public async void Init(bool isPeaceful)
+        {
+            _isPeaceful = isPeaceful;
+            await GetPlayer();
+            print(_playerTransform);
+            CreateParticles();
+            BossStatesInit();
+        }
+
+        private void CreateParticles()
+        {
+            var part = _particles[Random.Range(0, _particles.Length)];
+            Instantiate(part, _fist.transform.position, Quaternion.identity, _fist.transform);
+        }
+
+        private async Task GetPlayer()
+        {
+            CharacterController player;
+            do
+            {
+                player = FindFirstObjectByType<CharacterController>();
+                await Task.Delay(10);
+            } while (!player);
+
+            _playerTransform = player.transform;
+        }
+
+        private void Update()
+        {   
+            if(!_playerTransform) return;
+            ChasingChecker();
+            _agent.SetDestination(_playerTransform.position);
+            enemyStateMachine.Tick();
+        }
+
+        public void RotateToPlayer()
+        {
+            Vector3 direction = _playerTransform.position - transform.position;
+            Quaternion desiredRotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(transform.rotation, desiredRotation, _rotationSpeed * Time.deltaTime);
+        }
+
+        private void BossStatesInit()
+        {
+            
+            var attackState = new BossAttackState(this, bossAnimator, _agent, _skillsController);
+            bool AttackReady() => _skillsController.Skills[SkillType.Punch]._isReady;
+            bool HeavyAttackReady() => _skillsController.Skills[SkillType.Heavy]._isReady;
+
+            
+            var superAttackState = new BossSuperAttackState(this, bossAnimator, _agent, _skillsController);
+            
+            var idleState = new BossIdleState(this,bossAnimator, _agent);
+            var walkState =  new BossWalkState(this,bossAnimator,_agent);
+            var deathState = new BossDeathState(this,bossAnimator,_agent, hpCanvas);
+            
+            bool AttackAnimationEnded() => bossAnimator.CheckAnimationState(0,.99f,"BossAttack");
+            bool HeavyAttackAnimationEnded() => bossAnimator.CheckAnimationState(0,.99f,"BossSuperAttack");
+
+            bool WasHit() => !Mathf.Approximately(healthSystem.Stability, healthSystem.MaxStability);
+            
+
+            enemyStateMachine.AddAnyTransition(deathState, () => healthSystem.Stability <= 0f);
+            if (_isPeaceful)
+            {
+                enemyStateMachine.AddTransition(idleState, walkState, () => IsChasing && !IsInAttackRange && WasHit());
+                enemyStateMachine.AddTransition(idleState, superAttackState,
+                    () => IsInAttackRange && HeavyAttackReady() && WasHit());
+                enemyStateMachine.AddTransition(idleState, attackState,
+                    () => IsInAttackRange && AttackReady() && !HeavyAttackReady() && WasHit());
+            }
+            else
+            {
+                enemyStateMachine.AddTransition(idleState, walkState, () => IsChasing && !IsInAttackRange);
+                enemyStateMachine.AddTransition(idleState, superAttackState,
+                    () => IsInAttackRange && HeavyAttackReady());
+                enemyStateMachine.AddTransition(idleState, attackState,
+                    () => IsInAttackRange && AttackReady() && !HeavyAttackReady());
+            }
+            
+            enemyStateMachine.AddTransition(walkState, superAttackState, () => IsInAttackRange && HeavyAttackReady());
+            enemyStateMachine.AddTransition(walkState, attackState, () => IsInAttackRange && AttackReady() && !HeavyAttackReady());
+            enemyStateMachine.AddTransition(walkState, idleState, () => !IsChasing || IsInAttackRange);
+            enemyStateMachine.AddTransition(attackState, idleState,
+                () => IsInAttackRange && AttackAnimationEnded());
+            enemyStateMachine.AddTransition(attackState, superAttackState,
+                () => IsInAttackRange && AttackAnimationEnded() && HeavyAttackReady());
+            enemyStateMachine.AddTransition(attackState, walkState,
+                () => !IsInAttackRange && AttackAnimationEnded());
+
+
+            enemyStateMachine.AddTransition(superAttackState, idleState,
+                () => IsInAttackRange && HeavyAttackAnimationEnded());
+            enemyStateMachine.AddTransition(superAttackState, walkState,
+                () => !IsInAttackRange && HeavyAttackAnimationEnded());
+
+
+            enemyStateMachine.SetState(idleState);
+
+            
+        }
+
+        
+        private void ChasingChecker()
+        {
+            if (Vector3.Distance(_agent.transform.position, _playerTransform.position) <= searchRadius)
+            {   
+                IsChasing = true;
+                if (Vector3.Distance(_agent.transform.position, _playerTransform.position) <= attackRange)
+                {
+                    IsInAttackRange = true;
+                }
+                else
+                {   
+                    IsInAttackRange = false;
+                }
+            }
+            else
+            {   
+                IsChasing = false;
+            }
+        }
+    }
+}
+
+
+=== Scripts\Gameplay\Enemies\BossStates\BossAttackState.cs ===
+﻿using Gameplay.Combat.Offensive.Base;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies.BossStates
+{
+    public class BossAttackState : StatesBossConst
+    {
+        private SkillsController _skillsController;
+        public BossAttackState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent, SkillsController skillsController) : base(bossController, animator, navMeshAgent)
+        {
+            _skillsController = skillsController;
+        }
+
+        public override void Enter()
+        {
+            _skillsController.Skills[SkillType.Punch].Cast();
+            // EnemyAnimator.StartCoroutine(SwordColliderSwitch());
+            Debug.Log("Entering BOSS ATTACK");
+            BossAnimator.DoAttack();
+            NavMeshAgent.isStopped = true;
+        }
+
+        public override void Execute()
+        {
+            BossController.RotateToPlayer();
+        }
+
+        public override void Exit()
+        {
+            
+        }
+        
+        // private IEnumerator SwordColliderSwitch()
+        // {
+            // yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.3f, "attackTest"));
+            // EnemyController.SwordCollider.enabled = true;
+            // yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.53f, "attackTest"));
+            // EnemyController.SwordCollider.enabled = false;
+        // }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\BossStates\BossDeathState.cs ===
+﻿using System.Collections;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies.BossStates
+{
+    public class BossDeathState : StatesBossConst
+    {
+        private SkillsController _skillsController;
+        private readonly Canvas hpCanvas;
+ 
+        public BossDeathState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent, Canvas hpCanvas) : base(bossController, animator, navMeshAgent)
+        {
+            this.hpCanvas = hpCanvas;
+        }
+
+        public override void Enter()
+        {
+            
+            hpCanvas.enabled = false;
+            BossController.GetComponent<Collider>().enabled = false;
+            BossAnimator.DeathEvent();
+            NavMeshAgent.ResetPath();
+            NavMeshAgent.isStopped = true;
+            NavMeshAgent.angularSpeed = 0f;
+            BossController.StartCoroutine(Destroy());
+        }
+
+        public override void Execute()
+        {
+            BossController.RotateToPlayer();
+        }
+
+        public override void Exit()
+        {
+            
+        }
+        
+        public IEnumerator Destroy()
+        {
+            yield return new WaitUntil(()=>BossAnimator.CheckAnimationState(0, 0.99f, "BossDeath"));
+            Object.Destroy(BossController.gameObject);
+        }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\BossStates\BossIdleState.cs ===
+﻿using Gameplay.Controllers.Player;
+using UnityEngine;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies.BossStates
+{
+    public class BossIdleState : StatesBossConst
+    {
+        private SkillsController _skillsController;
+        public BossIdleState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent) : base(bossController, animator, navMeshAgent)
+        {
+            // _skillsController = skillsController;
+        }
+
+        public override void Enter()
+        {
+            BossAnimator.IdleEvent();
+            Debug.Log("Entering BOSS Idle");
+            NavMeshAgent.isStopped = true;
+        }
+
+        public override void Execute()
+        {
+        }
+
+        public override void Exit()
+        {
+            
+        }
+        
+        // private IEnumerator SwordColliderSwitch()
+        // {
+            // yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.3f, "attackTest"));
+            // EnemyController.SwordCollider.enabled = true;
+            // yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.53f, "attackTest"));
+            // EnemyController.SwordCollider.enabled = false;
+        // }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\BossStates\BossSuperAttackState.cs ===
+﻿using Gameplay.Combat.Offensive.Base;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies.BossStates
+{
+    public class BossSuperAttackState : StatesBossConst
+    {
+        private SkillsController _skillsController;
+        public BossSuperAttackState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent, SkillsController skillsController) : base(bossController, animator, navMeshAgent)
+        {
+            _skillsController = skillsController;
+        }
+
+        public override void Enter()
+        {
+            _skillsController.Skills[SkillType.Heavy].Cast();
+            BossAnimator.DoSuperAttack();
+            NavMeshAgent.isStopped = true;
+            Debug.Log("Entering BOSS SUPER ATTACK");
+        }
+
+        public override void Execute()
+        {
+            BossController.RotateToPlayer();
+        }
+
+        public override void Exit()
+        {
+            Debug.Log("exit");
+        }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\BossStates\BossWalkState.cs ===
+﻿using Gameplay.Controllers.Player;
+using UnityEngine;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies.BossStates
+{
+    public class BossWalkState : StatesBossConst
+    {
+        private SkillsController _skillsController;
+        public BossWalkState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent) : base(bossController, animator, navMeshAgent)
+        {
+            // _skillsController = skillsController;
+        }
+
+        public override void Enter()
+        {
+            Debug.Log("Entering BOSS WALK");
+            BossAnimator.WalkEvent();
+            NavMeshAgent.isStopped = false;
+        }
+
+        public override void Execute()
+        {
+            BossController.RotateToPlayer();
+        }
+
+        public override void Exit()
+        {
+            
+        }
+        
+        // private IEnumerator SwordColliderSwitch()
+        // {
+        //     yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.3f, "attackTest"));
+        //     EnemyController.SwordCollider.enabled = true;
+        //     yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.53f, "attackTest"));
+        //     EnemyController.SwordCollider.enabled = false;
+        // }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\EnemyAnimator.cs ===
+﻿using UnityEngine;
+
+namespace Gameplay.Enemies
+{
+    public class EnemyAnimator : MonoBehaviour
+    {
+        private static readonly int Death = Animator.StringToHash("Death");
+        private static readonly int Walk = Animator.StringToHash("Walk");
+        private static readonly int Attack = Animator.StringToHash("Attack");
+        private static readonly int Hitted = Animator.StringToHash("Hitted");
+        private static readonly int Spell = Animator.StringToHash("Spell");
+        
+        public Animator _animator { get; private set; }
+        
+        public bool CheckAnimationState(int layerIndex, float time, string stateName) => 
+            _animator.GetCurrentAnimatorStateInfo(layerIndex).normalizedTime >= time && 
+            _animator.GetCurrentAnimatorStateInfo(layerIndex).IsName(stateName);
+
+        private void Awake()
+        {
+            _animator = GetComponent<Animator>();
+        }
+        
+        public void DeathEvent()
+        {
+            _animator.SetTrigger(Death);
+        }
+        
+        public void WalkEvent()
+        {
+            _animator.SetBool(Walk, true);
+        }
+
+        public void IdleEvent()
+        {
+            _animator.SetBool(Walk, false);
+        
+        }
+        
+        public void DoAttack()
+        {
+            _animator.SetTrigger(Attack);
+        }
+        
+        public void DoHitEvent()
+        {
+            _animator.SetTrigger(Hitted);
+        }
+
+        public void DoSpellEvent()
+        {
+            _animator.SetTrigger(Spell);
+        }
+        
+        
+        
+        
+        
+    }
+}
+
+=== Scripts\Gameplay\Enemies\EnemyController.cs ===
+﻿using Gameplay.Combat.Health;
+using Gameplay.Combat.Interfaces;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Controllers.Player;
+using Gameplay.Enemies.States;
+using Gameplay.StateMachines;
+using UnityEngine;
+using UnityEngine.AI;
+using AttackState = Gameplay.Enemies.States.AttackState;
+
+namespace Gameplay.Enemies
+{
+    public class EnemyController : MonoBehaviour, ICharacterController
+    {   
+        
+        // public bool isDead { get; set; }
+        // public string UniqueId { get; set; }
+        // public int PrefabIndex { get; set; }
+        // Transform ICharacterController.transform => transform;
+        // GameObject ICharacterController.gameObject => gameObject;
+        // HealthSystem ICharacterController.GetComponent<T>() => GetComponent<HealthSystem>();
+        // T ICharacterController.GetComponentInChildren<T>() => GetComponentInChildren<T>();
+        
+        public bool isDead { get; set; }
+        public string UniqueId { get; set; }
+        public int PrefabIndex { get; set; }
+        Transform ICharacterController.transform => transform;
+        GameObject ICharacterController.gameObject => gameObject;
+        StabilitySystem ICharacterController.GetComponent<T>() => GetComponent<StabilitySystem>();
+        T ICharacterController.GetComponentInChildren<T>() => GetComponentInChildren<T>();
+        
+        
+        
+        
+        
+        
+        
+        
+        [SerializeField] private GameObject _sword;
+        
+        public Collider SwordCollider { get; private set; }
+        // public string UniqueId;
+        // public int PrefabIndex;
+        private Canvas hpCanvas;
+        private StateMachine enemyStateMachine;
+        private EnemyAnimator enemyAnimator;
+        private StabilitySystem stabilitySystem;
+        private NavMeshAgent _agent;
+        private Transform _playerTransform;
+        private SkillsController _skillsController;
+        [SerializeField] private float _rotationSpeed;
+        [SerializeField] private float searchRadius;
+        [SerializeField] private float attackRange;
+        public int deadEnemies;
+        public bool IsChasing { get; private set;}
+        // public bool isDead;
+        public bool IsInAttackRange { get; private set;}
+        private bool _isPeaceful;
+        private void Awake()
+        {
+            SwordCollider = _sword.GetComponent<BoxCollider>();
+            enemyStateMachine = new StateMachine();
+            _skillsController = GetComponent<SkillsController>();
+            enemyAnimator = GetComponent<EnemyAnimator>();
+            stabilitySystem = GetComponent<StabilitySystem>();
+            gameObject.GetComponent<IHittable>().onHit.AddListener(enemyAnimator.DoHitEvent);
+            _agent = GetComponent<NavMeshAgent>();
+            hpCanvas = GetComponentInChildren<Canvas>();
+        }
+
+        public void Init(bool isPeaceful)
+        {
+            _isPeaceful = isPeaceful;
+            _playerTransform = FindFirstObjectByType<CharacterController>().transform;
+            EnemyStatesInit();
+        }
+
+        private void Update()
+        {   
+            if(!_playerTransform) return;
+            ChasingChecker();
+            enemyStateMachine.Tick();
+        }
+
+        public void SetFollowPlayer()
+        {
+            _agent.SetDestination(_playerTransform.position);
+        }
+
+        public void SetRunFromPlayer()
+        {
+            _agent.SetDestination(GetRunPoint());
+        }
+
+        private Vector3 GetRunPoint() => (transform.position - _playerTransform.position).normalized * 2f + transform.position;
+ 
+
+        public void RotateToPlayer()
+        {
+            Vector3 direction = _playerTransform.position - transform.position;
+            Quaternion desiredRotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(transform.rotation, desiredRotation, _rotationSpeed * Time.deltaTime);
+        }
+
+        private void EnemyStatesInit()
+        {
+            IState attackState;
+            SkillType type;
+            if (CompareTag("Wizard"))
+            {
+                attackState = new RangeAttackState(this, enemyAnimator, _agent, _skillsController);
+                type = SkillType.Fireball;
+            }
+            else
+            {
+                attackState = new AttackState(this, enemyAnimator, _agent, _skillsController);
+                type = SkillType.Melee;
+            }
+            bool AttackReady() => _skillsController.Skills[type]._isReady;
+            
+            
+            
+            var idleState = new IdleState(this,enemyAnimator, _agent);
+            var walkState =  new WalkState(this,enemyAnimator,_agent);
+            var fearState =  new FearState(this,enemyAnimator,_agent);
+            var deathState = new DeathState(this,enemyAnimator,_agent, hpCanvas);
+            
+            bool AttackAnimationEnded() => enemyAnimator.CheckAnimationState(0,1f,"attackTest");
+
+
+            enemyStateMachine.AddAnyTransition(deathState, () => stabilitySystem.Stability <= 0f);
+
+            if (_isPeaceful)
+            {
+                enemyStateMachine.AddTransition(idleState, fearState, () => stabilitySystem.Stability/stabilitySystem.MaxStability <= .3f);
+            }
+            else
+            {
+                enemyStateMachine.AddTransition(idleState, walkState, () => IsChasing && !IsInAttackRange);
+                enemyStateMachine.AddTransition(idleState, attackState,
+                    () => IsInAttackRange && AttackReady());
+            }
+            
+            
+            enemyStateMachine.AddTransition(walkState, idleState, () => !IsChasing || IsInAttackRange);
+            enemyStateMachine.AddTransition(walkState, attackState, () => IsInAttackRange && AttackReady());
+            enemyStateMachine.AddTransition(attackState, idleState,
+                () => IsInAttackRange && AttackAnimationEnded());
+            enemyStateMachine.AddTransition(attackState, walkState,
+                () => !IsInAttackRange && AttackAnimationEnded());
+
+
+            // enemyStateMachine.AddTransition(idleState, spellState, () => IsInCastRange && (Time.time - lastAttackTime >= attackCooldown));
+            // enemyStateMachine.AddTransition(spellState, idleState, () => IsInCastRange && RangeAnimationEnded());
+            // enemyStateMachine.AddTransition(walkState, spellState, () => IsInCastRange);
+            // enemyStateMachine.AddTransition(spellState, walkState, () => !IsInCastRange && RangeAnimationEnded());
+            
+            
+            
+            
+            enemyStateMachine.SetState(idleState);
+        }
+        
+        private void ChasingChecker()
+        {
+            if (Vector3.Distance(_agent.transform.position, _playerTransform.position) <= searchRadius)
+            {   
+                IsChasing = true;
+                if (Vector3.Distance(_agent.transform.position, _playerTransform.position) <= attackRange)
+                {
+                    IsInAttackRange = true;
+                }
+                else
+                {   
+                    IsInAttackRange = false;
+                }
+            }
+            else
+            {   
+                IsChasing = false;
+            }
+        }
+        
+        
+}
+}
+
+
+=== Scripts\Gameplay\Enemies\EnemyManager.cs ===
+﻿// using System;
+// using System.Collections;
+// using System.Collections.Generic;
+// using Bootstraps;
+// using Controllers.Entities;
+// using Controllers.Entities.HealthController;
+// using Controllers.SaveLoad.Saveables;
+// using Controllers.SaveLoad.Settings;
+// using UnityEngine;
+// using Views.Gameplay;
+// using Object = UnityEngine.Object;
+// using Random = UnityEngine.Random;
+//
+// namespace Enemy
+// {
+//     public class EnemyManager
+//     {
+//         private SettingsInteractor _settingsInteractor;
+//         private GameObject[] _enemyPrefabs;
+//         private Vector2 _enemiesSpawnAreaExtents;
+//         private Vector3 _enemiesSpawnAreaCenter;
+//         private int _enemiesCount;
+//         private List<EnemyController> _enemies = new();
+//         private List<BossController> _boss = new();
+//
+//         private GameObject _bossPrefab;
+//         private Vector3 _bossSpawnPoint;
+//         
+//         public EnemyManager(SettingsInteractor settingsInteractor, Vector2 enemiesSpawnAreaSize, GameObject[] enemyPrefabs, Vector3 enemiesSpawnAreaCenter, int enemiesCount, GameObject _boss, Vector3 bossSpawnPoint)
+//         {
+//             _settingsInteractor = settingsInteractor;
+//             _enemiesSpawnAreaExtents = enemiesSpawnAreaSize;
+//             _enemyPrefabs = enemyPrefabs;
+//             _enemiesSpawnAreaCenter = enemiesSpawnAreaCenter;
+//             _enemiesCount = enemiesCount;
+//             _bossPrefab = _boss;
+//             SpawnEnemies(_enemiesCount);
+//             _bossSpawnPoint = bossSpawnPoint;
+//         }
+//         
+//         
+//         public void SpawnEnemies(int enemiesCount)
+//         {   
+//             
+//                  
+//             var enemiesPower = _settingsInteractor.LoadSettings().EnemiesPower;
+//             for (int i = 0; i < enemiesCount; i++)
+//             {
+//                 int prefabIndex = Random.Range(0, _enemyPrefabs.Length);
+//
+//                 var enemyPrefab = _enemyPrefabs[prefabIndex];
+//                 var enemy = Object.Instantiate(enemyPrefab, GetRandomPosition(), Quaternion.identity)
+//                     .GetComponent<EnemyController>();
+//                 var healthSystem = enemy.GetComponent<HealthSystem>();
+//                 healthSystem.onHealthChanged.AddListener(enemy.GetComponentInChildren<HealthBarView>().ChangeHp);
+//                 healthSystem.Init(enemiesPower);
+//                 healthSystem.onDeath.AddListener((_) => OnEnemyDeath());
+//                 enemy.GetComponent<SkillsController>().Init(null);
+//                 enemy.UniqueId = System.Guid.NewGuid().ToString(); // Уникальный ID
+//                 enemy.PrefabIndex = prefabIndex; // Сохраняем индекс префаба
+//
+//                 _enemies.Add(enemy);
+//
+//                 
+//                 // healthSystem.onDeath.AddListener((isDead) => CheckAllEnemiesDead());
+//             }
+//         }
+//         
+//         public List<EnemyData> GetEnemyData()
+//         {
+//             List<EnemyData> enemyDataList = new List<EnemyData>();
+//             foreach (var enemy in _enemies)
+//             {
+//                 if (enemy != null && !enemy.isDead) // Сохраняем только живых врагов
+//                 {
+//                     enemyDataList.Add(new EnemyData
+//                     {
+//                         Id = enemy.UniqueId,
+//                         Position = enemy.transform.position,
+//                         Health = enemy.GetComponent<HealthSystem>().Health, // Предполагается, что HealthSystem имеет CurrentHealth
+//                         PrefabIndex = enemy.PrefabIndex
+//                     });
+//                 }
+//             }
+//             return enemyDataList;
+//         }
+//
+//         public void LoadEnemies(List<EnemyData> enemyDataList)
+//         {   
+//             if (enemyDataList.Count == 0) return;
+//             // Очищаем существующих врагов
+//             foreach (var enemy in _enemies)
+//             {
+//                 if (enemy != null)
+//                 {
+//                     Object.Destroy(enemy.gameObject);
+//                 }
+//             }
+//             _enemies.Clear();
+//             
+//             // Создаём врагов из сохранённых данных
+//
+//             var enemiesPower = _settingsInteractor.LoadSettings().EnemiesPower;
+//             foreach (var enemyData in enemyDataList)
+//             {   
+//                 if (enemyData.PrefabIndex >= 0 && enemyData.PrefabIndex < _enemyPrefabs.Length)
+//                 {
+//                     var enemyPrefab = _enemyPrefabs[enemyData.PrefabIndex];
+//                     var enemy = Object.Instantiate(enemyPrefab, enemyData.Position, Quaternion.identity)
+//                         .GetComponent<EnemyController>();
+//                     enemy.UniqueId = enemyData.Id;
+//                     enemy.PrefabIndex = enemyData.PrefabIndex;
+//                     
+//                     var healthSystem = enemy.GetComponent<HealthSystem>();
+//
+//                     healthSystem.onHealthChanged.AddListener(enemy.GetComponentInChildren<HealthBarView>().ChangeHp);
+//                     healthSystem.Init(enemiesPower);
+//                     healthSystem.onDeath.AddListener((_) => OnEnemyDeath());
+//                     healthSystem.SetHealth(enemyData.Health);
+//                     enemy.GetComponent<SkillsController>().Init(null);
+//                     _enemies.Add(enemy);
+//
+//                 }
+//                 else
+//                 {
+//                     Debug.LogWarning($"Недопустимый PrefabIndex: {enemyData.PrefabIndex}");
+//                 }
+//             }
+//         }
+//         
+//         private void OnEnemyDeath()
+//         {   
+//             foreach (var obj in _enemies)
+//             {
+//                 Debug.Log(obj.UniqueId + "АЙДИ");
+//                 Debug.Log(obj.isDead + "СОСТОЯНИЕ");
+//
+//                 if (!obj.isDead)
+//                 {
+//                     return;
+//                 }
+//             }
+//             
+//             Debug.Log("все умерли");
+//             SpawnBoss();
+//         }
+//         
+//         
+//         
+//         private Vector3 GetRandomPosition()
+//         {
+//             return new Vector3(
+//                 Random.Range(_enemiesSpawnAreaCenter.x - _enemiesSpawnAreaExtents.x, _enemiesSpawnAreaCenter.x + _enemiesSpawnAreaExtents.x),
+//                 _enemiesSpawnAreaCenter.y,
+//                 Random.Range(_enemiesSpawnAreaCenter.z - _enemiesSpawnAreaExtents.y, _enemiesSpawnAreaCenter.z + _enemiesSpawnAreaExtents.y));
+//         }
+//
+//         private void SpawnBoss()
+//         {
+//             var bossPrefab = _bossPrefab;
+//             var enemy = Object.Instantiate(bossPrefab, _bossSpawnPoint, Quaternion.identity)
+//                 .GetComponent<BossController>();
+//             // enemy.UniqueId = enemyData.Id;
+//             // enemy.PrefabIndex = enemyData.PrefabIndex;
+//                     
+//             var healthSystem = enemy.GetComponent<HealthSystem>();
+//
+//             healthSystem.onHealthChanged.AddListener(enemy.GetComponentInChildren<HealthBarView>().ChangeHp);
+//             // healthSystem.Init(enemiesPower);
+//             healthSystem.onDeath.AddListener((_) => OnEnemyDeath());
+//             // healthSystem.SetHealth(b.Health);
+//             enemy.GetComponent<SkillsController>().Init(null);
+//         }
+//         
+//         
+//         
+//     }
+// }
+
+
+using System;
+using System.Collections.Generic;
+using Core.SaveLoad.Interactors;
+using Core.SaveLoad.Saveables;
+using Gameplay.Combat.Health;
+using Gameplay.Combat.Interfaces;
+using Gameplay.Controllers.Player;
+using Gameplay.UI.Views;
+using Gameplay.UI.Views.Gameplay;
+using UnityEngine;
+using Object = UnityEngine.Object; 
+using Random = UnityEngine.Random;
+
+namespace Gameplay.Enemies
+{
+    public class EnemyManager
+    {
+        private CharacterController _player;
+        private readonly SettingsInteractor _settingsInteractor;
+        private readonly GameObject[] _enemyPrefabs;
+        private readonly Vector2 _enemiesSpawnAreaExtents;
+        private readonly Vector3 _enemiesSpawnAreaCenter;
+        private readonly int _enemiesCount;
+        private readonly List<ICharacterController> _characters = new();
+        private readonly GameObject _bossPrefab;
+        private readonly Vector3 _bossSpawnPoint;
+        private bool _bossSpawned;
+        private int _aliveCount;
+
+        public EnemyManager(SettingsInteractor settingsInteractor, Vector2 enemiesSpawnAreaSize,
+            GameObject[] enemyPrefabs,
+            Vector3 enemiesSpawnAreaCenter, int enemiesCount, GameObject bossPrefab, Vector3 bossSpawnPoint,
+            CharacterController player)
+        {
+            _settingsInteractor = settingsInteractor ?? throw new ArgumentNullException(nameof(settingsInteractor));
+            _enemiesSpawnAreaExtents = enemiesSpawnAreaSize;
+            _enemyPrefabs = enemyPrefabs ?? throw new ArgumentNullException(nameof(enemyPrefabs));
+            _enemiesSpawnAreaCenter = enemiesSpawnAreaCenter;
+            _enemiesCount = enemiesCount;
+            _bossPrefab = bossPrefab ?? throw new ArgumentNullException(nameof(bossPrefab));
+            _bossSpawnPoint = bossSpawnPoint;
+            _player = player;
+            SpawnEnemies(_enemiesCount);
+        }
+
+        public void SpawnEnemies(int enemiesCount)
+        {
+            _aliveCount = enemiesCount;
+            var loadSettings = _settingsInteractor.LoadSettings();
+            var enemiesPower = loadSettings.EnemiesPower;
+            var peaceMode = loadSettings.PeaceMode;
+            for (int i = 0; i < enemiesCount; i++)
+            {
+                int prefabIndex = Random.Range(0, _enemyPrefabs.Length);
+                var enemyPrefab = _enemyPrefabs[prefabIndex];
+                var enemy = Object.Instantiate(enemyPrefab, GetRandomPosition(), Quaternion.identity)
+                    .GetComponent<EnemyController>();
+                if (enemy == null)
+                {
+                    Debug.LogError($"Enemy prefab {enemyPrefab.name} does not have EnemyController component.");
+                    continue;
+                }
+
+                var stabilitySystem = enemy.GetComponent<StabilitySystem>();
+                if (stabilitySystem == null)
+                {
+                    Debug.LogError($"Enemy {enemy.name} does not have HealthSystem component.");
+                    Object.Destroy(enemy.gameObject);
+                    continue;
+                }
+
+                var healthBarView = enemy.GetComponentInChildren<StabilityBarView>();
+                if (healthBarView == null)
+                {
+                    Debug.LogWarning($"Enemy {enemy.name} does not have HealthBarView component.");
+                }
+                else
+                {
+                    stabilitySystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
+                }
+
+                var skillsController = enemy.GetComponent<SkillsController>();
+                if (skillsController == null)
+                {
+                    Debug.LogWarning($"Enemy {enemy.name} does not have SkillsController component.");
+                }
+
+                enemy.Init(peaceMode);
+                stabilitySystem.Init(enemiesPower);
+                stabilitySystem.OnDeath.AddListener((_) => OnEnemyDeath());
+                skillsController?.Init(null);
+                enemy.UniqueId = Guid.NewGuid().ToString();
+                enemy.PrefabIndex = prefabIndex;
+                _characters.Add(enemy);
+            }
+        }
+
+        public List<EnemyData> GetEnemyData()
+        {
+            List<EnemyData> enemyDataList = new();
+            foreach (ICharacterController character in _characters)
+            {
+                if (character != null && !character.isDead)
+                {
+                    var stabilitySystem = character.GetComponent<StabilitySystem>();
+                    if (stabilitySystem == null)
+                    {
+                        Debug.LogWarning($"Character {character.UniqueId} does not have HealthSystem component.");
+                        continue;
+                    }
+
+                    enemyDataList.Add(new EnemyData
+                    {
+                        Id = character.UniqueId,
+                        Position = character.transform.position,
+                        Health = stabilitySystem.Stability,
+                        PrefabIndex = character is BossController ? _enemyPrefabs.Length : character.PrefabIndex,
+                        IsBoss = character is BossController
+                    });
+                }
+            }
+
+            return enemyDataList;
+        }
+
+        public void LoadEnemies(List<EnemyData> enemyDataList)
+        {
+            if (enemyDataList == null || enemyDataList.Count == 0) return;
+
+            foreach (var character in _characters)
+            {
+                if (character != null)
+                {
+                    Object.Destroy(character.gameObject);
+                }
+            }
+
+            _characters.Clear();
+            _aliveCount = enemyDataList.Count;
+
+            var loadSettings = _settingsInteractor.LoadSettings();
+            var enemiesPower = loadSettings.EnemiesPower;
+            foreach (var enemyData in enemyDataList)
+            {
+                if (enemyData.PrefabIndex < 0 || enemyData.PrefabIndex >= _enemyPrefabs.Length && !enemyData.IsBoss)
+                {
+                    Debug.LogWarning($"Invalid PrefabIndex: {enemyData.PrefabIndex} for non-boss enemy.");
+                    _aliveCount--;
+                    continue;
+                }
+
+                ICharacterController character;
+                GameObject instantiatedObject;
+                if (enemyData.IsBoss)
+                {
+                    instantiatedObject = Object.Instantiate(_bossPrefab, enemyData.Position, Quaternion.identity);
+                    character = instantiatedObject.GetComponent<BossController>();
+                }
+                else
+                {
+                    var enemyPrefab = _enemyPrefabs[enemyData.PrefabIndex];
+                    instantiatedObject = Object.Instantiate(enemyPrefab, enemyData.Position, Quaternion.identity);
+                    character = instantiatedObject.GetComponent<EnemyController>();
+                }
+
+                if (character == null)
+                {
+                    Debug.LogError(
+                        $"Instantiated object {instantiatedObject.name} does not have required controller component.");
+                    Object.Destroy(instantiatedObject);
+                    _aliveCount--;
+                    continue;
+                }
+
+                var healthSystem = character.GetComponent<StabilitySystem>();
+                if (healthSystem == null)
+                {
+                    Debug.LogError($"Character {instantiatedObject.name} does not have HealthSystem component.");
+                    Object.Destroy(instantiatedObject);
+                    _aliveCount--;
+                    continue;
+                }
+
+                /*var healthBarView = character.GetComponentInChildren<HealthBarView>();
+                if (healthBarView == null)
+                {
+                    Debug.LogWarning($"Character {instantiatedObject.name} does not have HealthBarView component.");
+                }
+                else
+                {
+                    healthSystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
+                }*/
+
+                var skillsController = instantiatedObject.GetComponent<SkillsController>();
+                if (skillsController == null)
+                {
+                    Debug.LogWarning($"Character {instantiatedObject.name} does not have SkillsController component.");
+                }
+
+                character.UniqueId = enemyData.Id;
+                character.PrefabIndex = enemyData.PrefabIndex;
+                character.Init(loadSettings.PeaceMode);
+                healthSystem.Init(enemiesPower);
+                healthSystem.OnDeath.AddListener((_) => OnEnemyDeath());
+                healthSystem.SetStability(enemyData.Health);
+                skillsController?.Init(null);
+                _characters.Add(character);
+            }
+        }
+
+        private void OnEnemyDeath()
+        {
+            if (--_aliveCount <= 0)
+            {
+                Debug.Log("All characters are dead");
+                if (!_bossSpawned)
+                {
+                    SpawnBoss();
+                }
+                else
+                {
+                    Debug.Log("Boss is dead. Game over or proceed to next stage.");
+                    // Здесь можно добавить логику завершения игры или перехода к следующему этапу
+                }
+            }
+        }
+
+        private Vector3 GetRandomPosition()
+        {
+            return new Vector3(
+                Random.Range(_enemiesSpawnAreaCenter.x - _enemiesSpawnAreaExtents.x,
+                    _enemiesSpawnAreaCenter.x + _enemiesSpawnAreaExtents.x),
+                _enemiesSpawnAreaCenter.y,
+                Random.Range(_enemiesSpawnAreaCenter.z - _enemiesSpawnAreaExtents.y,
+                    _enemiesSpawnAreaCenter.z + _enemiesSpawnAreaExtents.y));
+        }
+
+        private void SpawnBoss()
+        {
+            if (_bossSpawned) return;
+            _bossSpawned = true;
+            _aliveCount = 1;
+
+            var boss = Object.Instantiate(_bossPrefab, _bossSpawnPoint, Quaternion.identity)
+                .GetComponent<BossController>();
+            if (boss == null)
+            {
+                Debug.LogError($"Boss prefab {_bossPrefab.name} does not have BossController component.");
+                _bossSpawned = false;
+                _aliveCount = 0;
+                return;
+            }
+
+            var healthSystem = boss.GetComponent<StabilitySystem>();
+            if (healthSystem == null)
+            {
+                Debug.LogError($"Boss {boss.name} does not have HealthSystem component.");
+                Object.Destroy(boss.gameObject);
+                _bossSpawned = false;
+                _aliveCount = 0;
+                return;
+            }
+
+            var healthBarView = boss.GetComponentInChildren<StabilityBarView>();
+            if (healthBarView == null)
+            {
+                Debug.LogWarning($"Boss {boss.name} does not have HealthBarView component.");
+            }
+            else
+            {
+                healthSystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
+            }
+
+            var skillsController = boss.GetComponent<SkillsController>();
+            if (skillsController == null)
+            {
+                Debug.LogWarning($"Boss {boss.name} does not have SkillsController component.");
+            }
+
+            healthSystem.Init(_settingsInteractor.LoadSettings().EnemiesPower);
+            healthSystem.OnDeath.AddListener((_) => OnEnemyDeath());
+            skillsController?.Init(null);
+            boss.Init(_settingsInteractor.LoadSettings().PeaceMode);
+            boss.UniqueId = Guid.NewGuid().ToString();
+            boss.PrefabIndex = -1; // Босс не использует индекс префаба из _enemyPrefabs
+            _characters.Add(boss);
+        }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\States\AttackState.cs ===
+﻿using System.Collections;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies.States
+{
+    public class AttackState : StatesEnemyConst
+    {
+        private SkillsController _skillsController;
+        public AttackState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent, SkillsController skillsController) : base(enemyController, animator, navMeshAgent)
+        {
+            _skillsController = skillsController;
+        }
+
+        public override void Enter()
+        {
+            _skillsController.Skills[SkillType.Melee].Cast();
+            EnemyAnimator.StartCoroutine(SwordColliderSwitch());
+            Debug.Log("Entering ENEMY ATTACK");
+            EnemyAnimator.DoAttack();
+            NavMeshAgent.isStopped = true;
+        }
+
+        public override void Execute()
+        {
+            EnemyController.RotateToPlayer();
+        }
+
+        public override void Exit()
+        {
+            
+        }
+        
+        private IEnumerator SwordColliderSwitch()
+        {
+            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.3f, "attackTest"));
+            EnemyController.SwordCollider.enabled = true;
+            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.53f, "attackTest"));
+            EnemyController.SwordCollider.enabled = false;
+        }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\States\DeathState.cs ===
+﻿using System.Collections;
+using UnityEngine;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies.States
+
+{  
+    
+    public class DeathState : StatesEnemyConst
+    {   
+        private readonly Canvas hpCanvas;
+        public DeathState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent, Canvas hpCanvas) : base(enemyController, animator, navMeshAgent)
+        {
+            this.hpCanvas = hpCanvas;
+            
+        }
+        
+        public override void Enter()
+        {
+            // EnemyController.isDead = true;
+            hpCanvas.enabled = false;
+            EnemyController.GetComponent<Collider>().enabled = false;
+            EnemyAnimator.DeathEvent();
+            NavMeshAgent.ResetPath();
+            NavMeshAgent.isStopped = true;
+            NavMeshAgent.angularSpeed = 0f;
+            // Debug.Log(EnemyController.isDead);
+            EnemyController.StartCoroutine(Destroy());
+            
+        }
+
+        public override void Execute()
+        {
+        }
+
+        public override void Exit()
+        {
+        }
+
+        public IEnumerator Destroy()
+        {
+            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.99f, "deathTest"));
+            Object.Destroy(EnemyController.gameObject);
+            
+            
+        }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\States\FearState.cs ===
+﻿using UnityEngine;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies.States
+{
+    public class FearState : StatesEnemyConst
+    {
+        public FearState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent) : base(enemyController, animator, navMeshAgent)
+        {
+        }
+
+        public override void Enter()
+        {
+            Debug.Log("Entering ENEMY Fear");
+            EnemyAnimator.WalkEvent();
+            NavMeshAgent.isStopped = false;
+        }
+
+        public override void Execute()
+        {
+            EnemyController.SetRunFromPlayer();
+        }
+
+        public override void Exit()
+        {
+            
+        }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\States\IdleState.cs ===
+﻿using UnityEngine;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies.States
+{
+    public class IdleState : StatesEnemyConst
+    {
+        public IdleState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent) : base(enemyController, animator, navMeshAgent)
+        {
+        }
+
+        public override void Enter()
+        {
+            EnemyAnimator.IdleEvent();
+            Debug.Log("Entering ENEMY Idle");
+            NavMeshAgent.isStopped = true;
+        }
+
+        public override void Execute()
+        {
+        }
+
+        public override void Exit()
+        {
+            
+        }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\States\RangeAttackState.cs ===
+﻿using System.Collections;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.Skills;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies.States
+{
+    public class RangeAttackState : StatesEnemyConst
+    {
+        
+        private SkillsController _skillsController;
+        public RangeAttackState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent, SkillsController skillsController ) : base(enemyController, animator, navMeshAgent)
+        {
+            _skillsController = skillsController;
+        }
+
+        public override void Enter()
+        {
+            Debug.Log("Entering ENEMY RANGE ATTACK");
+            EnemyAnimator.DoAttack();
+            NavMeshAgent.isStopped = true;
+            EnemyAnimator.StartCoroutine(SpellCast());
+        }
+
+        public override void Execute()
+        {
+            EnemyController.RotateToPlayer();
+        }
+
+        public override void Exit()
+        {
+            
+        }
+        
+        private IEnumerator SpellCast()
+        {
+            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.425f, "attackTest"));
+            var plug = (SpellSkill)_skillsController.Skills[SkillType.Fireball];
+            if (Random.Range(0, 2) == 1)
+            {
+                _skillsController.Skills[SkillType.Fireball].Cast();
+            }
+            else
+            {
+                if (_skillsController.Skills[SkillType.Meteor]._isReady)
+                {
+                    _skillsController.Skills[SkillType.Meteor].Cast();
+                    plug.CastPlug();
+                }
+                else
+                {
+                    _skillsController.Skills[SkillType.Fireball].Cast();
+                }
+            }
+            
+        }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\States\WalkState.cs ===
+﻿using UnityEngine;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies.States
+{
+    public class WalkState : StatesEnemyConst
+    {
+        public WalkState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent) : base(enemyController, animator, navMeshAgent)
+        {
+        }
+
+        public override void Enter()
+        {
+            Debug.Log("Entering ENEMY WALK");
+            EnemyAnimator.WalkEvent();
+            NavMeshAgent.isStopped = false;
+        }
+
+        public override void Execute()
+        {
+            EnemyController.SetFollowPlayer();
+        }
+
+        public override void Exit()
+        {
+            
+        }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\StatesBossConst.cs ===
+﻿using Gameplay.StateMachines;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies
+{
+    public abstract class StatesBossConst : IState
+    {
+        protected BossController BossController;
+        protected BossAnimator BossAnimator;
+        protected NavMeshAgent NavMeshAgent;
+        
+        protected StatesBossConst(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent)
+        {
+            BossController = bossController;
+            BossAnimator = animator;
+            NavMeshAgent = navMeshAgent;
+        }
+        
+        public virtual void Enter()
+        {
+        }
+
+        public virtual void Execute()
+        {
+        }
+
+        public virtual void Exit()
+        {
+        }
+    }
+}
+
+=== Scripts\Gameplay\Enemies\StatesEnemyConst.cs ===
+﻿using Gameplay.StateMachines;
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies
+{
+    public abstract class StatesEnemyConst : IState
+    {
+        protected EnemyController EnemyController;
+        protected EnemyAnimator EnemyAnimator;
+        protected NavMeshAgent NavMeshAgent;
+  
+        
+        protected StatesEnemyConst(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent)
+        {
+            EnemyController = enemyController;
+            EnemyAnimator = animator;
+            NavMeshAgent = navMeshAgent;
+        }
+        
+        public virtual void Enter()
+        {
+        }
+
+        public virtual void Execute()
+        {
+        }
+
+        public virtual void Exit()
+        {
+        }
+    }
+}
+
+=== Scripts\Gameplay\Events\BranchSwitchedEvent.cs ===
+﻿using Core.Events;
+
+namespace Gameplay.Events
+{
+    public enum WorldBranch { Main, Alpha }
+
+    public class BranchSwitchedEvent : IEvent
+    {
+        public WorldBranch NewBranch;
+
+        public BranchSwitchedEvent(WorldBranch newBranch)
+        {
+            NewBranch = newBranch;
+        }
+    }
+}
+
+=== Scripts\Gameplay\Events\PlayerStabilityChangedEvent.cs ===
+﻿using Core.Events;
+
+namespace Gameplay.Events
+{
+    public class PlayerStabilityChangedEvent : IEvent
+    {
+        public bool IsGlitched;
+        public float StabilityPercent;
+    }
+}
+
+=== Scripts\Gameplay\Interactables\BuggablePhysicsBox.cs ===
+﻿using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.Interactables
+{
+    [RequireComponent(typeof(Rigidbody))]
+    public class BuggablePhysicsBox : MonoBehaviour, IBuggable
+    {
+        public bool IsBugged { get; private set; } = true;
+
+        private Rigidbody _rb;
+        private Outline _outline; // Опционально: компонент обводки
+
+        private void Awake()
+        {
+            _rb = GetComponent<Rigidbody>();
+            _outline = GetComponent<Outline>();
+
+            if (_outline) _outline.enabled = false;
+
+            if (IsBugged)
+            {
+                _rb.mass = 9999f; // Игрок не сможет его сдвинуть
+                _rb.isKinematic = true; // Для надежности
+            }
+        }
+
+        public void OnScanned(bool isScanning)
+        {
+            if (!IsBugged) return;
+
+            // Включаем красную обводку
+            if (_outline != null)
+            {
+                _outline.enabled = isScanning;
+                // TODO Добавить обоводку
+                //_outline.OutlineColor = Color.red;
+            }
+
+            // В консоли можно вывести:[Property Error: Mass = 9999]
+        }
+
+        public void OnInteract()
+        {
+            if (!IsBugged) return;
+
+            Debug.Log("Открытие мини-игры Синхронизации Физики...");
+
+            // В СЛЕДУЮЩЕМ ЭТАПЕ: 
+            // 1. Отключаем инпут игрока
+            // 2. _viewManager.GetView<PhysicsPuzzleView>().Show(this);
+
+            // Пока мини-игры нет, чиним сразу для теста:
+            FixBug();
+        }
+
+        public void FixBug()
+        {
+            IsBugged = false;
+
+            _rb.isKinematic = false;
+            _rb.mass = 10f; // Нормальная масса
+
+            if (_outline)
+            {
+                //_outline.OutlineColor = Color.green; // Показываем, что починено
+                Invoke(nameof(DisableOutline), 1f); // Выключаем через секунду
+            }
+
+            Debug.Log("Ящик починен! Теперь его можно двигать.");
+        }
+
+        private void DisableOutline()
+        {
+            if (_outline) _outline.enabled = false;
+        }
+    }
+}
+
+=== Scripts\Gameplay\Interactables\IBuggable.cs ===
+﻿namespace Gameplay.Interactables
+{
+    public interface IBuggable
+    {
+        bool IsBugged { get; }
+        void OnScanned(bool isScanning); // Вызывается, когда сканер включен/выключен
+        void OnInteract();               // Вызывается при нажатии [E] на объект
+        void FixBug();                   // Вызывается после прохождения мини-игры
+    }
+}
+
+=== Scripts\Gameplay\Pause\PauseMenuController.cs ===
+﻿using Core.Bootstrap;
+using Core.DI;
+using Core.Events;
+using Core.Extensions;
+using Core.Pause;
+using Core.SaveLoad.PlayerSaves;
+using Core.Scenes;
+using Core.UI;
+using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Views.MainMenu;
+using UnityEngine;
+
+namespace Gameplay.Pause
+{
+    public class PauseMenuController : MonoBehaviour, IInjectable, IInitializable
+    {
+        [Inject] private ViewManager _viewManager;
+        [Inject] private SceneLoader _sceneLoader;
+        [Inject] private PlayerDataInteractor _playerDataInteractor;
+    
+        private PauseView _pauseView;
+        private LoadGameView _loadGameView;
+
+        public void Init()
+        {
+            EventBus.Subscribe<GamePauseEvent>(OnPauseStateChanged).AddTo(gameObject);
+        
+            _pauseView = _viewManager.GetView<PauseView>();
+            _loadGameView = _viewManager.GetView<LoadGameView>();
+
+            // Привязка кнопок
+            _pauseView.SetMainMenuButtonListener(() => 
+            {
+                PauseManager.SetPause(false); // Снимаем паузу перед выходом
+                _sceneLoader.LoadScene("MainMenu");
+            });
+
+            _pauseView.SetLoadLastButtonListener(() => 
+            {
+                PauseManager.SetPause(false);
+                _playerDataInteractor.LoadLatestPlayerData();
+                _sceneLoader.LoadScene("LoadingScene"); // Загружаем текущую сцену заново
+            });
+
+            _pauseView.SetToLoadChooseButtonListener(() => 
+            {
+                _viewManager.SwitchViews(_pauseView, _loadGameView);
+                _loadGameView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), LoadSelected);
+            });
+
+            _loadGameView.SetBackButtonListener(() => _viewManager.SwitchViews(_loadGameView, _pauseView));
+        }
+
+        private void LoadSelected(string timestamp)
+        {
+            PauseManager.SetPause(false);
+            _playerDataInteractor.LoadByTimestamp(timestamp);
+            _sceneLoader.LoadScene("LoadingScene");
+        }
+
+        private void OnPauseStateChanged(GamePauseEvent eventData)
+        {
+            if (eventData.IsPaused)
+                _pauseView.Show();
+            else
+                _pauseView.Hide();
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\GlobalState.cs ===
+﻿using Core.Gameplay;
+using Core.UI;
+
+namespace Gameplay.StateMachines
+{
+    public abstract class GlobalState : IState
+    {
+        private GameplayManager _gameplayManager;
+        private ViewManager _viewManager;
+
+        protected GlobalState(GameplayManager gameplayManager, ViewManager viewManager)
+        {
+            _gameplayManager = gameplayManager;
+            _viewManager = viewManager;
+        }
+
+        public virtual void Enter()
+        {
+            
+        }
+
+        public virtual void Execute()
+        {
+            
+        }
+
+        public virtual void Exit()
+        {
+            
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\IState.cs ===
+﻿namespace Gameplay.StateMachines
+{
+    public interface IState
+    {
+        void Enter();
+        void Execute();
+        void Exit();
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\FightPlayerState.cs ===
+﻿using Gameplay.Anims;
+using Gameplay.Controllers.Player;
+
+namespace Gameplay.StateMachines.PlayerStates
+{
+    public abstract class FightPlayerState : IState
+    {
+        protected FightController FightController;
+        protected SkillsController SkillsController;
+        protected PlayerAnimator PlayerAnimator;
+        
+        protected FightPlayerState(FightController fightController, SkillsController skillsController, PlayerAnimator animator)
+        {
+            FightController = fightController;
+            SkillsController = skillsController;
+            PlayerAnimator = animator;
+        }
+        
+        public virtual void Enter()
+        {
+        }
+
+        public virtual void Execute()
+        {
+        }
+
+        public virtual void Exit()
+        {
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\FightStates\AttackState.cs ===
+﻿using System.Collections;
+using Gameplay.Anims;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+
+namespace Gameplay.StateMachines.PlayerStates.FightStates
+{
+    public class AttackState : FightPlayerState
+    {
+
+        public AttackState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        {
+        }
+        
+        
+
+        public override void Enter()
+        {
+            Debug.Log("Entering Melee");
+            PlayerAnimator.StartCoroutine(SwordColliderSwitch());
+            PlayerAnimator.DoAttack();
+            SkillsController.Skills[SkillType.Melee].Cast();
+
+        }
+
+        public override void Execute()
+        {
+        }
+
+        public override void Exit()
+        {
+            Debug.Log("Exiting Melee");
+        }
+
+        private IEnumerator SwordColliderSwitch()
+        {
+            yield return new WaitUntil(()=>PlayerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.4f, "Attack"));
+            FightController.SwordCollider.enabled = true;
+            yield return new WaitUntil(()=>PlayerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.53f, "Attack"));
+            FightController.SwordCollider.enabled = false;
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\FightStates\FocusState.cs ===
+﻿using Gameplay.Anims;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+
+namespace Gameplay.StateMachines.PlayerStates.FightStates
+{
+    public class FocusState : FightPlayerState
+    {
+        public FocusState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        {
+        }
+
+        public override void Enter()
+        {
+            Debug.Log("Entering Focus");
+        }
+
+        public override void Execute()
+        {
+            
+        }
+        
+        public override void Exit()
+        {
+            Debug.Log("Exiting Focus");
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\FightStates\IdleAttackState.cs ===
+﻿using System.Collections;
+using Gameplay.Anims;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+
+namespace Gameplay.StateMachines.PlayerStates.FightStates
+{
+    public class IdleAttackState : FightPlayerState
+    {
+        public IdleAttackState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        {
+        }
+
+        public override void Enter()
+        {
+            Debug.Log("Entering IdleAttack");
+            if(!FightController.IsSheathed) return;
+            PlayerAnimator.DoWithdraw();
+            FightController.IsSheathed = false;
+            PlayerAnimator.StartCoroutine(Withdraw());
+        }
+
+        public override void Execute()
+        {
+        }
+
+        public override void Exit()
+        {
+            Debug.Log("Exiting IdleAttack");
+        }
+        
+        private IEnumerator Withdraw()
+        {
+            yield return new WaitUntil(()=>PlayerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.374f, "Withdraw"));
+            FightController.swordGameObject.SetActive(true);
+            FightController.hipSwordGameObject.SetActive(false);
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\FightStates\SheathedSwordState.cs ===
+﻿using System.Collections;
+using Gameplay.Anims;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+
+namespace Gameplay.StateMachines.PlayerStates.FightStates
+{
+    public class SheathedSwordState : FightPlayerState
+    {
+        public SheathedSwordState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        {
+        }
+        
+        public override void Enter()
+        {
+            Debug.Log("Entering Sheathed Sword");
+            if (FightController.IsSheathed) return;
+            PlayerAnimator.DoSheath();
+            PlayerAnimator.StartCoroutine(Sheath());
+        }
+
+        public override void Exit()
+        {
+            Debug.Log("Exiting Sheathed Sword");
+            //PlayerAnimator.DoWithdraw();
+        }
+        
+        private IEnumerator Sheath()
+        {
+            yield return new WaitUntil(()=>PlayerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.8f, "Sheath"));
+            FightController.swordGameObject.SetActive(false);
+            FightController.hipSwordGameObject.SetActive(true);
+            yield return new WaitUntil(()=>PlayerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Sheath"));
+            FightController.IsSheathed = true;
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\FightStates\SpellState.cs ===
+﻿using System.Collections;
+using Gameplay.Anims;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+
+namespace Gameplay.StateMachines.PlayerStates.FightStates
+{
+    public class SpellState : FightPlayerState
+    {
+        public SpellState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        {
+        }
+
+        public override void Enter()
+        {
+            Debug.Log("Entering Spell");
+            PlayerAnimator.DoSpell();
+            //FightController.swordGameObject.SetActive(false);
+            PlayerAnimator.StartCoroutine(SpellCast());
+
+        }
+
+        public override void Execute()
+        {
+            
+        }
+
+        public override void Exit()
+        {
+            //FightController.swordGameObject.SetActive(true);
+            Debug.Log("Exiting Spell");
+        }
+
+        private IEnumerator SpellCast()
+        {
+            yield return new WaitUntil(()=>PlayerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.425f, "Spell"));
+            SkillsController.Skills[SkillType.Fireball].Cast();
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\MovementPlayerState.cs ===
+﻿using Gameplay.Anims;
+using Gameplay.Controllers.Player;
+
+namespace Gameplay.StateMachines.PlayerStates
+{
+    public abstract class MovementPlayerState : IState
+    {
+        protected MovementController MovementController;
+        protected PlayerAnimator PlayerAnimator;
+        
+        protected MovementPlayerState(MovementController movementController, PlayerAnimator animator)
+        {
+            MovementController = movementController;
+            PlayerAnimator = animator;
+        }
+        
+        public virtual void Enter()
+        {
+        }
+
+        public virtual void Execute()
+        {
+        }
+
+        public virtual void Exit()
+        {
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\MoveStates\DeathState.cs ===
+﻿using Gameplay.Anims;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+
+namespace Gameplay.StateMachines.PlayerStates.MoveStates
+{
+    public class DeathState : MovementPlayerState
+    {
+        public DeathState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        {
+        }
+
+        public override void Enter()
+        {
+            Debug.Log("Entering Death State");
+            PlayerAnimator.DoDeath();
+        }
+
+        public override void Execute()
+        {
+           
+        }
+
+        public override void Exit()
+        {
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\MoveStates\FallingState.cs ===
+﻿using Gameplay.Anims;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+
+namespace Gameplay.StateMachines.PlayerStates.MoveStates
+{
+    public class FallingState : MovementPlayerState
+    {
+        public FallingState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        {
+        }
+
+        public override void Enter()
+        {
+            Debug.Log("Entering Falling State");
+            PlayerAnimator.DoFalling();
+        }
+
+        public override void Execute()
+        {
+            MovementController.InertialMove();
+        }
+
+        public override void Exit()
+        {
+            Debug.Log("Exiting Falling State");
+            PlayerAnimator.DoLanding();
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\MoveStates\IdleState.cs ===
+﻿using Gameplay.Anims;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+
+namespace Gameplay.StateMachines.PlayerStates.MoveStates
+{
+    public class IdleState :  MovementPlayerState
+    {
+        public IdleState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        {
+        }
+
+        public override void Enter()
+        {
+            PlayerAnimator.DoIdleMove();
+            MonoBehaviour.print("Entering Idle State");
+        }
+
+        public override void Execute()
+        {
+        }
+
+        public override void Exit()
+        {
+            MonoBehaviour.print("Exiting Idle State");
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\MoveStates\JumpingState.cs ===
+﻿using System.Collections;
+using Core.Input;
+using Gameplay.Anims;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+
+namespace Gameplay.StateMachines.PlayerStates.MoveStates
+{
+    public class JumpingState : MovementPlayerState
+    {
+        public JumpingState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        {
+        }
+
+        public override void Enter()
+        {
+            MonoBehaviour.print("Entering Jumping State");
+            PlayerAnimator.StartCoroutine(JumpRoutine());
+        }
+
+        public override void Execute()
+        {
+            MovementController.moveSpeed -= 2f * Time.deltaTime;
+            MovementController.Move();
+        }
+
+        public override void Exit()
+        {   
+            MonoBehaviour.print("Exiting Jumping State");
+        }
+
+        private IEnumerator JumpRoutine()
+        {
+            PlayerAnimator.DoJump();
+            yield return new WaitUntil(() => PlayerAnimator.CheckAnimationState((int)LayerNames.Movement, .63f, "Jump"));
+            MovementController.Jump();
+            yield return new WaitUntil(() => PlayerAnimator.CheckAnimationState((int)LayerNames.Movement, .99f, "Jump"));
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\MoveStates\SprintingState.cs ===
+﻿using Gameplay.Anims;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+
+namespace Gameplay.StateMachines.PlayerStates.MoveStates
+{
+    public class SprintingState : MovementPlayerState
+    {
+        public SprintingState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        {
+        }
+
+        public override void Enter()
+        {
+            PlayerAnimator.DoRun();
+            MovementController.moveSpeed = MovementController.runSpeed;
+            MonoBehaviour.print("Entering Sprinting State");
+        }
+
+        public override void Execute()
+        {
+            MovementController.Move();
+        }
+
+        public override void Exit()
+        {
+            MonoBehaviour.print("Exiting Sprinting State");
+        }
+    }
+}
+
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\MoveStates\WalkingState.cs ===
+﻿using Gameplay.Anims;
+using Gameplay.Controllers.Player;
+using UnityEngine;
+
+namespace Gameplay.StateMachines.PlayerStates.MoveStates
+{
+    public class WalkingState: MovementPlayerState
+    {
+        public WalkingState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        {
+        }
+
+        public override void Enter()
+        {
+            MonoBehaviour.print("Entering Walking State");
+            PlayerAnimator.DoWalk();
+            MovementController.moveSpeed = 2f;
+        }
+
+        public override void Execute()
+        {
+            MovementController.Move();
+        }
+
+        public override void Exit()
+        {
+            MonoBehaviour.print("Exiting Walking State");
+            
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\StateMachine.cs ===
+﻿using System;
+using System.Collections.Generic;
+
+namespace Gameplay.StateMachines
+{
+    public class StateMachine
+    {
+        private IState _currentState;
+
+        private Dictionary<Type, List<Transition>> _states = new Dictionary<Type, List<Transition>>();
+
+        private Dictionary<Type, List<Type>> _antiStates = new();
+        
+        private List<Transition> _currentStates = new List<Transition>();
+        private List<Transition> _anyStates = new List<Transition>();
+
+        private List<Transition> _emptyStates = new List<Transition>(0);
+
+        public void Tick()
+        {
+            var transition = GetTransition();
+
+            if (transition != null)
+            {
+                SetState(transition.To);
+            }
+            
+            _currentState?.Execute();
+        }
+
+        public void SetState(IState nextState)
+        {
+            if (nextState == _currentState)
+            {
+                return;
+            }
+
+            if (_currentState != null)
+            {
+                _antiStates.TryGetValue(_currentState.GetType(), out var states);
+                if (states != null && states.Contains(nextState.GetType()))
+                {
+                    return;
+                }
+            }
+            
+            _currentState?.Exit();
+            
+            _currentState = nextState;
+
+            _states.TryGetValue(_currentState.GetType(), out _currentStates);
+
+            if (_currentStates == null)
+            {
+                _currentStates = _emptyStates;
+            }
+
+            _currentState?.Enter();
+        }
+
+        public void AddTransition(IState from, IState to, Func<bool> predicate)
+        {
+            if (predicate == null)
+            {
+                return;
+            }
+
+            if (_states.TryGetValue(from.GetType(), out var states) == false)
+            {
+                states = new List<Transition>();
+                _states[from.GetType()] = states;
+            }
+            
+            states.Add(new Transition(to, predicate));
+        }
+
+        public void AddAnyTransition(IState state, Func<bool> predicate)
+        {
+            if (predicate == null)
+            {
+                return;
+            }
+
+            _anyStates.Add(new Transition(state, predicate));
+        }
+
+        public void AddAntiState(IState targetState,IState antiState)
+        {
+            var type = targetState.GetType();
+            var item = antiState.GetType();
+            if (!_antiStates.ContainsKey(type))
+            {
+                var states = new List<Type>();
+                _antiStates.Add(type,states);
+            }
+
+            _antiStates[type].Add(item);
+        }
+
+        private Transition GetTransition()
+        {
+            foreach (var state in _anyStates)
+            {
+                if (state.Condition())
+                {
+                    return state;
+                }
+            }
+            
+            foreach (var state in _currentStates)
+            {
+                if (state.Condition())
+                {
+                    return state;
+                }
+            }
+
+            return null;
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\Transition.cs ===
+﻿using System;
+
+namespace Gameplay.StateMachines
+{
+    public class Transition
+    {
+        public IState To { get; }
+        public Func<bool> Condition { get; }
+
+        public Transition(IState to, Func<bool> condition)
+        {
+            To = to;
+            Condition = condition;
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\CooldownView.cs ===
+﻿using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.Gameplay
+{
+    public class CooldownView : MonoBehaviour
+    {
+        [SerializeField] private Image MeleeMask;
+        [SerializeField] private Image MeleeStatus;
+        [SerializeField] private Image SpellMask;
+        [SerializeField] private Image SpellStatus;
+
+        private readonly UnityEvent _updateMelee = new();
+        private readonly UnityEvent _updateSpell = new();
+
+        private void Update()
+        {
+            _updateMelee.Invoke();
+            _updateSpell.Invoke();
+            //MeleeStatus.fillAmount = _skillsController.Skills[SkillType.Melee].GetReadyPercent();
+            //SpellStatus.fillAmount = _skillsController.Skills[SkillType.Fireball].GetReadyPercent();
+            MeleeMask.enabled = MeleeStatus.fillAmount > 0;
+            SpellMask.enabled = SpellStatus.fillAmount > 0;
+        }
+        
+        public void SetMeleeListener(UnityAction callback)
+        {
+            _updateMelee.AddListener(callback);
+        }
+        
+        public void SetSpellListener(UnityAction callback)
+        {
+            _updateSpell.AddListener(callback);
+        }
+
+        public void SetMeleeFillAmount(float value)
+        {
+            MeleeStatus.fillAmount = value;
+        }
+        
+        public void SetSpellFillAmount(float value)
+        {
+            SpellStatus.fillAmount = value;
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\EndGameView.cs ===
+﻿using System;
+using Core.UI;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.Gameplay
+{
+    public class EndGameView : View
+    {
+        [SerializeField] private Button restartButton;
+        
+        public void AddRestartButtonListener(Action callback)
+        {
+            restartButton.onClick.AddListener(callback.Invoke);
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\PauseView.cs ===
+﻿using System;
+using Core.UI;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.Gameplay
+{
+    public class PauseView : View
+    {
+        [SerializeField] private Button saveButton;
+        [SerializeField] private Button mainMenuButton;
+        [SerializeField] private Button loadLastButton;
+        [SerializeField] private Button toLoadChooseButton;
+
+        public void SetSaveButtonListener(Action callback)
+        {
+            saveButton.onClick.AddListener(callback.Invoke);
+        }
+        
+        public void SetMainMenuButtonListener(Action callback)
+        {
+            mainMenuButton.onClick.AddListener(callback.Invoke);
+        }
+        
+        public void SetLoadLastButtonListener(Action callback)
+        {
+            loadLastButton.onClick.AddListener(callback.Invoke);
+        }
+        
+        public void SetToLoadChooseButtonListener(Action callback)
+        {
+            toLoadChooseButton.onClick.AddListener(callback.Invoke);
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\PlayerInterfaceView.cs ===
+﻿using Core.UI;
+
+namespace Gameplay.UI.Views.Gameplay
+{
+    public class PlayerInterfaceView : View
+    {
+        
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\StabilityBarView.cs ===
+﻿using Plugins.Demigiant.DOTween.Modules;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.Gameplay
+{
+    public class StabilityBarView : MonoBehaviour
+    {
+        // [SerializeField] private HealthSystem _healthSystem;
+        [SerializeField] private Image _hpFront;
+        [SerializeField] private Image _hpMiddle;
+
+        // public void Init(UnityEvent<float,float> onHealthChanged)
+        // {
+        //     onHealthChanged.AddListener(ChangeHp);
+        // }
+
+        private void Start()
+        {
+            // if(_healthSystem) _healthSystem.onHealthChanged.AddListener(ChangeHp);
+        }
+
+        public void ChangeHp(float hp, float maxHp)
+        {
+            float percent = Mathf.Clamp(hp / maxHp, 0f, 1f);
+            _hpFront.fillAmount = percent;
+            _hpMiddle.DOFillAmount(percent, .9f);
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\MainMenu\LoadGameView.cs ===
+﻿using System;
+using System.Collections.Generic;
+using Core.UI;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.MainMenu
+{
+    public class LoadGameView : View
+    {
+        [SerializeField] private RectTransform _saveContainer;
+        [SerializeField] private Button _buttonPrefab;
+        [SerializeField] private Button _goBackButton;
+
+
+        public void SetBackButtonListener(Action callback)
+        {
+            _goBackButton.onClick.AddListener(callback.Invoke);
+        }
+        
+        public void ShowLoadGameMenu(List<string> timestamps, Action<string> callback)
+        {
+            // Очищаем старые кнопки
+            foreach (Transform child in _saveContainer)
+                Destroy(child.gameObject);
+
+            // Создаем кнопку для каждого сохранения
+            foreach (string timestamp in timestamps)
+            {
+                Button saveButton = Instantiate(_buttonPrefab, _saveContainer);
+                string formattedTime = FormatTimestamp(timestamp); // Форматируем для читаемости
+                saveButton.GetComponentInChildren<TextMeshProUGUI>().text = $"Save {formattedTime}";
+                saveButton.onClick.AddListener(() => callback.Invoke(timestamp));
+            }
+        }
+        
+        private string FormatTimestamp(string timestamp)
+        {
+            DateTime dateTime = DateTime.ParseExact(timestamp, "yyyyMMddHHmmss", null);
+            return dateTime.ToString("yyyy-MM-dd HH:mm:ss");
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\MainMenu\MainMenuView.cs ===
+﻿using System;
+using Core.UI;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.MainMenu
+{
+    public class MainMenuView : View
+    {
+        [SerializeField] private Button _resumeButton;
+        [SerializeField] private Button _newGameButton;
+        [SerializeField] private Button _settingsButton;
+        [SerializeField] private Button _loadButton;
+        [SerializeField] private Button _exitButton;
+
+        private void Awake()
+        {
+            _exitButton.onClick.AddListener(Application.Quit);
+        }
+
+        public void SetResumeAction(Action callback)
+        {
+            _resumeButton.onClick.AddListener(callback.Invoke);
+        }
+        
+        public void SetNewGameAction(Action callback)
+        {
+            _newGameButton.onClick.AddListener(callback.Invoke);
+        }
+
+        public void SetLoadAction(Action callback)
+        {
+            _loadButton.onClick.AddListener(callback.Invoke);
+        }
+
+        public void SetSettingsAction(Action callback)
+        {
+            _settingsButton.onClick.AddListener(callback.Invoke);
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\MainMenu\SettingsView.cs ===
+﻿using System;
+using Core.UI;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.MainMenu
+{
+    public class SettingsView : View
+    {
+        [SerializeField] private Slider _enemiesPower;
+        [SerializeField] private Button _goBackButton;
+        [SerializeField] private Toggle _peaceModeToggle;
+        public void SetSliderValue(float value)
+        {
+            _enemiesPower.value = value;
+        }
+        
+        public void SetPeaceMode(bool value)
+        {
+            _peaceModeToggle.isOn = value;
+        }
+        
+        public void SetSliderListener(Action<float> callback)
+        {
+            _enemiesPower.onValueChanged.AddListener(callback.Invoke);
+        }
+        
+        public void SetPeaceModeListener(Action<bool> callback)
+        {
+            _peaceModeToggle.onValueChanged.AddListener(callback.Invoke);
+        }
+
+        public void SetBackButtonListener(Action callback)
+        {
+            _goBackButton.onClick.AddListener(callback.Invoke);
+        }
+    }
+}
+
+=== Scripts\Shortcuts\FifineShortcuts.cs ===
+using UnityEditor;
+using UnityEngine;
+
+namespace Shortcuts
+{
+    public class FifineShortcuts
+    {
+        // Атрибут MenuItem создает кнопку в верхнем меню Unity.
+        // Символы в конце: % = Ctrl, # = Shift, & = Alt. 
+        // То есть шорткат будет: Ctrl + Alt + 1
+        [MenuItem("MyTools/Focus Folders/Prefabs %#&1")]
+        public static void FocusPrefabsFolder()
+        {
+            // Укажи путь к нужной тебе папке внутри проекта
+            Object folder = AssetDatabase.LoadAssetAtPath<Object>("Assets/Prefabs");
+        
+            if (folder != null)
+            {
+                // Делаем папку активной (как будто кликнули по ней)
+                Selection.activeObject = folder;
+                EditorUtility.FocusProjectWindow();
+                // "Пингуем" её (папка мигнет желтым цветом в окне Project)
+                //EditorGUIUtility.PingObject(folder);
+            }
+            else
+            {
+                Debug.LogWarning("Папка не найдена!");
+            }
+        }
+
+        // Можешь добавить сколько угодно таких папок!
+        // Шорткат: Ctrl + Shift + Alt + 2
+        [MenuItem("MyTools/Focus Folders/Scripts %#&2")]
+        public static void FocusScriptsFolder()
+        {
+            Object folder = AssetDatabase.LoadAssetAtPath<Object>("Assets/Scripts");
+            if (folder != null)
+            {
+                Selection.activeObject = folder;
+                EditorUtility.FocusProjectWindow();
+                //EditorGUIUtility.PingObject(folder);
+            }
         }
     }
 }
