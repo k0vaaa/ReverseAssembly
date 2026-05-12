@@ -1,6 +1,7 @@
 ﻿using Core.Audio;
 using Core.Input;
 using Core.Scenes;
+using Gameplay.Core;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -13,6 +14,7 @@ namespace Core.Bootstrap
         [SerializeField] private AudioMixer _mainMixer;
         private InputManager _inputManager;
         private SceneLoader _sceneLoader;
+        private SyncEnergyManager _syncEnergyManager;
 
         private void Awake()
         {
@@ -23,6 +25,7 @@ namespace Core.Bootstrap
         {
             _sceneLoader = new SceneLoader();
             _inputManager = new InputManager();
+            _syncEnergyManager = new SyncEnergyManager();
         }
     }
 }

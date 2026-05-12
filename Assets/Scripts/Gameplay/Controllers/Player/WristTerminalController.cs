@@ -11,6 +11,7 @@ namespace Gameplay.Controllers.Player
     {
         [Inject] private InputManager _inputManager;
         [Inject] private BranchManager _branchManager;
+        [Inject] private SyncEnergyManager _syncEnergyManager;
 
         public void Init()
         {
@@ -19,9 +20,16 @@ namespace Gameplay.Controllers.Player
 
         private void HandleBranchToggle()
         {
-            // Здесь в будущем можно добавить проверку: если ХП < 20% или идет анимация атаки - не переключать
-            _branchManager.ToggleBranch();
-            // TODO: Вызвать анимацию левой руки (щелчок по терминалу) и звук
+            if (_syncEnergyManager.TryConsumeEnergy())
+            {
+                // Здесь в будущем можно добавить проверку: если ХП < 20% или идет анимация атаки - не переключать
+                _branchManager.ToggleBranch();
+                // TODO: Вызвать анимацию левой руки (щелчок по терминалу) и звук
+            }
+            else
+            {
+                Debug.Log("Not enough Synchronization Energy to jump branches!");
+            }
         }
 
         public void Dispose()
