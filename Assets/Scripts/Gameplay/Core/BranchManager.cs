@@ -6,12 +6,13 @@ using UnityEngine;
 
 namespace Gameplay.Core
 {
-    public class BranchManager : MonoBehaviour, IInjectable, IInitializable
+    public class BranchManager : MonoBehaviour, IInitializable
     {
         public WorldBranch CurrentBranch { get; private set; }
 
         [Header("Environments")]
-        [SerializeField] private GameObject _mainBranchEnv;[SerializeField] private GameObject _alphaBranchEnv;
+        [SerializeField] private GameObject _mainBranchEnv;
+        [SerializeField] private GameObject _alphaBranchEnv;
 
         public void Init()
         {

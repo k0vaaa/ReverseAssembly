@@ -9,7 +9,7 @@ namespace Gameplay.Combat.Offensive.Skills
     public class MeleeSkill : Skill
     {
         private Sword _sword;
-        public MeleeSkill(SkillData skillData, Transform a, Transform b, GameObject sword, IDamageable self) : base(skillData)
+        public MeleeSkill(SkillData skillData, GameObject sword, IDamageable self) : base(skillData)
         {
             _sword = sword.AddComponent<Sword>();
             _sword.Init(self,skillData.damage);
