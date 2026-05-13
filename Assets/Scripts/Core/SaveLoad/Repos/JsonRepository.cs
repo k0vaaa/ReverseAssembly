@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Core.SaveLoad.Repos
 {
-    public class JsonRepository : IDataRepository
+    public class JsonRepository : IPlayerDataRepository
     {
         private readonly string _basePath;
         private readonly string _filePrefix;
@@ -80,6 +80,11 @@ namespace Core.SaveLoad.Repos
                 Debug.LogError($"Failed to load from {filePath}: {ex.Message}");
                 return default;
             }
+        }
+
+        public T Load<T>(string key, string timestamp, T defaultValue = default)
+        {
+            return Load<T>(key, timestamp);
         }
 
         public List<string> GetAllTimestamps()

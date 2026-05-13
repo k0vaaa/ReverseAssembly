@@ -6,9 +6,9 @@ namespace Gameplay.StateMachines.PlayerStates
     public abstract class MovementPlayerState : IState
     {
         protected MovementController MovementController;
-        protected PlayerAnimator PlayerAnimator;
+        protected IPlayerAnimator PlayerAnimator;
         
-        protected MovementPlayerState(MovementController movementController, PlayerAnimator animator)
+        protected MovementPlayerState(MovementController movementController, IPlayerAnimator animator)
         {
             MovementController = movementController;
             PlayerAnimator = animator;

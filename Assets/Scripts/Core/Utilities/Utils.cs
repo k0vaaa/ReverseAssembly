@@ -17,5 +17,11 @@ namespace Core.Utilities
             return Mathf.Sqrt(Mathf.Pow(10, dbf / 20));
             
         }
+
+        public static async Awaitable<bool> Cooldown(float time)
+        {
+            await Awaitable.WaitForSecondsAsync(time);
+            return true;
+        }
     }
 }

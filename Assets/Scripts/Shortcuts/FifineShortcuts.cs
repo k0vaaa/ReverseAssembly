@@ -1,9 +1,11 @@
+using System;
 using UnityEditor;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Shortcuts
 {
-    public class FifineShortcuts
+    public class FifineShortcuts : MonoBehaviour
     {
         // Атрибут MenuItem создает кнопку в верхнем меню Unity.
         // Символы в конце: % = Ctrl, # = Shift, & = Alt. 
@@ -41,5 +43,27 @@ namespace Shortcuts
                 //EditorGUIUtility.PingObject(folder);
             }
         }
+        
+        [MenuItem("MyTools/Toggle Inspector Lock %#&3")]
+        public static void ToggleInspectorLock()
+        {
+            // Меняем статус блокировки Инспектора на противоположный
+            bool isLocked = ActiveEditorTracker.sharedTracker.isLocked;
+            ActiveEditorTracker.sharedTracker.isLocked = !isLocked;
+
+            // Принудительно обновляем Инспектор, чтобы иконка замочка визуально изменилась
+            ActiveEditorTracker.sharedTracker.ForceRebuild();
+
+            // Приятный бонус: выводим статус в консоль, чтобы точно знать, что кнопка сработала
+            if (ActiveEditorTracker.sharedTracker.isLocked)
+            {
+                Debug.Log("<b>[Fifine]</b> Инспектор <color=red>ЗАБЛОКИРОВАН 🔒</color>");
+            }
+            else
+            {
+                Debug.Log("<b>[Fifine]</b> Инспектор <color=green>РАЗБЛОКИРОВАН 🔓</color>");
+            }
+        }
+        
     }
 }

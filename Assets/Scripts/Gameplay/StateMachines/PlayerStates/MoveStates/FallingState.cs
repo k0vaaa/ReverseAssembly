@@ -6,7 +6,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 {
     public class FallingState : MovementPlayerState
     {
-        public FallingState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        public FallingState(MovementController movementController, IPlayerAnimator animator) : base(movementController, animator)
         {
         }
 

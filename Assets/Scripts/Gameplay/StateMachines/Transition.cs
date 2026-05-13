@@ -12,5 +12,6 @@ namespace Gameplay.StateMachines
             To = to;
             Condition = condition;
         }
+        
     }
 }

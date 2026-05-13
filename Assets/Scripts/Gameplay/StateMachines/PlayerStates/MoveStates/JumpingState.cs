@@ -8,25 +8,26 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 {
     public class JumpingState : MovementPlayerState
     {
-        public JumpingState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        public JumpingState(MovementController movementController, IPlayerAnimator animator) : base(movementController, animator)
         {
         }
 
         public override void Enter()
         {
             MonoBehaviour.print("Entering Jumping State");
-            PlayerAnimator.StartCoroutine(JumpRoutine());
+            MovementController.StartCoroutine(JumpRoutine());
         }
 
         public override void Execute()
         {
-            MovementController.moveSpeed -= 2f * Time.deltaTime;
+            MovementController.CurrentMoveSpeed -= MovementController.WalkSpeed * Time.deltaTime;
             MovementController.Move();
         }
 
         public override void Exit()
         {   
             MonoBehaviour.print("Exiting Jumping State");
+            
         }
 
         private IEnumerator JumpRoutine()

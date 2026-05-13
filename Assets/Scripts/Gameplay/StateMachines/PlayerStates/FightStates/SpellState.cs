@@ -8,7 +8,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class SpellState : FightPlayerState
     {
-        public SpellState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        public SpellState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
         {
         }
 
@@ -17,7 +17,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
             Debug.Log("Entering Spell");
             PlayerAnimator.DoSpell();
             //FightController.swordGameObject.SetActive(false);
-            PlayerAnimator.StartCoroutine(SpellCast());
+            FightController.StartCoroutine(SpellCast());
 
         }
 
