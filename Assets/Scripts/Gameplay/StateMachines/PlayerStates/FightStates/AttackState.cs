@@ -8,10 +8,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class AttackState : FightPlayerState
     {
-        private float _enterTime;
-        private float _duration = .5f;
-        public bool IsFinished => Time.time >= _enterTime + _duration;
-
+        
         public AttackState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
         {
         }
@@ -19,10 +16,10 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 
         public override void Enter()
         {
+            base.Enter();
             Debug.Log("Entering Melee");
             FightController.StartCoroutine(SwordColliderSwitch());
             PlayerAnimator.DoAttack();
-            _enterTime = Time.time;
             SkillsController.Skills[SkillType.Melee].Cast();
 
         }

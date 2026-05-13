@@ -57,6 +57,8 @@ namespace Gameplay.Combat.Offensive.Base
         Fireball,
         Punch,
         Heavy,
-        Meteor
+        Meteor,
+        Scanner,
+        BranchSwitch
     }
 }

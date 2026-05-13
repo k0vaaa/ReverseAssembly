@@ -18,6 +18,7 @@ namespace Core.Bootstrap
         [SerializeField] private AudioManager _audioManager;
         [SerializeField] private AudioMixer _mainMixer;
         [SerializeField] private ViewManager _viewManager;
+        [SerializeField] private BranchManager _branchManager;
         private PlayerDataInteractor _playerDataInteractor;
         private IPlayerDataRepository _playerJsonRepository;
         private IDataRepository _playerPrefsRepository;

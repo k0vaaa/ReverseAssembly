@@ -279,12 +279,13 @@ namespace Core.Bootstrap
         [SerializeField] private Services _services;
         private readonly DIContainer _diContainer = new();
 
-        private List<IInjectable> _injectables = new();
-        private List<IInitializable> _initializables = new();
+        private HashSet<IInjectable> _injectables = new();
+        private HashSet<IInitializable> _initializables = new();
 
 
         private void Awake()
         {
+            _diContainer.Register(_diContainer);
             RegisterServices();
 
             FindAndSortScripts();
@@ -306,7 +307,7 @@ namespace Core.Bootstrap
                 {
                     _injectables.Add(injectable);
                 }
-                else if (script is IInitializable initializable)
+                if (script is IInitializable initializable)
                 {
                     _initializables.Add(initializable);
                 }
@@ -323,6 +324,7 @@ namespace Core.Bootstrap
 
         private void InitializeAll()
         {
+            
             foreach (var initializable in _initializables)
             {
                 initializable.Init();
@@ -339,7 +341,16 @@ namespace Core.Bootstrap
                 var serviceInstance = fieldInfo.GetValue(_services);
                 if (serviceInstance == null) continue;
                 _diContainer.Register(fieldInfo.FieldType, serviceInstance);
+                if (serviceInstance is IInitializable initializable)
+                {
+                    _initializables.Add(initializable);
+                }
+                if (serviceInstance is IInjectable injectable)
+                {
+                    _injectables.Add(injectable);
+                }
             }
+            
         }
     }
 }
@@ -356,7 +367,13 @@ namespace Core.Bootstrap
 === Scripts\Core\Bootstrap\Services.cs ===
 ﻿using Core.Audio;
 using Core.Input;
+using Core.SaveLoad.Interactors;
+using Core.SaveLoad.PlayerSaves;
+using Core.SaveLoad.Repos;
 using Core.Scenes;
+using Core.Static;
+using Core.UI;
+using Gameplay.Core;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -367,8 +384,15 @@ namespace Core.Bootstrap
     {
         [SerializeField] private AudioManager _audioManager;
         [SerializeField] private AudioMixer _mainMixer;
+        [SerializeField] private ViewManager _viewManager;
+        [SerializeField] private BranchManager _branchManager;
+        private PlayerDataInteractor _playerDataInteractor;
+        private IPlayerDataRepository _playerJsonRepository;
+        private IDataRepository _playerPrefsRepository;
+        private SettingsInteractor _settingsInteractor;
         private InputManager _inputManager;
         private SceneLoader _sceneLoader;
+        private SyncEnergyManager _syncEnergyManager;
 
         private void Awake()
         {
@@ -379,9 +403,15 @@ namespace Core.Bootstrap
         {
             _sceneLoader = new SceneLoader();
             _inputManager = new InputManager();
+            _syncEnergyManager = new SyncEnergyManager();
+            _playerJsonRepository = new JsonRepository(Constants.SAVE_FILE_NAME);
+            _playerPrefsRepository = new PlayerPrefsRepository();
+            _playerDataInteractor = new PlayerDataInteractor(_playerJsonRepository);
+            _settingsInteractor = new SettingsInteractor(_playerPrefsRepository);
         }
     }
 }
+
 
 === Scripts\Core\DI\DIContainer.cs ===
 using System;
@@ -414,6 +444,16 @@ namespace Core.DI
             }
 
             throw new Exception($"Service with type {typeof(T)} is not registered");
+        }
+        public T Instantiate<T>() where T : class, new()
+        {
+            // 1. Создаем экземпляр
+            T instance = new T();
+    
+            // 2. Инжектим зависимости
+            Inject(instance);
+    
+            return instance;
         }
 
         public void Inject(object target)
@@ -753,6 +793,7 @@ namespace Core.Input
             _inputSystemActions = new InputSystemActions();
             _playerActions = _inputSystemActions.Player;
             _uiActions = _inputSystemActions.UI;
+            _inputSystemActions.Enable();
             _playerActions.Enable();
             _uiActions.Enable();
             Subscribe();
@@ -1041,7 +1082,7 @@ using UnityEngine;
 
 namespace Core.SaveLoad.Repos
 {
-    public class JsonRepository : IDataRepository
+    public class JsonRepository : IPlayerDataRepository
     {
         private readonly string _basePath;
         private readonly string _filePrefix;
@@ -1114,6 +1155,11 @@ namespace Core.SaveLoad.Repos
                 Debug.LogError($"Failed to load from {filePath}: {ex.Message}");
                 return default;
             }
+        }
+
+        public T Load<T>(string key, string timestamp, T defaultValue = default)
+        {
+            return Load<T>(key, timestamp);
         }
 
         public List<string> GetAllTimestamps()
@@ -1346,6 +1392,15 @@ namespace Core.Scenes
     }
 }
 
+=== Scripts\Core\Static\Constants.cs ===
+﻿namespace Core.Static
+{
+    public static class Constants
+    {
+        public static readonly string SAVE_FILE_NAME = "save";
+    }
+}
+
 === Scripts\Core\UI\View.cs ===
 ﻿using UnityEngine;
 using UnityEngine.Events;
@@ -1374,16 +1429,17 @@ namespace Core.UI
 === Scripts\Core\UI\ViewManager.cs ===
 ﻿using System;
 using System.Collections.Generic;
+using Core.Bootstrap;
 using UnityEngine;
 
 namespace Core.UI
 {
-    public class ViewManager : MonoBehaviour
+    public class ViewManager : MonoBehaviour, IInitializable
     {
         [SerializeField] List<View> _viewsList;
         private Dictionary<Type, View> _views = new();
 
-        private void Awake()
+        public void Init()
         {
             foreach (var view in _viewsList)
             {
@@ -1401,7 +1457,7 @@ namespace Core.UI
                 return view as T;
             }
             Debug.LogError($"View of type {typeof(T)} not found");
-            return default;
+            return null;
         }
 
         public void SwitchViews<T, T1>(T from, T1 to) where T : View where T1 : View
@@ -1493,8 +1549,151 @@ namespace Core.Utilities
             return Mathf.Sqrt(Mathf.Pow(10, dbf / 20));
             
         }
+
+        public static async Awaitable<bool> Cooldown(float time)
+        {
+            await Awaitable.WaitForSecondsAsync(time);
+            return true;
+        }
     }
 }
+
+=== Scripts\Gameplay\Abilities\ScannerAbility.cs ===
+﻿using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.ScriptableObjects;
+
+namespace Gameplay.Abilities
+{
+    public class ScannerAbility : Skill
+    {
+        public ScannerAbility(SkillData skillData) : base(skillData)
+        {
+        }
+		
+    }
+}
+
+=== Scripts\Gameplay\Abilities\SwitchBranchAbility.cs ===
+﻿using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.ScriptableObjects;
+using Gameplay.Core;
+
+namespace Gameplay.Abilities
+{
+    public class SwitchBranchAbility : Skill
+    {
+        private readonly BranchManager _branchManager;
+
+        public SwitchBranchAbility(SkillData skillData, BranchManager branchManager) : base(skillData)
+        {
+            _branchManager = branchManager;
+        }
+
+        public override void Cast()
+        {
+            base.Cast();
+            _branchManager.ToggleBranch();
+        }
+    }
+}
+
+=== Scripts\Gameplay\Anims\IPlayerAnimator.cs ===
+﻿namespace Gameplay.Anims
+{
+    public interface IPlayerAnimator
+    {
+        bool CheckAnimationState(int layerIndex, float time, string stateName);
+        void DoAttack();
+        void DoSheath();
+        void DoWithdraw();
+        void DoSpell();
+        void DoHit();
+        void DoJump();
+        void DoWalk();
+        void DoRun();
+        void DoIdleMove();
+        void DoFalling();
+        void DoLanding();
+        void DoDeath();
+    }
+}
+
+
+=== Scripts\Gameplay\Anims\MockPlayerAnimator.cs ===
+﻿using UnityEngine;
+
+namespace Gameplay.Anims
+{
+    public class MockPlayerAnimator : MonoBehaviour, IPlayerAnimator
+    {
+        public bool CheckAnimationState(int layerIndex, float time, string stateName)
+        {
+            Debug.LogWarning($"Mock: Checking animation state {stateName} on layer {layerIndex}");
+            return false;
+        }
+
+        public void DoAttack()
+        {
+            Debug.LogWarning("Mock: Execute Attack sequence");
+        }
+
+        public void DoSheath()
+        {
+            Debug.LogWarning("Mock: Execute Sheath sequence");
+        }
+
+        public void DoWithdraw()
+        {
+            Debug.LogWarning("Mock: Execute Withdraw sequence");
+        }
+
+        public void DoSpell()
+        {
+            Debug.LogWarning("Mock: Execute Spell/Program cast");
+        }
+
+        public void DoHit()
+        {
+            Debug.LogWarning("Mock: Execute Hit reaction");
+        }
+
+        public void DoJump()
+        {
+            Debug.LogWarning("Mock: Execute Jump animation");
+        }
+
+        public void DoWalk()
+        {
+            Debug.LogWarning("Mock: Execute Walk movement");
+        }
+
+        public void DoRun()
+        {
+            Debug.LogWarning("Mock: Execute Run movement");
+        }
+
+        public void DoIdleMove()
+        {
+            Debug.LogWarning("Mock: Execute Idle movement");
+        }
+
+        public void DoFalling()
+        {
+            Debug.LogWarning("Mock: Execute Falling state");
+        }
+
+        public void DoLanding()
+        {
+            Debug.LogWarning("Mock: Execute Landing state");
+        }
+
+        public void DoDeath()
+        {
+            Debug.LogWarning("Mock: Execute Death/Stability depletion sequence");
+        }
+    }
+}
+
 
 === Scripts\Gameplay\Anims\PlayerAnimator.cs ===
 ﻿using Core.DI;
@@ -1503,7 +1702,7 @@ using UnityEngine;
 
 namespace Gameplay.Anims
 {
-    public class PlayerAnimator : MonoBehaviour, IInjectable
+    public class PlayerAnimator : MonoBehaviour, IInjectable, IPlayerAnimator
     {
         [Inject] public InputManager InputManager;
         private static readonly int Attack = Animator.StringToHash("Attack");
@@ -1746,38 +1945,94 @@ namespace Gameplay.Anims
     }
 }
 
-=== Scripts\Gameplay\Bootstrap\GameplayBootstrap.cs ===
+=== Scripts\Gameplay\Bootstrap\EnemyBootstrap.cs ===
 ﻿using Core.DI;
-using Core.Gameplay;
-using Core.Input;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
-using Core.UI;
-using Gameplay.Combat.Health;
-using Gameplay.Combat.Offensive.Base;
-using Gameplay.Controllers.Player;
 using Gameplay.Enemies;
-using Gameplay.UI.Views.Gameplay;
-using Unity.VisualScripting;
 using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class GameplayBootstrap : MonoBehaviour,IInjectable,IInitializable
+    public class EnemyBootstrap
     {
+        private SettingsInteractor _settingsInteractor;
+        private PlayerDataInteractor _playerDataInteractor;
+
+        private readonly GameObject[] _enemies;
+        private readonly Vector2 _enemiesSpawnAreaExtents;
+        private readonly int _enemiesCount;
+        private readonly Transform _enemiesSpawnPoint;
+        
+        private readonly GameObject _bossPrefab;
+        private readonly Vector3 _bossSpawnPoint;
+        private readonly CharacterController _playerController;
+
+        public EnemyBootstrap(
+            SettingsInteractor settingsInteractor,
+            PlayerDataInteractor playerDataInteractor,
+            GameObject[] enemies,
+            Vector2 enemiesSpawnAreaExtents,
+            int enemiesCount,
+            Transform enemiesSpawnPoint,
+            GameObject bossPrefab,
+            Vector3 bossSpawnPoint,
+            CharacterController playerController)
+        {
+            _settingsInteractor = settingsInteractor;
+            _playerDataInteractor = playerDataInteractor;
+            _enemies = enemies;
+            _enemiesSpawnAreaExtents = enemiesSpawnAreaExtents;
+            _enemiesCount = enemiesCount;
+            _enemiesSpawnPoint = enemiesSpawnPoint;
+            _bossPrefab = bossPrefab;
+            _bossSpawnPoint = bossSpawnPoint;
+            _playerController = playerController;
+
+        }
+
+        public void SetupEnemies()
+        {
+            var enemyManager = new EnemyManager(
+                _settingsInteractor,
+                _enemiesSpawnAreaExtents,
+                _enemies,
+                _enemiesSpawnPoint.position,
+                _enemiesCount,
+                _bossPrefab, 
+                _bossSpawnPoint,
+                _playerController);
+
+            enemyManager.LoadEnemies(_playerDataInteractor.CurrentSave.Enemies);
+        }
+    }
+}
+
+
+=== Scripts\Gameplay\Bootstrap\GameplayBootstrap.cs ===
+﻿using Core.Bootstrap;
+using Core.DI;
+using Core.SaveLoad.Interactors;
+using Core.SaveLoad.PlayerSaves;
+using Core.UI;
+using Gameplay.UI.Views.Gameplay;
+using UnityEngine;
+
+namespace Gameplay.Bootstrap
+{
+    public class GameplayBootstrap : MonoBehaviour, IInjectable
+    {
+        [Inject] private PlayerDataInteractor _playerDataInteractor;
+        [Inject] private SettingsInteractor _settingsInteractor;
+        [Inject] private DIContainer _diContainer;
+
         [Header("Player")]
         [SerializeField] private Transform _playerSpawnPoint;
         [SerializeField] private GameObject _playerPrefab;
         [SerializeField] private Camera _camera;
-        [SerializeField] private CooldownView _cooldownView;
-        [SerializeField] private StabilityBarView _stabilityBarView;
-        [Inject] private InputManager _inputManager;
-        [Inject] private PlayerDataInteractor _playerDataInteractor;
-        [Inject] private SettingsInteractor _settingsInteractor;
         [Inject] private ViewManager _viewManager;
-        private GameObject _player;
-        private StabilitySystem _playerStabilitySystem;
-  
+        //[SerializeField] private CooldownView _cooldownView;
+        //[SerializeField] private StabilityBarView _stabilityBarView;
 
 
         [Header("Enemies")]
@@ -1785,73 +2040,61 @@ namespace Gameplay.Bootstrap
         [SerializeField] private Vector2 _enemiesSpawnAreaExtents;
         [SerializeField] private int _enemiesCount;
         [SerializeField] private Transform _enemiesSpawnPoint;
-       
 
         [Header("Boss")]
         [SerializeField] private GameObject _boss;
         [SerializeField] private Vector3 _bossSpawnPoint;
-        
 
-        public void Initialize()
+        public void Start()
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
-            //var uiManager = new GameplayUIManager(_playerDataInteractor, viewManager);
-            SetUpPlayer();
-            var skillsController = _player.GetComponent<SkillsController>();
-            skillsController.Init(_camera);
-            _cooldownView.SetMeleeListener(() =>
-                _cooldownView.SetMeleeFillAmount(skillsController.Skills[SkillType.Melee].GetReadyPercent()));
-            _cooldownView.SetSpellListener(() =>
-                _cooldownView.SetSpellFillAmount(skillsController.Skills[SkillType.Fireball].GetReadyPercent()));
-            _bossSpawnPoint = new Vector3(323.6f,261.71f, -103.5f);
-            
-            var enemyManager = new EnemyManager(_settingsInteractor,
-                _enemiesSpawnAreaExtents,
-                _enemies,
-                _enemiesSpawnPoint.position,
-                _enemiesCount,
-                _boss, _bossSpawnPoint,_player.GetComponent<CharacterController>());
-            //gameplayManager.Init(_inputManager, _playerStabilitySystem, viewManager, _playerDataInteractor, enemyManager);
-            enemyManager.LoadEnemies(_playerDataInteractor.CurrentSave.Enemies); // Восстанавливаем врагов
-            
-        }
-        
-        
-        private void SetUpPlayer()
-        {   
-            Debug.Log(_playerDataInteractor.CurrentSave.Position);
-            _player = Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
-            Debug.Log(_player.transform.position);
-            _playerStabilitySystem = _player.GetComponent<StabilitySystem>();
-            // healthBarView.Init(_playerHealthSystem.onHealthChanged);
-            _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeHp);
-            _playerStabilitySystem.Init(1);
-            _player.GetComponent<MovementController>().Init(_camera);
-            _playerStabilitySystem.SetStability(_playerDataInteractor.CurrentSave.Health);
-      
-            if (_playerDataInteractor.CurrentSave.Position == default) return;
-            //_player.transform.position = _playerDataInteractor.CurrentSave.Position;
-            /*Vector3 position = _playerDataInteractor.CurrentSave.Position;
-            position.y += 3f;
-            _player.transform.position = position;*/
-            Debug.Log(_player.transform.position);
-            Invoke(nameof(SetPos),.05f);
-            Invoke(nameof(LogPos), 1f);
+
+            // 1. Setup Player
+            var player = SetupPlayer();
+
+            // 2. Setup Enemies
+            //SetupEnemy(player);
         }
 
-        private void LogPos()
+        private GameObject SetupPlayer()
         {
-            Debug.Log(_player.transform.position);
+            if (_camera == null)
+            {
+                _camera = Camera.main;
+            }
+            var playerBootstrap = new PlayerBootstrap(
+                _playerDataInteractor,
+                _playerSpawnPoint,
+                _playerPrefab,
+                _camera,
+                _viewManager.GetView<CooldownView>(),
+                _viewManager.GetView<StabilityBarView>(),
+                _diContainer
+            );
+            var player = playerBootstrap.SetupPlayer();
+            return player;
         }
-        
-        private void SetPos()
+
+        private void SetupEnemy(GameObject player)
         {
-            _player.transform.position = _playerDataInteractor.CurrentSave.Position;
+            _bossSpawnPoint = new Vector3(323.6f, 261.71f, -103.5f);
+            var enemyBootstrap = new EnemyBootstrap(
+                _settingsInteractor,
+                _playerDataInteractor,
+                _enemies,
+                _enemiesSpawnAreaExtents,
+                _enemiesCount,
+                _enemiesSpawnPoint,
+                _boss,
+                _bossSpawnPoint,
+                player.GetComponent<CharacterController>()
+            );
+            enemyBootstrap.SetupEnemies();
         }
-        
     }
 }
+
 
 === Scripts\Gameplay\Bootstrap\MainMenuBootstrap.cs ===
 ﻿using Core.Bootstrap;
@@ -1932,90 +2175,103 @@ namespace Gameplay.Bootstrap
     }
 }
 
-=== Scripts\Gameplay\Combat\Health\StabilitySystem.cs ===
-// using System;
-// using Controllers.Entities.HealthController.Interfaces;
-// using Enemy;
-// using UnityEngine;
-// using UnityEngine.Events;
-// using Weapons;
-// using Weapons.Base;
-//
-// namespace Controllers.Entities.HealthController
-// {
-//     public class HealthSystem : MonoBehaviour, IDamageable, IHealthChange, IHittable, IKillable
-//     {
-//         private EnemyController enemyController;
-//         private BossController bossController;
-//
-//         public void Awake()
-//         {
-//             enemyController = GetComponent<EnemyController>();
-//             bossController = GetComponent<BossController>();
-//             
-//         }
-//
-//         public float Health
-//         {
-//             get => _health;
-//             set
-//             {
-//                 _health = value;
-//                 onHealthChanged?.Invoke(_health,MaxHealth);
-//             }
-//         }
-//
-//         public float MaxHealth { get; private set; } = 100f;
-//         
-//         public UnityEvent<float, float> onHealthChanged { get; } = new();
-//         public UnityEvent<bool> onDeath { get; } = new();
-//         public UnityEvent onHit { get; } = new();
-//         [SerializeField] private float _health;
-//
-//         public void Init(float healthMultiplier)
-//         {
-//             MaxHealth *= healthMultiplier;
-//             SetHealthToMax();
-//         }
-//
-//         private void SetHealthToMax()
-//         {
-//             Health = MaxHealth;
-//         }
-//         
-//         public void SetHealth(float health)
-//         {
-//             Health = health;
-//         }
-//
-//         public void TakeDamage(Damage damage)
-//         {   
-//             if (Health - damage.Value <= 0)
-//             {   
-//                 
-//                 if(enemyController){enemyController.isDead = true;}
-//                 else if(bossController){bossController.isDead = true;}
-//                 
-//                 Health = 0;
-//                 onDeath?.Invoke(true);
-//             }
-//             else
-//             {
-//                 Health -= damage.Value;
-//                 onHit?.Invoke();
-//             }
-//         }
-//  
-//     }
-//
-//     public interface IKillable
-//     {
-//         public UnityEvent<bool> onDeath { get; }
-//     }
-// }
-//
-//
+=== Scripts\Gameplay\Bootstrap\PlayerBootstrap.cs ===
+﻿using Core.DI;
+using Core.SaveLoad.Interactors;
+using Core.SaveLoad.PlayerSaves;
+using Gameplay.Combat.Health;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Controllers.Player;
+using Gameplay.UI.Views.Gameplay;
+using UnityEngine;
 
+namespace Gameplay.Bootstrap
+{
+    public class PlayerBootstrap
+    {
+        private PlayerDataInteractor _playerDataInteractor;
+
+        private readonly DIContainer _diContainer;
+        private readonly Transform _playerSpawnPoint;
+        private readonly GameObject _playerPrefab;
+        private readonly Camera _camera;
+        private readonly CooldownView _cooldownView;
+        private readonly StabilityBarView _stabilityBarView;
+
+        private GameObject _player;
+        private StabilitySystem _playerStabilitySystem;
+
+        public PlayerBootstrap(
+            PlayerDataInteractor playerDataInteractor,
+            Transform playerSpawnPoint,
+            GameObject playerPrefab,
+            Camera camera,
+            CooldownView cooldownView,
+            StabilityBarView stabilityBarView,
+            DIContainer diContainer)
+        {
+            _playerDataInteractor = playerDataInteractor;
+            _playerSpawnPoint = playerSpawnPoint;
+            _playerPrefab = playerPrefab;
+            _camera = camera;
+            _cooldownView = cooldownView;
+            _stabilityBarView = stabilityBarView;
+            _diContainer = diContainer;
+        }
+
+        public GameObject SetupPlayer()
+        {
+            _player = Object.Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
+
+            _playerStabilitySystem = _player.GetComponent<StabilitySystem>();
+            _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeHp);
+            // TODO настроить сейвы
+            _playerStabilitySystem.Init(1);
+            _playerStabilitySystem.SetStability(100);
+
+            var movementController = _player.GetComponent<MovementController>();
+            movementController.Init(_camera);
+            var fightController = _player.GetComponent<FightController>();
+            
+            var skillsController = _player.GetComponent<SkillsController>();
+            skillsController.Init(_camera);
+
+            _diContainer.Inject(movementController);
+            _diContainer.Inject(fightController);
+            
+            SetupCooldownListeners(skillsController);
+            // TODO настроить сейвы
+            var currentSave = _playerDataInteractor.CurrentSave;
+            if (currentSave != null && currentSave.Position != default)
+            {
+                // Запускаем корутину или просто меняем позицию через задержку.
+                // Так как это не MonoBehaviour, используем сам Player для корутины или Invoke.
+                var monoBehaviour = _player.GetComponent<MonoBehaviour>();
+                monoBehaviour.Invoke(nameof(SetPos), 0.05f);
+            }
+
+            return _player;
+        }
+
+        private void SetupCooldownListeners(SkillsController skillsController)
+        {
+            _cooldownView.SetSlot1Listener(() =>
+                _cooldownView.SetSlot1FillAmount(skillsController.Skills[SkillType.BranchSwitch].GetReadyPercent()));
+            _cooldownView.SetSlot2Listener(() =>
+                _cooldownView.SetSlot2FillAmount(skillsController.Skills[SkillType.Scanner].GetReadyPercent()));
+        }
+
+        private void SetPos()
+        {
+            if (_player != null && _playerDataInteractor != null)
+            {
+                _player.transform.position = _playerDataInteractor.CurrentSave.Position;
+            }
+        }
+    }
+}
+
+=== Scripts\Gameplay\Combat\Health\StabilitySystem.cs ===
 using Core.Events;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
@@ -2047,7 +2303,7 @@ namespace Gameplay.Combat.Health
             }
         }
 
-        public float MaxStability { get; private set; } = 100f;
+        [field:SerializeField] public float MaxStability { get; private set; } = 100f;
 
         public UnityEvent<float, float> onStabilityChanged { get; } = new();
 
@@ -2059,7 +2315,8 @@ namespace Gameplay.Combat.Health
 
         public void Awake()
         {
-            _controller = GetComponent<ICharacterController>();
+            TryGetComponent<ICharacterController>(out var controller);
+            _controller = controller;
         }
 
         public void Init(float stabilityMultiplier)
@@ -2088,7 +2345,7 @@ namespace Gameplay.Combat.Health
                 }
 
                 Stability = 0;
-                OnDeath?.Invoke(true);
+                Die();
             }
             else
             {
@@ -2099,7 +2356,7 @@ namespace Gameplay.Combat.Health
 
         public void Die()
         {
-            
+            OnDeath?.Invoke(true);
         }
     }
 
@@ -2291,7 +2548,9 @@ namespace Gameplay.Combat.Offensive.Base
         Fireball,
         Punch,
         Heavy,
-        Meteor
+        Meteor,
+        Scanner,
+        BranchSwitch
     }
 }
 
@@ -2546,7 +2805,7 @@ namespace Gameplay.Combat.Offensive.Skills
     public class MeleeSkill : Skill
     {
         private Sword _sword;
-        public MeleeSkill(SkillData skillData, Transform a, Transform b, GameObject sword, IDamageable self) : base(skillData)
+        public MeleeSkill(SkillData skillData, GameObject sword, IDamageable self) : base(skillData)
         {
             _sword = sword.AddComponent<Sword>();
             _sword.Init(self,skillData.damage);
@@ -2639,7 +2898,7 @@ namespace Gameplay.Combat.Offensive.Skills
         private readonly Transform _caster;
 
 
-        public SpellSkill(SkillData skillData,Transform castPoint, Transform caster, GameObject sword, IDamageable damageable) : base(skillData)
+        public SpellSkill(SkillData skillData,Transform castPoint, Transform caster) : base(skillData)
         {
             var _skillData = (SpellSkillData)skillData;
             _spellProjectile = _skillData._projectilePrefab;
@@ -2675,6 +2934,8 @@ using Gameplay.Anims;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.StateMachines;
+using Gameplay.StateMachines.PlayerStates.AbilityStates;
+using Gameplay.StateMachines.PlayerStates.AbilityStates;
 using Gameplay.StateMachines.PlayerStates.FightStates;
 using UnityEngine;
 
@@ -2683,28 +2944,39 @@ namespace Gameplay.Controllers.Player
     public class FightController : MonoBehaviour, IInjectable
     {
         private StateMachine _fightStateMachine;
-        private PlayerAnimator _playerAnimator;
+        private IPlayerAnimator _playerAnimator;
         private SkillsController _skillsController;
         [Inject] private InputManager _inputManager;
 
         [HideInInspector] public bool IsSheathed;
 
         [SerializeField] public GameObject swordGameObject;
+
         [SerializeField] public GameObject hipSwordGameObject;
+
+        #region States
+
+        private AttackState _attackState;
+        private SpellState _spellState;
+        private IdleAttackState _idleAttackState;
+        private SheathedSwordState _sheathState;
+        private SwitchBranchAbilityState _switchBranchState;
+
+        #endregion
+
         //public Sword Sword { get; private set; }
         public Collider SwordCollider { get; private set; }
 
 
         private void Awake()
         {
-            
             _fightStateMachine = new StateMachine();
             _skillsController = GetComponent<SkillsController>();
-            _playerAnimator = GetComponent<PlayerAnimator>();
+            _playerAnimator = GetComponent<IPlayerAnimator>();
             gameObject.GetComponent<IHittable>().onHit.AddListener(_playerAnimator.DoHit);
             SwordCollider = swordGameObject.GetComponent<BoxCollider>();
         }
-        
+
 
         private void Start()
         {
@@ -2715,39 +2987,69 @@ namespace Gameplay.Controllers.Player
         {
             _fightStateMachine.Tick();
         }
-        
+
         private void AttackStatesInit()
         {
-            var attackState = new AttackState(this,_skillsController, _playerAnimator);
-            var spellState = new SpellState(this,_skillsController, _playerAnimator);
-            var idleAttackState = new IdleAttackState(this, _skillsController, _playerAnimator);
-            var sheathState = new SheathedSwordState(this,_skillsController,_playerAnimator);
+            //_attackState = new AttackState(this, _skillsController, _playerAnimator);
+            //_spellState = new SpellState(this, _skillsController, _playerAnimator);
+            //_sheathState = new SheathedSwordState(this, _skillsController, _playerAnimator);
+            _idleAttackState = new IdleAttackState(this, _skillsController, _playerAnimator);
+            _switchBranchState = new SwitchBranchAbilityState(this, _skillsController, _playerAnimator);
 
 
-            bool MeleeAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight,0.99f,"Attack");
-            bool SpellAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight,0.99f,"Spell");
-            bool SheathAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight,0.99f,"Sheath");
+            //bool MeleeAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Attack");
+            bool MeleeAnimationEnded() => _attackState.IsFinished;
+            //bool SpellAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Spell");
+            //bool SheathAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Sheath");
 
-            
+
             //_fightStateMachine.AddTransition(idleAttackState,sheathState, () => _inputManager.IsSheathed);
             //_fightStateMachine.AddTransition(sheathState,idleAttackState, () => !_inputManager.IsSheathed);
+
+            //_fightStateMachine.AddTransition(idleAttackState, attackState, () => _inputManager.MeleeInput && _skillsController.Skills[SkillType.Melee]._isReady);
             
-            _fightStateMachine.AddTransition(idleAttackState,attackState, () => _inputManager.MeleeInput && _skillsController.Skills[SkillType.Melee]._isReady);
-            _fightStateMachine.AddTransition(attackState,idleAttackState, MeleeAnimationEnded);
+            _inputManager.OnScannerPressed += HandleScannerPress;
+            _inputManager.OnBranchTogglePressed += HandleBranchSwitchPress;
             
+            //_fightStateMachine.AddTransition(idleAttackState, spellState,() => _inputManager.MeleeInput && _skillsController.Skills[SkillType.Fireball]._isReady);
+            
+            _fightStateMachine.AddTransition(_attackState, _idleAttackState, MeleeAnimationEnded);
+            _fightStateMachine.AddTransition(_switchBranchState, _idleAttackState, () => _switchBranchState.IsFinished);
+            
+            //_fightStateMachine.AddTransition(spellState,idleAttackState, SpellAnimationEnded);
+
             //_fightStateMachine.AddTransition(sheathState,spellState, () => _inputManager.RMBInput && _inputManager.SpellInput && _skillsController.Skills[SkillType.Fireball]._isReady);
-            _fightStateMachine.AddTransition(spellState,sheathState, SpellAnimationEnded);
-            
-            _fightStateMachine.SetState(idleAttackState);
-            
+
+            _fightStateMachine.SetState(_idleAttackState);
         }
 
+        private void HandleScannerPress()
+        {
+            if (_skillsController.Skills[SkillType.Melee]._isReady)
+            {
+                _fightStateMachine.SetState(_attackState);
+            }
+        }
         
+        private void HandleBranchSwitchPress()
+        {
+            if (_skillsController.Skills[SkillType.BranchSwitch]._isReady)
+            {
+                _fightStateMachine.SetState(_switchBranchState);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            _inputManager.OnScannerPressed -= HandleScannerPress;
+            _inputManager.OnBranchTogglePressed -= HandleBranchSwitchPress;
+        }
     }
 }
 
 === Scripts\Gameplay\Controllers\Player\MovementController.cs ===
-﻿using Core.DI;
+﻿using System;
+using Core.DI;
 using Core.Input;
 using Gameplay.Anims;
 using Gameplay.Combat.Interfaces;
@@ -2761,25 +3063,32 @@ namespace Gameplay.Controllers.Player
     {
         [Inject] private InputManager _inputManager;
         private StateMachine _moveStateMachine;
-        private PlayerAnimator _playerAnimator;
+        private IPlayerAnimator _playerAnimator;
         private CharacterController _controller;
-        [SerializeField] private Transform _spine;
         private Camera _camera;
 
 
-        public bool IsGrounded { get; private set; }
+        public float WalkSpeed = 2f;
+        public float CurrentMoveSpeed = 2f;
 
-        [SerializeField] public float moveSpeed = 2f;
-        [SerializeField] public float runSpeed = 2f;
+        public float RunSpeed = 2f;
+        [field: SerializeField] public bool IsGrounded { get; private set; }
+
         [SerializeField] private float _velocityVertical = 0f;
+
         [SerializeField] private float _jumpForce;
+
         [SerializeField] private float _rotationSpeed = 1f;
+
         private float _groundCheckDistance;
+
         private bool _death;
+
         private Vector3 _inertialMoveDirection;
 
-
         [Header("Controller")]
+
+        //[SerializeField] private Transform _spine;
         [SerializeField]
         private Transform _foot;
 
@@ -2790,18 +3099,25 @@ namespace Gameplay.Controllers.Player
         private void Awake()
         {
             _moveStateMachine = new StateMachine();
-            _playerAnimator = GetComponent<PlayerAnimator>();
+            _playerAnimator = GetComponent<IPlayerAnimator>();
             _controller = GetComponent<CharacterController>();
         }
 
         public void Init(Camera camera)
         {
-            _camera = camera;
+            if (camera == null)
+            {
+                _camera = GetComponentInChildren<Camera>();
+            }
+            else
+            {
+                _camera = camera;
+            }
         }
 
         private void Start()
         {
-            _groundCheckDistance = (_controller.height / 2) + .1f;
+            _groundCheckDistance = (_controller.height * transform.lossyScale.y / 2) + .1f;
 
             MoveStatesInit();
         }
@@ -2810,7 +3126,7 @@ namespace Gameplay.Controllers.Player
         {
             _moveStateMachine.Tick();
             //SetControllerParams();
-            Rotate();
+            //Rotate();
             ApplyGravity();
             CheckGround();
         }
@@ -2833,21 +3149,27 @@ namespace Gameplay.Controllers.Player
             _moveStateMachine.AddTransition(sprintingState, walkingState, () => !_inputManager.SprintInput);
             _moveStateMachine.AddTransition(sprintingState, fallingState, () => !IsGrounded);
             _moveStateMachine.AddTransition(jumpingState, fallingState, () => !IsGrounded);
+            _moveStateMachine.AddTransition(jumpingState, idleState, () => IsGrounded);
             _moveStateMachine.AddTransition(fallingState, idleState, () => IsGrounded);
             _moveStateMachine.AddAntiState(fallingState, jumpingState);
 
-            void HandleJump()
+
+            if (_inputManager != null)
             {
-                if (IsGrounded)
-                {
-                    _moveStateMachine.SetState(jumpingState);
-                }
+                _inputManager.OnJumpPressed += HandleJump;
             }
 
-            _inputManager.OnJumpPressed += HandleJump;
             _moveStateMachine.AddAnyTransition(deathState, () => _death);
 
             _moveStateMachine.SetState(idleState);
+        }
+
+        private void HandleJump()
+        {
+            if (IsGrounded)
+            {
+                _moveStateMachine.SetState(new JumpingState(this, _playerAnimator));
+            }
         }
 
         private void ApplyGravity()
@@ -2898,12 +3220,12 @@ namespace Gameplay.Controllers.Player
                                     rightDirection.normalized * _inputManager.MoveInput.x;
             _inertialMoveDirection = moveDirection;
 
-            _controller.Move(moveDirection * (Time.deltaTime * moveSpeed));
+            _controller.Move(moveDirection * (Time.deltaTime * CurrentMoveSpeed));
         }
 
         public void InertialMove()
         {
-            _controller.Move(_inertialMoveDirection * (Time.deltaTime * moveSpeed));
+            _controller.Move(_inertialMoveDirection * (Time.deltaTime * CurrentMoveSpeed));
         }
 
         public void Jump()
@@ -2922,8 +3244,42 @@ namespace Gameplay.Controllers.Player
 
         private void CheckGround()
         {
-            IsGrounded = Physics.Raycast(transform.position, Vector3.down, _groundCheckDistance,
+            Ray ray = new Ray(transform.TransformPoint(_controller.center), Vector3.down);
+            IsGrounded = Physics.SphereCast(ray, _controller.radius, _groundCheckDistance,
                 LayerMask.GetMask("Ground"));
+        }
+
+        private void OnDestroy()
+        {
+            _inputManager.OnJumpPressed -= HandleJump;
+        }
+
+        private void OnDrawGizmos()
+        {
+            if (_controller == null) return;
+
+            Vector3 origin = transform.TransformPoint(_controller.center);
+            float maxDistance = (_controller.height * transform.lossyScale.y / 2) + 0.1f;
+            //float maxDistance = 5;
+
+            // Зеленый цвет, если на земле, красный если в воздухе
+            Gizmos.color = Color.green;
+
+            // Отрисовка SphereCast
+            Gizmos.DrawWireSphere(origin, _controller.radius); // Стартовая сфера (внутри тела)
+            Gizmos.color = IsGrounded ? Color.green : Color.red;
+            Gizmos.DrawWireSphere(origin + Vector3.down * maxDistance,
+                _controller.radius); // Конечная сфера (возле ног)
+
+            // Линии, соединяющие сферы для имитации "капсулы" каста
+            Gizmos.DrawLine(origin + Vector3.left * _controller.radius,
+                origin + Vector3.down * maxDistance + Vector3.left * _controller.radius);
+            Gizmos.DrawLine(origin + Vector3.right * _controller.radius,
+                origin + Vector3.down * maxDistance + Vector3.right * _controller.radius);
+            Gizmos.DrawLine(origin + Vector3.forward * _controller.radius,
+                origin + Vector3.down * maxDistance + Vector3.forward * _controller.radius);
+            Gizmos.DrawLine(origin + Vector3.back * _controller.radius,
+                origin + Vector3.down * maxDistance + Vector3.back * _controller.radius);
         }
     }
 }
@@ -3067,19 +3423,25 @@ namespace Gameplay.Controllers.Player
 === Scripts\Gameplay\Controllers\Player\SkillsController.cs ===
 ﻿using System;
 using System.Collections.Generic;
+using Core.DI;
+using Gameplay.Abilities;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.ScriptableObjects;
+using Gameplay.Combat.Offensive.Skills;
+using Gameplay.Core;
 using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class SkillsController : MonoBehaviour
+    public class SkillsController : MonoBehaviour, IInjectable
     {
         [SerializeField] private SkillsArray _skillsArray;
         [SerializeField] private Transform _castPoint;
         [SerializeField] private Transform _caster;
         [SerializeField] public GameObject _sword;
+
+        [Inject] private BranchManager _branchManager;
 
         private Camera _camera;
         public Dictionary<SkillType,ISkill> Skills = new ();
@@ -3101,14 +3463,23 @@ namespace Gameplay.Controllers.Player
                 _camera = camera;
                 _caster = _camera.transform;
             }
-            foreach (var skillEntry in _skillsArray.skillEntries)
+
+            var @switch = new SwitchBranchAbility(_skillsArray.skillEntries[0].SkillData,_branchManager);
+
+            
+            Skills.Add(@switch.SkillType, @switch);
+            /*var melee = new MeleeSkill(_skillsArray.skillEntries[0].SkillData, _sword, gameObject.GetComponent<IDamageable>());
+            var spell = new SpellSkill(_skillsArray.skillEntries[1].SkillData,_castPoint, Camera.main.transform);
+            Skills.Add(spell.SkillType,spell);
+            Skills.Add(melee.SkillType,melee);*/
+            /*foreach (var skillEntry in _skillsArray.skillEntries)
             {
                 var skill = CreateSkill(skillEntry.SkillClass, skillEntry.SkillData,_castPoint,_caster, _sword, gameObject.GetComponent<IDamageable>());
                 Skills.Add(skillEntry.SkillData.skillType,skill);
-            }
+            }*/
         }
 
-        private ISkill CreateSkill(Type skillType, SkillData skillData, Transform castPoint, Transform caster, GameObject sword, IDamageable damageable)
+        /*private ISkill CreateSkill(Type skillType, SkillData skillData, Transform castPoint, Transform caster, GameObject sword, IDamageable damageable)
         {
             if (!typeof(ISkill).IsAssignableFrom(skillType) || !typeof(Skill).IsAssignableFrom(skillType))
             {
@@ -3117,7 +3488,7 @@ namespace Gameplay.Controllers.Player
 
             // Создаём экземпляр через Activator
             return (ISkill)Activator.CreateInstance(skillType, skillData, castPoint, caster, sword, damageable);
-        }
+        }*/
 
         private void Update()
         {
@@ -3143,6 +3514,7 @@ namespace Gameplay.Controllers.Player
     {
         [Inject] private InputManager _inputManager;
         [Inject] private BranchManager _branchManager;
+        [Inject] private SyncEnergyManager _syncEnergyManager;
 
         public void Init()
         {
@@ -3151,9 +3523,16 @@ namespace Gameplay.Controllers.Player
 
         private void HandleBranchToggle()
         {
-            // Здесь в будущем можно добавить проверку: если ХП < 20% или идет анимация атаки - не переключать
-            _branchManager.ToggleBranch();
-            // TODO: Вызвать анимацию левой руки (щелчок по терминалу) и звук
+            if (_syncEnergyManager.TryConsumeEnergy())
+            {
+                // Здесь в будущем можно добавить проверку: если ХП < 20% или идет анимация атаки - не переключать
+                _branchManager.ToggleBranch();
+                // TODO: Вызвать анимацию левой руки (щелчок по терминалу) и звук
+            }
+            else
+            {
+                Debug.Log("Not enough Synchronization Energy to jump branches!");
+            }
         }
 
         public void Dispose()
@@ -3162,6 +3541,7 @@ namespace Gameplay.Controllers.Player
         }
     }
 }
+
 
 === Scripts\Gameplay\Core\BranchManager.cs ===
 ﻿using Core.Bootstrap;
@@ -3172,12 +3552,13 @@ using UnityEngine;
 
 namespace Gameplay.Core
 {
-    public class BranchManager : MonoBehaviour, IInjectable, IInitializable
+    public class BranchManager : MonoBehaviour, IInitializable
     {
         public WorldBranch CurrentBranch { get; private set; }
 
         [Header("Environments")]
-        [SerializeField] private GameObject _mainBranchEnv;[SerializeField] private GameObject _alphaBranchEnv;
+        [SerializeField] private GameObject _mainBranchEnv;
+        [SerializeField] private GameObject _alphaBranchEnv;
 
         public void Init()
         {
@@ -3204,6 +3585,59 @@ namespace Gameplay.Core
         }
     }
 }
+
+=== Scripts\Gameplay\Core\SyncEnergyManager.cs ===
+﻿using Core.Bootstrap;
+using Core.DI;
+using Core.Events;
+using Gameplay.Events;
+
+namespace Gameplay.Core
+{
+    public class SyncEnergyManager : IInjectable, IInitializable
+    {
+        public float MaxEnergy { get; private set; } = 100f;
+        public float JumpCost { get; private set; } = 30f;
+        public float CurrentEnergy { get; private set; }
+
+        public void Init()
+        {
+            CurrentEnergy = MaxEnergy;
+            RaiseEnergyChangedEvent();
+        }
+
+        public bool TryConsumeEnergy()
+        {
+            if (CurrentEnergy >= JumpCost)
+            {
+                CurrentEnergy -= JumpCost;
+                RaiseEnergyChangedEvent();
+                return true;
+            }
+            return false;
+        }
+
+        public void AddEnergy(float amount)
+        {
+            CurrentEnergy += amount;
+            if (CurrentEnergy > MaxEnergy)
+            {
+                CurrentEnergy = MaxEnergy;
+            }
+            RaiseEnergyChangedEvent();
+        }
+
+        private void RaiseEnergyChangedEvent()
+        {
+            EventBus.Raise(new SyncEnergyChangedEvent
+            {
+                CurrentEnergy = CurrentEnergy,
+                MaxEnergy = MaxEnergy
+            });
+        }
+    }
+}
+
 
 === Scripts\Gameplay\Enemies\BossAnimator.cs ===
 ﻿using UnityEngine;
@@ -4744,6 +5178,19 @@ namespace Gameplay.Events
     }
 }
 
+=== Scripts\Gameplay\Events\SyncEnergyChangedEvent.cs ===
+﻿using Core.Events;
+
+namespace Gameplay.Events
+{
+    public struct SyncEnergyChangedEvent : IEvent
+    {
+        public float CurrentEnergy;
+        public float MaxEnergy;
+    }
+}
+
+
 === Scripts\Gameplay\Interactables\BuggablePhysicsBox.cs ===
 ﻿using UnityEngine;
 using UnityEngine.UI;
@@ -4835,6 +5282,39 @@ namespace Gameplay.Interactables
         void FixBug();                   // Вызывается после прохождения мини-игры
     }
 }
+
+=== Scripts\Gameplay\Interactables\SyncEnergyFragment.cs ===
+﻿using Core.Audio;
+using Core.DI;
+using Gameplay.Core;
+using UnityEngine;
+
+namespace Gameplay.Interactables
+{
+    public class SyncEnergyFragment : MonoBehaviour, IInjectable
+    {
+        [Inject] private SyncEnergyManager _syncEnergyManager;
+        [Inject] private AudioManager _audioManager;
+
+        [SerializeField] private AudioClip _pickupSound;
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if (other.CompareTag("Player"))
+            {
+                _syncEnergyManager.AddEnergy(15f);
+                
+                if (_pickupSound != null)
+                {
+                    _ = _audioManager.PlaySFX(_pickupSound, transform.position, 1f);
+                }
+                
+                Destroy(gameObject);
+            }
+        }
+    }
+}
+
 
 === Scripts\Gameplay\Pause\PauseMenuController.cs ===
 ﻿using Core.Bootstrap;
@@ -4952,9 +5432,52 @@ namespace Gameplay.StateMachines
     }
 }
 
+=== Scripts\Gameplay\StateMachines\PlayerStates\AbilityStates\ScannerAbilityState.cs ===
+﻿using Gameplay.Anims;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Controllers.Player;
+
+namespace Gameplay.StateMachines.PlayerStates.AbilityStates
+{
+    public class ScannerAbilityState : FightPlayerState 
+    {
+        public ScannerAbilityState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
+        {
+        }
+
+        public override void Enter()
+        {
+            base.Enter();
+            SkillsController.Skills[SkillType.Scanner].Cast();
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\AbilityStates\SwitchBranchAbilityState.cs ===
+﻿using Gameplay.Anims;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Controllers.Player;
+
+namespace Gameplay.StateMachines.PlayerStates.AbilityStates
+{
+    public class SwitchBranchAbilityState : FightPlayerState 
+    {
+        public SwitchBranchAbilityState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
+        {
+        }
+
+        public override void Enter()
+        {
+            base.Enter();
+            SkillsController.Skills[SkillType.BranchSwitch].Cast();
+        }
+    }
+}
+
 === Scripts\Gameplay\StateMachines\PlayerStates\FightPlayerState.cs ===
 ﻿using Gameplay.Anims;
 using Gameplay.Controllers.Player;
+using UnityEngine;
 
 namespace Gameplay.StateMachines.PlayerStates
 {
@@ -4962,9 +5485,12 @@ namespace Gameplay.StateMachines.PlayerStates
     {
         protected FightController FightController;
         protected SkillsController SkillsController;
-        protected PlayerAnimator PlayerAnimator;
+        protected IPlayerAnimator PlayerAnimator;
+        private float _enterTime;
+        private float _duration = .5f;
+        public bool IsFinished => Time.time >= _enterTime + _duration;
         
-        protected FightPlayerState(FightController fightController, SkillsController skillsController, PlayerAnimator animator)
+        protected FightPlayerState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator)
         {
             FightController = fightController;
             SkillsController = skillsController;
@@ -4973,6 +5499,7 @@ namespace Gameplay.StateMachines.PlayerStates
         
         public virtual void Enter()
         {
+            _enterTime = Time.time;
         }
 
         public virtual void Execute()
@@ -4985,6 +5512,7 @@ namespace Gameplay.StateMachines.PlayerStates
     }
 }
 
+
 === Scripts\Gameplay\StateMachines\PlayerStates\FightStates\AttackState.cs ===
 ﻿using System.Collections;
 using Gameplay.Anims;
@@ -4996,17 +5524,17 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class AttackState : FightPlayerState
     {
-
-        public AttackState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        
+        public AttackState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
         {
         }
-        
         
 
         public override void Enter()
         {
+            base.Enter();
             Debug.Log("Entering Melee");
-            PlayerAnimator.StartCoroutine(SwordColliderSwitch());
+            FightController.StartCoroutine(SwordColliderSwitch());
             PlayerAnimator.DoAttack();
             SkillsController.Skills[SkillType.Melee].Cast();
 
@@ -5040,7 +5568,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class FocusState : FightPlayerState
     {
-        public FocusState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        public FocusState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
         {
         }
 
@@ -5071,7 +5599,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class IdleAttackState : FightPlayerState
     {
-        public IdleAttackState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        public IdleAttackState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
         {
         }
 
@@ -5081,7 +5609,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
             if(!FightController.IsSheathed) return;
             PlayerAnimator.DoWithdraw();
             FightController.IsSheathed = false;
-            PlayerAnimator.StartCoroutine(Withdraw());
+            FightController.StartCoroutine(Withdraw());
         }
 
         public override void Execute()
@@ -5112,7 +5640,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class SheathedSwordState : FightPlayerState
     {
-        public SheathedSwordState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        public SheathedSwordState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
         {
         }
         
@@ -5121,7 +5649,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
             Debug.Log("Entering Sheathed Sword");
             if (FightController.IsSheathed) return;
             PlayerAnimator.DoSheath();
-            PlayerAnimator.StartCoroutine(Sheath());
+            FightController.StartCoroutine(Sheath());
         }
 
         public override void Exit()
@@ -5152,7 +5680,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class SpellState : FightPlayerState
     {
-        public SpellState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        public SpellState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
         {
         }
 
@@ -5161,7 +5689,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
             Debug.Log("Entering Spell");
             PlayerAnimator.DoSpell();
             //FightController.swordGameObject.SetActive(false);
-            PlayerAnimator.StartCoroutine(SpellCast());
+            FightController.StartCoroutine(SpellCast());
 
         }
 
@@ -5184,6 +5712,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
     }
 }
 
+
 === Scripts\Gameplay\StateMachines\PlayerStates\MovementPlayerState.cs ===
 ﻿using Gameplay.Anims;
 using Gameplay.Controllers.Player;
@@ -5193,9 +5722,9 @@ namespace Gameplay.StateMachines.PlayerStates
     public abstract class MovementPlayerState : IState
     {
         protected MovementController MovementController;
-        protected PlayerAnimator PlayerAnimator;
+        protected IPlayerAnimator PlayerAnimator;
         
-        protected MovementPlayerState(MovementController movementController, PlayerAnimator animator)
+        protected MovementPlayerState(MovementController movementController, IPlayerAnimator animator)
         {
             MovementController = movementController;
             PlayerAnimator = animator;
@@ -5224,7 +5753,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 {
     public class DeathState : MovementPlayerState
     {
-        public DeathState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        public DeathState(MovementController movementController, IPlayerAnimator animator) : base(movementController, animator)
         {
         }
 
@@ -5245,6 +5774,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
     }
 }
 
+
 === Scripts\Gameplay\StateMachines\PlayerStates\MoveStates\FallingState.cs ===
 ﻿using Gameplay.Anims;
 using Gameplay.Controllers.Player;
@@ -5254,7 +5784,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 {
     public class FallingState : MovementPlayerState
     {
-        public FallingState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        public FallingState(MovementController movementController, IPlayerAnimator animator) : base(movementController, animator)
         {
         }
 
@@ -5277,6 +5807,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
     }
 }
 
+
 === Scripts\Gameplay\StateMachines\PlayerStates\MoveStates\IdleState.cs ===
 ﻿using Gameplay.Anims;
 using Gameplay.Controllers.Player;
@@ -5286,7 +5817,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 {
     public class IdleState :  MovementPlayerState
     {
-        public IdleState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        public IdleState(MovementController movementController, IPlayerAnimator animator) : base(movementController, animator)
         {
         }
 
@@ -5318,36 +5849,40 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 {
     public class JumpingState : MovementPlayerState
     {
-        public JumpingState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        public JumpingState(MovementController movementController, IPlayerAnimator animator) : base(movementController, animator)
         {
         }
 
         public override void Enter()
         {
             MonoBehaviour.print("Entering Jumping State");
-            PlayerAnimator.StartCoroutine(JumpRoutine());
+            //MovementController.StartCoroutine(JumpRoutine());
+            MovementController.Jump();
         }
 
         public override void Execute()
         {
-            MovementController.moveSpeed -= 2f * Time.deltaTime;
+            MovementController.CurrentMoveSpeed -= MovementController.WalkSpeed * Time.deltaTime;
             MovementController.Move();
         }
 
         public override void Exit()
         {   
             MonoBehaviour.print("Exiting Jumping State");
+            
         }
 
-        private IEnumerator JumpRoutine()
+        /*private IEnumerator JumpRoutine()
         {
             PlayerAnimator.DoJump();
             yield return new WaitUntil(() => PlayerAnimator.CheckAnimationState((int)LayerNames.Movement, .63f, "Jump"));
             MovementController.Jump();
             yield return new WaitUntil(() => PlayerAnimator.CheckAnimationState((int)LayerNames.Movement, .99f, "Jump"));
-        }
+        }*/
+        
     }
 }
+
 
 === Scripts\Gameplay\StateMachines\PlayerStates\MoveStates\SprintingState.cs ===
 ﻿using Gameplay.Anims;
@@ -5358,14 +5893,14 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 {
     public class SprintingState : MovementPlayerState
     {
-        public SprintingState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        public SprintingState(MovementController movementController, IPlayerAnimator animator) : base(movementController, animator)
         {
         }
 
         public override void Enter()
         {
             PlayerAnimator.DoRun();
-            MovementController.moveSpeed = MovementController.runSpeed;
+            MovementController.CurrentMoveSpeed = MovementController.RunSpeed;
             MonoBehaviour.print("Entering Sprinting State");
         }
 
@@ -5381,7 +5916,6 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
     }
 }
 
-
 === Scripts\Gameplay\StateMachines\PlayerStates\MoveStates\WalkingState.cs ===
 ﻿using Gameplay.Anims;
 using Gameplay.Controllers.Player;
@@ -5391,7 +5925,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 {
     public class WalkingState: MovementPlayerState
     {
-        public WalkingState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        public WalkingState(MovementController movementController, IPlayerAnimator animator) : base(movementController, animator)
         {
         }
 
@@ -5399,7 +5933,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
         {
             MonoBehaviour.print("Entering Walking State");
             PlayerAnimator.DoWalk();
-            MovementController.moveSpeed = 2f;
+            MovementController.CurrentMoveSpeed = MovementController.WalkSpeed;
         }
 
         public override void Execute()
@@ -5414,6 +5948,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
         }
     }
 }
+
 
 === Scripts\Gameplay\StateMachines\StateMachine.cs ===
 ﻿using System;
@@ -5553,54 +6088,56 @@ namespace Gameplay.StateMachines
             To = to;
             Condition = condition;
         }
+        
     }
 }
 
 === Scripts\Gameplay\UI\Views\Gameplay\CooldownView.cs ===
-﻿using UnityEngine;
+﻿using Core.UI;
+using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
 namespace Gameplay.UI.Views.Gameplay
 {
-    public class CooldownView : MonoBehaviour
+    public class CooldownView : View
     {
-        [SerializeField] private Image MeleeMask;
-        [SerializeField] private Image MeleeStatus;
-        [SerializeField] private Image SpellMask;
-        [SerializeField] private Image SpellStatus;
+        [SerializeField] private Image Slot1Mask;
+        [SerializeField] private Image Slot1Status;
+        [SerializeField] private Image Slot2Mask;
+        [SerializeField] private Image Slot2Status;
 
-        private readonly UnityEvent _updateMelee = new();
-        private readonly UnityEvent _updateSpell = new();
+        private readonly UnityEvent _updateSlot1 = new();
+        private readonly UnityEvent _updateSlot2 = new();
 
         private void Update()
         {
-            _updateMelee.Invoke();
-            _updateSpell.Invoke();
+            _updateSlot1.Invoke();
+            _updateSlot2.Invoke();
             //MeleeStatus.fillAmount = _skillsController.Skills[SkillType.Melee].GetReadyPercent();
             //SpellStatus.fillAmount = _skillsController.Skills[SkillType.Fireball].GetReadyPercent();
-            MeleeMask.enabled = MeleeStatus.fillAmount > 0;
-            SpellMask.enabled = SpellStatus.fillAmount > 0;
+            Slot1Mask.enabled = Slot1Status.fillAmount > 0;
+            Slot2Mask.enabled = Slot2Status.fillAmount > 0;
         }
         
-        public void SetMeleeListener(UnityAction callback)
+        public void SetSlot1Listener(UnityAction callback)
         {
-            _updateMelee.AddListener(callback);
+            _updateSlot1.AddListener(callback);
         }
         
-        public void SetSpellListener(UnityAction callback)
+        public void SetSlot2Listener(UnityAction callback)
         {
-            _updateSpell.AddListener(callback);
+            _updateSlot2.AddListener(callback);
         }
 
-        public void SetMeleeFillAmount(float value)
+        public void SetSlot1FillAmount(float value)
         {
-            MeleeStatus.fillAmount = value;
+            Slot1Status.fillAmount = value;
         }
         
-        public void SetSpellFillAmount(float value)
+        public void SetSlot2FillAmount(float value)
         {
-            SpellStatus.fillAmount = value;
+            Slot2Status.fillAmount = value;
         }
     }
 }
@@ -5673,13 +6210,14 @@ namespace Gameplay.UI.Views.Gameplay
 }
 
 === Scripts\Gameplay\UI\Views\Gameplay\StabilityBarView.cs ===
-﻿using Plugins.Demigiant.DOTween.Modules;
+﻿using Core.UI;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Gameplay.UI.Views.Gameplay
 {
-    public class StabilityBarView : MonoBehaviour
+    public class StabilityBarView : View
     {
         // [SerializeField] private HealthSystem _healthSystem;
         [SerializeField] private Image _hpFront;
@@ -5833,13 +6371,107 @@ namespace Gameplay.UI.Views.MainMenu
     }
 }
 
-=== Scripts\Shortcuts\FifineShortcuts.cs ===
+=== Scripts\SetupFirstPersonController.cs ===
 using UnityEditor;
 using UnityEngine;
+using Gameplay.Controllers.Player;
+using Gameplay.Anims;
+
+public class SetupFirstPersonController : MonoBehaviour
+{
+    [ContextMenu("Run")]
+    public void Run()
+    {
+        string[] prefabPaths =
+        {
+            "Assets/Mini First Person Controller/First Person Controller.prefab",
+            "Assets/Mini First Person Controller/First Person Controller Minimal.prefab"
+        };
+
+        foreach (var path in prefabPaths)
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (prefab == null) continue;
+
+            // Remove old scripts
+            var allScripts = prefab.GetComponentsInChildren<MonoBehaviour>(true);
+            foreach (var script in allScripts)
+            {
+                if (script == null) continue;
+                string scriptName = script.GetType().Name;
+                if (scriptName == "FirstPersonAudio" || scriptName == "FirstPersonLook" ||
+                    scriptName == "FirstPersonMovement" || scriptName == "Crouch" ||
+                    scriptName == "GroundCheck" || scriptName == "Jump" || scriptName == "Zoom")
+                {
+                    Object.DestroyImmediate(script, true);
+                }
+            }
+
+            var rb = prefab.GetComponent<Rigidbody>();
+            if (rb != null) Object.DestroyImmediate(rb, true);
+
+            var cap = prefab.GetComponent<CapsuleCollider>();
+            if (cap != null) Object.DestroyImmediate(cap, true);
+
+            // Add new components on root
+            var charCtrl = prefab.GetComponent<CharacterController>();
+            if (charCtrl == null) charCtrl = prefab.AddComponent<CharacterController>();
+
+            var anim = prefab.GetComponent<PlayerAnimator>();
+            if (anim == null) anim = prefab.AddComponent<PlayerAnimator>();
+
+            var moveCtrl = prefab.GetComponent<MovementController>();
+            if (moveCtrl == null) moveCtrl = prefab.AddComponent<MovementController>();
+
+            if (prefab.GetComponent<FightController>() == null) prefab.AddComponent<FightController>();
+            if (prefab.GetComponent<PlayerGlitchController>() == null) prefab.AddComponent<PlayerGlitchController>();
+            if (prefab.GetComponent<ScannerController>() == null) prefab.AddComponent<ScannerController>();
+            if (prefab.GetComponent<SkillsController>() == null) prefab.AddComponent<SkillsController>();
+            if (prefab.GetComponent<WristTerminalController>() == null) prefab.AddComponent<WristTerminalController>();
+
+            // Try to assign references for MovementController
+            // Fields: _foot, _head, _root, _spine
+            // Using SerializedObject to set private serialized fields
+            SerializedObject so = new SerializedObject(moveCtrl);
+
+            Transform head = prefab.transform.Find("First Person Camera");
+            if (head == null) head = prefab.transform; // fallback
+
+            Transform root = prefab.transform;
+            Transform spine = head; // usually camera is the spine/head fallback
+            Transform foot = prefab.transform; // fallback
+
+            // If they have specific names in the FPC prefab:
+            var camChild = prefab.GetComponentInChildren<Camera>(true);
+            if (camChild != null)
+            {
+                head = camChild.transform;
+                spine = camChild.transform;
+            }
+
+            so.FindProperty("_head").objectReferenceValue = head;
+            so.FindProperty("_spine").objectReferenceValue = spine;
+            so.FindProperty("_foot").objectReferenceValue = foot;
+            so.FindProperty("_root").objectReferenceValue = root;
+            so.ApplyModifiedProperties();
+
+            EditorUtility.SetDirty(prefab);
+        }
+
+        AssetDatabase.SaveAssets();
+        Debug.Log("FIRST_PERSON_CONTROLLER_SETUP_COMPLETE");
+    }
+}
+
+=== Scripts\Shortcuts\FifineShortcuts.cs ===
+using System;
+using UnityEditor;
+using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Shortcuts
 {
-    public class FifineShortcuts
+    public class FifineShortcuts : MonoBehaviour
     {
         // Атрибут MenuItem создает кнопку в верхнем меню Unity.
         // Символы в конце: % = Ctrl, # = Shift, & = Alt. 
@@ -5877,5 +6509,27 @@ namespace Shortcuts
                 //EditorGUIUtility.PingObject(folder);
             }
         }
+        
+        [MenuItem("MyTools/Toggle Inspector Lock %#&3")]
+        public static void ToggleInspectorLock()
+        {
+            // Меняем статус блокировки Инспектора на противоположный
+            bool isLocked = ActiveEditorTracker.sharedTracker.isLocked;
+            ActiveEditorTracker.sharedTracker.isLocked = !isLocked;
+
+            // Принудительно обновляем Инспектор, чтобы иконка замочка визуально изменилась
+            ActiveEditorTracker.sharedTracker.ForceRebuild();
+
+            // Приятный бонус: выводим статус в консоль, чтобы точно знать, что кнопка сработала
+            if (ActiveEditorTracker.sharedTracker.isLocked)
+            {
+                Debug.Log("<b>[Fifine]</b> Инспектор <color=red>ЗАБЛОКИРОВАН 🔒</color>");
+            }
+            else
+            {
+                Debug.Log("<b>[Fifine]</b> Инспектор <color=green>РАЗБЛОКИРОВАН 🔓</color>");
+            }
+        }
+        
     }
 }

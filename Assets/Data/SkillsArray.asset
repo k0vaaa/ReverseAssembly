@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Gameplay.Combat.Offensive.ScriptableObjects.SkillsArray
   skillEntries:
   - _skillClass: {fileID: 11500000, guid: a4f16625474d4a61ba67f3bb848aceae, type: 3}
-    _skillData: {fileID: 11400000, guid: a1493fe430169db46b6dfe453ba8b84c, type: 2}
+    _skillData: {fileID: 11400000, guid: 3bb1386e57676ba4e9148713c4a240bb, type: 2}
   - _skillClass: {fileID: 11500000, guid: cbf0ba3a401e48c394c2f7c48752a48a, type: 3}
-    _skillData: {fileID: 11400000, guid: 6d6e1de0f9bb83f4e9fb15cc4d8b0e85, type: 2}
+    _skillData: {fileID: 11400000, guid: b9b5b53a50bded24f88c6f133aa213bd, type: 2}

@@ -7,42 +7,42 @@ namespace Gameplay.UI.Views.Gameplay
 {
     public class CooldownView : View
     {
-        [SerializeField] private Image MeleeMask;
-        [SerializeField] private Image MeleeStatus;
-        [SerializeField] private Image SpellMask;
-        [SerializeField] private Image SpellStatus;
+        [SerializeField] private Image Slot1Mask;
+        [SerializeField] private Image Slot1Status;
+        [SerializeField] private Image Slot2Mask;
+        [SerializeField] private Image Slot2Status;
 
-        private readonly UnityEvent _updateMelee = new();
-        private readonly UnityEvent _updateSpell = new();
+        private readonly UnityEvent _updateSlot1 = new();
+        private readonly UnityEvent _updateSlot2 = new();
 
         private void Update()
         {
-            _updateMelee.Invoke();
-            _updateSpell.Invoke();
+            _updateSlot1.Invoke();
+            _updateSlot2.Invoke();
             //MeleeStatus.fillAmount = _skillsController.Skills[SkillType.Melee].GetReadyPercent();
             //SpellStatus.fillAmount = _skillsController.Skills[SkillType.Fireball].GetReadyPercent();
-            MeleeMask.enabled = MeleeStatus.fillAmount > 0;
-            SpellMask.enabled = SpellStatus.fillAmount > 0;
+            Slot1Mask.enabled = Slot1Status.fillAmount > 0;
+            Slot2Mask.enabled = Slot2Status.fillAmount > 0;
         }
         
-        public void SetMeleeListener(UnityAction callback)
+        public void SetSlot1Listener(UnityAction callback)
         {
-            _updateMelee.AddListener(callback);
+            _updateSlot1.AddListener(callback);
         }
         
-        public void SetSpellListener(UnityAction callback)
+        public void SetSlot2Listener(UnityAction callback)
         {
-            _updateSpell.AddListener(callback);
+            _updateSlot2.AddListener(callback);
         }
 
-        public void SetMeleeFillAmount(float value)
+        public void SetSlot1FillAmount(float value)
         {
-            MeleeStatus.fillAmount = value;
+            Slot1Status.fillAmount = value;
         }
         
-        public void SetSpellFillAmount(float value)
+        public void SetSlot2FillAmount(float value)
         {
-            SpellStatus.fillAmount = value;
+            Slot2Status.fillAmount = value;
         }
     }
 }

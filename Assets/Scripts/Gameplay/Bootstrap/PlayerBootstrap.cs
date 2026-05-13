@@ -61,10 +61,7 @@ namespace Gameplay.Bootstrap
             _diContainer.Inject(movementController);
             _diContainer.Inject(fightController);
             
-            _cooldownView.SetMeleeListener(() =>
-                _cooldownView.SetMeleeFillAmount(skillsController.Skills[SkillType.Melee].GetReadyPercent()));
-            _cooldownView.SetSpellListener(() =>
-                _cooldownView.SetSpellFillAmount(skillsController.Skills[SkillType.Fireball].GetReadyPercent()));
+            SetupCooldownListeners(skillsController);
             // TODO настроить сейвы
             var currentSave = _playerDataInteractor.CurrentSave;
             if (currentSave != null && currentSave.Position != default)
@@ -76,6 +73,14 @@ namespace Gameplay.Bootstrap
             }
 
             return _player;
+        }
+
+        private void SetupCooldownListeners(SkillsController skillsController)
+        {
+            _cooldownView.SetSlot1Listener(() =>
+                _cooldownView.SetSlot1FillAmount(skillsController.Skills[SkillType.BranchSwitch].GetReadyPercent()));
+            _cooldownView.SetSlot2Listener(() =>
+                _cooldownView.SetSlot2FillAmount(skillsController.Skills[SkillType.Scanner].GetReadyPercent()));
         }
 
         private void SetPos()

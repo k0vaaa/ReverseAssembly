@@ -13,7 +13,7 @@ namespace Gameplay.Combat.Offensive.Skills
         private readonly Transform _caster;
 
 
-        public SpellSkill(SkillData skillData,Transform castPoint, Transform caster, GameObject sword, IDamageable damageable) : base(skillData)
+        public SpellSkill(SkillData skillData,Transform castPoint, Transform caster) : base(skillData)
         {
             var _skillData = (SpellSkillData)skillData;
             _spellProjectile = _skillData._projectilePrefab;

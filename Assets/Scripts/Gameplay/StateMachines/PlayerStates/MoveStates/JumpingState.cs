@@ -15,7 +15,8 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
         public override void Enter()
         {
             MonoBehaviour.print("Entering Jumping State");
-            MovementController.StartCoroutine(JumpRoutine());
+            //MovementController.StartCoroutine(JumpRoutine());
+            MovementController.Jump();
         }
 
         public override void Execute()
@@ -30,12 +31,13 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
             
         }
 
-        private IEnumerator JumpRoutine()
+        /*private IEnumerator JumpRoutine()
         {
             PlayerAnimator.DoJump();
             yield return new WaitUntil(() => PlayerAnimator.CheckAnimationState((int)LayerNames.Movement, .63f, "Jump"));
             MovementController.Jump();
             yield return new WaitUntil(() => PlayerAnimator.CheckAnimationState((int)LayerNames.Movement, .99f, "Jump"));
-        }
+        }*/
+        
     }
 }
