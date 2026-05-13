@@ -29,6 +29,16 @@ namespace Core.DI
 
             throw new Exception($"Service with type {typeof(T)} is not registered");
         }
+        public T Instantiate<T>() where T : class, new()
+        {
+            // 1. Создаем экземпляр
+            T instance = new T();
+    
+            // 2. Инжектим зависимости
+            Inject(instance);
+    
+            return instance;
+        }
 
         public void Inject(object target)
         {

@@ -6,7 +6,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 {
     public class IdleState :  MovementPlayerState
     {
-        public IdleState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        public IdleState(MovementController movementController, IPlayerAnimator animator) : base(movementController, animator)
         {
         }
 

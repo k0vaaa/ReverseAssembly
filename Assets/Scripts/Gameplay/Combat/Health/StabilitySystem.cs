@@ -1,86 +1,3 @@
-// using System;
-// using Controllers.Entities.HealthController.Interfaces;
-// using Enemy;
-// using UnityEngine;
-// using UnityEngine.Events;
-// using Weapons;
-// using Weapons.Base;
-//
-// namespace Controllers.Entities.HealthController
-// {
-//     public class HealthSystem : MonoBehaviour, IDamageable, IHealthChange, IHittable, IKillable
-//     {
-//         private EnemyController enemyController;
-//         private BossController bossController;
-//
-//         public void Awake()
-//         {
-//             enemyController = GetComponent<EnemyController>();
-//             bossController = GetComponent<BossController>();
-//             
-//         }
-//
-//         public float Health
-//         {
-//             get => _health;
-//             set
-//             {
-//                 _health = value;
-//                 onHealthChanged?.Invoke(_health,MaxHealth);
-//             }
-//         }
-//
-//         public float MaxHealth { get; private set; } = 100f;
-//         
-//         public UnityEvent<float, float> onHealthChanged { get; } = new();
-//         public UnityEvent<bool> onDeath { get; } = new();
-//         public UnityEvent onHit { get; } = new();
-//         [SerializeField] private float _health;
-//
-//         public void Init(float healthMultiplier)
-//         {
-//             MaxHealth *= healthMultiplier;
-//             SetHealthToMax();
-//         }
-//
-//         private void SetHealthToMax()
-//         {
-//             Health = MaxHealth;
-//         }
-//         
-//         public void SetHealth(float health)
-//         {
-//             Health = health;
-//         }
-//
-//         public void TakeDamage(Damage damage)
-//         {   
-//             if (Health - damage.Value <= 0)
-//             {   
-//                 
-//                 if(enemyController){enemyController.isDead = true;}
-//                 else if(bossController){bossController.isDead = true;}
-//                 
-//                 Health = 0;
-//                 onDeath?.Invoke(true);
-//             }
-//             else
-//             {
-//                 Health -= damage.Value;
-//                 onHit?.Invoke();
-//             }
-//         }
-//  
-//     }
-//
-//     public interface IKillable
-//     {
-//         public UnityEvent<bool> onDeath { get; }
-//     }
-// }
-//
-//
-
 using Core.Events;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
@@ -112,7 +29,7 @@ namespace Gameplay.Combat.Health
             }
         }
 
-        public float MaxStability { get; private set; } = 100f;
+        [field:SerializeField] public float MaxStability { get; private set; } = 100f;
 
         public UnityEvent<float, float> onStabilityChanged { get; } = new();
 
@@ -124,7 +41,8 @@ namespace Gameplay.Combat.Health
 
         public void Awake()
         {
-            _controller = GetComponent<ICharacterController>();
+            TryGetComponent<ICharacterController>(out var controller);
+            _controller = controller;
         }
 
         public void Init(float stabilityMultiplier)
@@ -153,7 +71,7 @@ namespace Gameplay.Combat.Health
                 }
 
                 Stability = 0;
-                OnDeath?.Invoke(true);
+                Die();
             }
             else
             {
@@ -164,7 +82,7 @@ namespace Gameplay.Combat.Health
 
         public void Die()
         {
-            
+            OnDeath?.Invoke(true);
         }
     }
 

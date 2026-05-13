@@ -6,14 +6,14 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 {
     public class SprintingState : MovementPlayerState
     {
-        public SprintingState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        public SprintingState(MovementController movementController, IPlayerAnimator animator) : base(movementController, animator)
         {
         }
 
         public override void Enter()
         {
             PlayerAnimator.DoRun();
-            MovementController.moveSpeed = MovementController.runSpeed;
+            MovementController.CurrentMoveSpeed = MovementController.RunSpeed;
             MonoBehaviour.print("Entering Sprinting State");
         }
 

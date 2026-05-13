@@ -6,7 +6,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 {
     public class WalkingState: MovementPlayerState
     {
-        public WalkingState(MovementController movementController, PlayerAnimator animator) : base(movementController, animator)
+        public WalkingState(MovementController movementController, IPlayerAnimator animator) : base(movementController, animator)
         {
         }
 
@@ -14,7 +14,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
         {
             MonoBehaviour.print("Entering Walking State");
             PlayerAnimator.DoWalk();
-            MovementController.moveSpeed = 2f;
+            MovementController.CurrentMoveSpeed = MovementController.WalkSpeed;
         }
 
         public override void Execute()

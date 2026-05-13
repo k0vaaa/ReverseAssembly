@@ -1,10 +1,11 @@
-﻿using UnityEngine;
+﻿using Core.UI;
+using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
 namespace Gameplay.UI.Views.Gameplay
 {
-    public class CooldownView : MonoBehaviour
+    public class CooldownView : View
     {
         [SerializeField] private Image MeleeMask;
         [SerializeField] private Image MeleeStatus;

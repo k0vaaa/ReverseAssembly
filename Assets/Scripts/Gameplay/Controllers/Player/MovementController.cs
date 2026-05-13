@@ -1,4 +1,5 @@
-﻿using Core.DI;
+﻿using System;
+using Core.DI;
 using Core.Input;
 using Gameplay.Anims;
 using Gameplay.Combat.Interfaces;
@@ -12,25 +13,32 @@ namespace Gameplay.Controllers.Player
     {
         [Inject] private InputManager _inputManager;
         private StateMachine _moveStateMachine;
-        private PlayerAnimator _playerAnimator;
+        private IPlayerAnimator _playerAnimator;
         private CharacterController _controller;
-        [SerializeField] private Transform _spine;
         private Camera _camera;
 
 
-        public bool IsGrounded { get; private set; }
+        public float WalkSpeed = 2f;
+        public float CurrentMoveSpeed = 2f;
 
-        [SerializeField] public float moveSpeed = 2f;
-        [SerializeField] public float runSpeed = 2f;
+        public float RunSpeed = 2f;
+        [field: SerializeField] public bool IsGrounded { get; private set; }
+
         [SerializeField] private float _velocityVertical = 0f;
+
         [SerializeField] private float _jumpForce;
+
         [SerializeField] private float _rotationSpeed = 1f;
+
         private float _groundCheckDistance;
+
         private bool _death;
+
         private Vector3 _inertialMoveDirection;
 
-
         [Header("Controller")]
+
+        //[SerializeField] private Transform _spine;
         [SerializeField]
         private Transform _foot;
 
@@ -41,18 +49,25 @@ namespace Gameplay.Controllers.Player
         private void Awake()
         {
             _moveStateMachine = new StateMachine();
-            _playerAnimator = GetComponent<PlayerAnimator>();
+            _playerAnimator = GetComponent<IPlayerAnimator>();
             _controller = GetComponent<CharacterController>();
         }
 
         public void Init(Camera camera)
         {
-            _camera = camera;
+            if (camera == null)
+            {
+                _camera = GetComponentInChildren<Camera>();
+            }
+            else
+            {
+                _camera = camera;
+            }
         }
 
         private void Start()
         {
-            _groundCheckDistance = (_controller.height / 2) + .1f;
+            _groundCheckDistance = (_controller.height * transform.lossyScale.y / 2) + .1f;
 
             MoveStatesInit();
         }
@@ -61,7 +76,7 @@ namespace Gameplay.Controllers.Player
         {
             _moveStateMachine.Tick();
             //SetControllerParams();
-            Rotate();
+            //Rotate();
             ApplyGravity();
             CheckGround();
         }
@@ -84,21 +99,27 @@ namespace Gameplay.Controllers.Player
             _moveStateMachine.AddTransition(sprintingState, walkingState, () => !_inputManager.SprintInput);
             _moveStateMachine.AddTransition(sprintingState, fallingState, () => !IsGrounded);
             _moveStateMachine.AddTransition(jumpingState, fallingState, () => !IsGrounded);
+            _moveStateMachine.AddTransition(jumpingState, idleState, () => IsGrounded);
             _moveStateMachine.AddTransition(fallingState, idleState, () => IsGrounded);
             _moveStateMachine.AddAntiState(fallingState, jumpingState);
 
-            void HandleJump()
+
+            if (_inputManager != null)
             {
-                if (IsGrounded)
-                {
-                    _moveStateMachine.SetState(jumpingState);
-                }
+                _inputManager.OnJumpPressed += HandleJump;
             }
 
-            _inputManager.OnJumpPressed += HandleJump;
             _moveStateMachine.AddAnyTransition(deathState, () => _death);
 
             _moveStateMachine.SetState(idleState);
+        }
+
+        private void HandleJump()
+        {
+            if (IsGrounded)
+            {
+                _moveStateMachine.SetState(new JumpingState(this, _playerAnimator));
+            }
         }
 
         private void ApplyGravity()
@@ -149,12 +170,12 @@ namespace Gameplay.Controllers.Player
                                     rightDirection.normalized * _inputManager.MoveInput.x;
             _inertialMoveDirection = moveDirection;
 
-            _controller.Move(moveDirection * (Time.deltaTime * moveSpeed));
+            _controller.Move(moveDirection * (Time.deltaTime * CurrentMoveSpeed));
         }
 
         public void InertialMove()
         {
-            _controller.Move(_inertialMoveDirection * (Time.deltaTime * moveSpeed));
+            _controller.Move(_inertialMoveDirection * (Time.deltaTime * CurrentMoveSpeed));
         }
 
         public void Jump()
@@ -173,8 +194,42 @@ namespace Gameplay.Controllers.Player
 
         private void CheckGround()
         {
-            IsGrounded = Physics.Raycast(transform.position, Vector3.down, _groundCheckDistance,
+            Ray ray = new Ray(transform.TransformPoint(_controller.center), Vector3.down);
+            IsGrounded = Physics.SphereCast(ray, _controller.radius, _groundCheckDistance,
                 LayerMask.GetMask("Ground"));
+        }
+
+        private void OnDestroy()
+        {
+            _inputManager.OnJumpPressed -= HandleJump;
+        }
+
+        private void OnDrawGizmos()
+        {
+            if (_controller == null) return;
+
+            Vector3 origin = transform.TransformPoint(_controller.center);
+            float maxDistance = (_controller.height * transform.lossyScale.y / 2) + 0.1f;
+            //float maxDistance = 5;
+
+            // Зеленый цвет, если на земле, красный если в воздухе
+            Gizmos.color = Color.green;
+
+            // Отрисовка SphereCast
+            Gizmos.DrawWireSphere(origin, _controller.radius); // Стартовая сфера (внутри тела)
+            Gizmos.color = IsGrounded ? Color.green : Color.red;
+            Gizmos.DrawWireSphere(origin + Vector3.down * maxDistance,
+                _controller.radius); // Конечная сфера (возле ног)
+
+            // Линии, соединяющие сферы для имитации "капсулы" каста
+            Gizmos.DrawLine(origin + Vector3.left * _controller.radius,
+                origin + Vector3.down * maxDistance + Vector3.left * _controller.radius);
+            Gizmos.DrawLine(origin + Vector3.right * _controller.radius,
+                origin + Vector3.down * maxDistance + Vector3.right * _controller.radius);
+            Gizmos.DrawLine(origin + Vector3.forward * _controller.radius,
+                origin + Vector3.down * maxDistance + Vector3.forward * _controller.radius);
+            Gizmos.DrawLine(origin + Vector3.back * _controller.radius,
+                origin + Vector3.down * maxDistance + Vector3.back * _controller.radius);
         }
     }
 }

@@ -12,12 +12,13 @@ namespace Core.Bootstrap
         [SerializeField] private Services _services;
         private readonly DIContainer _diContainer = new();
 
-        private List<IInjectable> _injectables = new();
-        private List<IInitializable> _initializables = new();
+        private HashSet<IInjectable> _injectables = new();
+        private HashSet<IInitializable> _initializables = new();
 
 
         private void Awake()
         {
+            _diContainer.Register(_diContainer);
             RegisterServices();
 
             FindAndSortScripts();
@@ -39,7 +40,7 @@ namespace Core.Bootstrap
                 {
                     _injectables.Add(injectable);
                 }
-                else if (script is IInitializable initializable)
+                if (script is IInitializable initializable)
                 {
                     _initializables.Add(initializable);
                 }
@@ -56,6 +57,7 @@ namespace Core.Bootstrap
 
         private void InitializeAll()
         {
+            
             foreach (var initializable in _initializables)
             {
                 initializable.Init();
@@ -72,7 +74,16 @@ namespace Core.Bootstrap
                 var serviceInstance = fieldInfo.GetValue(_services);
                 if (serviceInstance == null) continue;
                 _diContainer.Register(fieldInfo.FieldType, serviceInstance);
+                if (serviceInstance is IInitializable initializable)
+                {
+                    _initializables.Add(initializable);
+                }
+                if (serviceInstance is IInjectable injectable)
+                {
+                    _injectables.Add(injectable);
+                }
             }
+            
         }
     }
 }

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Gameplay.Anims
 {
-    public class PlayerAnimator : MonoBehaviour, IInjectable
+    public class PlayerAnimator : MonoBehaviour, IInjectable, IPlayerAnimator
     {
         [Inject] public InputManager InputManager;
         private static readonly int Attack = Animator.StringToHash("Attack");

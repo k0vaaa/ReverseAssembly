@@ -6,7 +6,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class FocusState : FightPlayerState
     {
-        public FocusState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        public FocusState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
         {
         }
 

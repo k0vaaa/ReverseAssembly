@@ -7,9 +7,9 @@ namespace Gameplay.StateMachines.PlayerStates
     {
         protected FightController FightController;
         protected SkillsController SkillsController;
-        protected PlayerAnimator PlayerAnimator;
+        protected IPlayerAnimator PlayerAnimator;
         
-        protected FightPlayerState(FightController fightController, SkillsController skillsController, PlayerAnimator animator)
+        protected FightPlayerState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator)
         {
             FightController = fightController;
             SkillsController = skillsController;

@@ -7,7 +7,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class IdleAttackState : FightPlayerState
     {
-        public IdleAttackState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        public IdleAttackState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
         {
         }
 
@@ -17,7 +17,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
             if(!FightController.IsSheathed) return;
             PlayerAnimator.DoWithdraw();
             FightController.IsSheathed = false;
-            PlayerAnimator.StartCoroutine(Withdraw());
+            FightController.StartCoroutine(Withdraw());
         }
 
         public override void Execute()

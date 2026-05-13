@@ -1,10 +1,11 @@
-﻿using Plugins.Demigiant.DOTween.Modules;
+﻿using Core.UI;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Gameplay.UI.Views.Gameplay
 {
-    public class StabilityBarView : MonoBehaviour
+    public class StabilityBarView : View
     {
         // [SerializeField] private HealthSystem _healthSystem;
         [SerializeField] private Image _hpFront;

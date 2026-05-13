@@ -33,6 +33,7 @@ namespace Core.Input
             _inputSystemActions = new InputSystemActions();
             _playerActions = _inputSystemActions.Player;
             _uiActions = _inputSystemActions.UI;
+            _inputSystemActions.Enable();
             _playerActions.Enable();
             _uiActions.Enable();
             Subscribe();

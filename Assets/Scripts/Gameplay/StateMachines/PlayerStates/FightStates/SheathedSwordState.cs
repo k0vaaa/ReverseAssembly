@@ -7,7 +7,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class SheathedSwordState : FightPlayerState
     {
-        public SheathedSwordState(FightController fightController, SkillsController skillsController, PlayerAnimator animator) : base(fightController, skillsController, animator)
+        public SheathedSwordState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
         {
         }
         
@@ -16,7 +16,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
             Debug.Log("Entering Sheathed Sword");
             if (FightController.IsSheathed) return;
             PlayerAnimator.DoSheath();
-            PlayerAnimator.StartCoroutine(Sheath());
+            FightController.StartCoroutine(Sheath());
         }
 
         public override void Exit()

@@ -1,15 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using Core.Bootstrap;
 using UnityEngine;
 
 namespace Core.UI
 {
-    public class ViewManager : MonoBehaviour
+    public class ViewManager : MonoBehaviour, IInitializable
     {
         [SerializeField] List<View> _viewsList;
         private Dictionary<Type, View> _views = new();
 
-        private void Awake()
+        public void Init()
         {
             foreach (var view in _viewsList)
             {
@@ -27,7 +28,7 @@ namespace Core.UI
                 return view as T;
             }
             Debug.LogError($"View of type {typeof(T)} not found");
-            return default;
+            return null;
         }
 
         public void SwitchViews<T, T1>(T from, T1 to) where T : View where T1 : View
