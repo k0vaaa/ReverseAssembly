@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
 using UnityEngine;
@@ -24,10 +24,19 @@ namespace Gameplay.Combat.Offensive.Collision
         private void OnTriggerEnter(Collider other)
         {
             IDamageable damageable = other.gameObject.GetComponent<IDamageable>();
-            if (damageable == null) return;
-            if (damageable == _self) return;
-            DoDamage(damageable);
-            Destroy(gameObject);
+            if (damageable != null && damageable != _self)
+            {
+                DoDamage(damageable);
+                
+                var glitchable = other.gameObject.GetComponent<IGlitchable>();
+                glitchable?.ApplyGlitchStun(3f);
+            }
+            
+            // Снаряд должен уничтожаться в любом случае при столкновении с чем-либо (если это не сам стрелок)
+            if (damageable != _self)
+            {
+                Destroy(gameObject);
+            }
         }
 
         public IEnumerator Ttl()

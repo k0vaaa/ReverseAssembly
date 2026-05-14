@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,6 +10,7 @@ namespace Core.SaveLoad.Saveables
         public float Health;
         public Vector3 Position;
         public List<EnemyData> Enemies; 
+        public int CodeBlocks;
     }
 
     [Serializable]

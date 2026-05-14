@@ -35,9 +35,9 @@ namespace Gameplay.Enemies.States
         
         private IEnumerator SwordColliderSwitch()
         {
-            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.3f, "attackTest"));
+            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.33f, "attackTest"));
             EnemyController.SwordCollider.enabled = true;
-            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.53f, "attackTest"));
+            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.63f, "attackTest"));
             EnemyController.SwordCollider.enabled = false;
         }
     }

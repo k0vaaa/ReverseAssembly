@@ -6,24 +6,76 @@ namespace Gameplay.UI
 {
     public class PhysicsPuzzleView : PuzzleViewBase
     {
-        [Header("Stub Debugging")]
-        [SerializeField] private Button _winButtonStub;
-        [SerializeField] private Button _closeButtonStub;
+        [Header("UI Elements")]
+        [SerializeField] private Slider[] _sliders;
+        [SerializeField] private Button _applyButton;
+        [SerializeField] private Button _closeButton;
+
+        [Header("Settings")]
+        [SerializeField] private float _targetMin = 0.45f;
+        [SerializeField] private float _targetMax = 0.55f;
 
         public override void ShowPuzzle(IBuggable target)
         {
             base.ShowPuzzle(target);
             
-            if (_winButtonStub != null)
+            // Randomize sliders and subscribe
+            foreach (var slider in _sliders)
             {
-                _winButtonStub.onClick.RemoveAllListeners();
-                _winButtonStub.onClick.AddListener(OnWin);
+                if (slider == null) continue;
+                slider.value = Random.Range(0f, 1f);
+                slider.onValueChanged.RemoveAllListeners();
+                slider.onValueChanged.AddListener(CheckWinCondition);
+            }
+            
+            if (_applyButton != null)
+            {
+                _applyButton.interactable = false;
+                _applyButton.onClick.RemoveAllListeners();
+                _applyButton.onClick.AddListener(OnWin);
             }
 
-            if (_closeButtonStub != null)
+            if (_closeButton != null)
             {
-                _closeButtonStub.onClick.RemoveAllListeners();
-                _closeButtonStub.onClick.AddListener(ClosePuzzle);
+                _closeButton.onClick.RemoveAllListeners();
+                _closeButton.onClick.AddListener(ClosePuzzle);
+            }
+
+            CheckWinCondition(0f);
+        }
+
+        private void CheckWinCondition(float _)
+        {
+            if (_sliders == null || _sliders.Length == 0) return;
+
+            bool isWin = true;
+            foreach (var slider in _sliders)
+            {
+                if (slider == null) continue;
+                if (slider.value < _targetMin || slider.value > _targetMax)
+                {
+                    isWin = false;
+                    break;
+                }
+            }
+            
+            if (_applyButton != null)
+            {
+                _applyButton.interactable = isWin;
+            }
+            
+            // Опционально: здесь можно добавить проигрывание звука сдвига ползунка
+        }
+
+        public override void ClosePuzzle()
+        {
+            base.ClosePuzzle();
+            if (_sliders != null)
+            {
+                foreach (var slider in _sliders)
+                {
+                    if (slider != null) slider.onValueChanged.RemoveAllListeners();
+                }
             }
         }
     }

@@ -12,6 +12,8 @@ using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.Rendering;
 
+using Core.Inventory;
+
 namespace Core.Bootstrap
 {
     [DefaultExecutionOrder(-1000)]
@@ -22,6 +24,7 @@ namespace Core.Bootstrap
         [SerializeField] private ViewManager _viewManager;
         [SerializeField] private BranchManager _branchManager;
         [SerializeField] private Volume _postProcessVolume;
+        [SerializeField] private InventoryManager _inventoryManager;
         private PlayerDataInteractor _playerDataInteractor;
         private IPlayerDataRepository _playerJsonRepository;
         private IDataRepository _playerPrefsRepository;

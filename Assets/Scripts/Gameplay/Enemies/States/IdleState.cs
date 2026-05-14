@@ -13,7 +13,10 @@ namespace Gameplay.Enemies.States
         {
             EnemyAnimator.IdleEvent();
             Debug.Log("Entering ENEMY Idle");
-            NavMeshAgent.isStopped = true;
+            if (NavMeshAgent.isActiveAndEnabled && NavMeshAgent.isOnNavMesh)
+            {
+                NavMeshAgent.isStopped = true;
+            }
         }
 
         public override void Execute()

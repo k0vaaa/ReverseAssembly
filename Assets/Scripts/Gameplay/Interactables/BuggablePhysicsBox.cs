@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using Core.DI;
 using Core.UI;
@@ -7,13 +8,10 @@ using Gameplay.UI;
 namespace Gameplay.Interactables
 {
     [RequireComponent(typeof(Rigidbody))]
-    public class BuggablePhysicsBox : MonoBehaviour, IBuggable, IInjectable
+    public class BuggablePhysicsBox : BuggableBase, IInjectable
     {
-        public bool IsBugged { get; private set; } = true;
-
         [Inject] private ViewManager _viewManager;
         [Inject] private InputManager _inputManager;
-
         private Rigidbody _rb;
         private Outline _outline; // Опционально: компонент обводки
 
@@ -31,7 +29,7 @@ namespace Gameplay.Interactables
             }
         }
 
-        public void OnScanned(bool isScanning)
+        public override void OnScanned(bool isScanning)
         {
             if (!IsBugged) return;
 
@@ -48,7 +46,7 @@ namespace Gameplay.Interactables
             // В консоли можно вывести:[Property Error: Mass = 9999]
         }
 
-        public void OnInteract()
+        public override void OnInteract()
         {
             if (!IsBugged) return;
 
@@ -60,14 +58,23 @@ namespace Gameplay.Interactables
                 return;
             }
 
-            var puzzleView = _viewManager.GetView<PhysicsPuzzleView>();
-            if (puzzleView == null)
+            
+            if (_puzzleView != null)
             {
-                Debug.LogError("PhysicsPuzzleView не найден! Вы добавили его в список ViewManager?");
-                return;
+                _puzzleView.ShowPuzzle(this);
             }
+            else
+            {
+                var puzzleView = _viewManager.GetView<PhysicsPuzzleView>();
+                if (puzzleView == null)
+                {
+                    Debug.LogError("PhysicsPuzzleView не найден! Вы добавили его в список ViewManager?");
+                    return;
+                }
 
-            puzzleView.ShowPuzzle(this);
+                puzzleView.ShowPuzzle(this);
+            }
+            
 
             if (_inputManager == null)
             {
@@ -80,7 +87,7 @@ namespace Gameplay.Interactables
             Cursor.visible = true;
         }
 
-        public void FixBug()
+        public override void FixBug()
         {
             IsBugged = false;
 

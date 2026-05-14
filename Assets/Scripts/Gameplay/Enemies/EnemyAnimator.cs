@@ -1,14 +1,15 @@
-﻿using UnityEngine;
+﻿using Core.Bootstrap;
+using UnityEngine;
 
 namespace Gameplay.Enemies
 {
     public class EnemyAnimator : MonoBehaviour
     {
         private static readonly int Death = Animator.StringToHash("Death");
-        private static readonly int Walk = Animator.StringToHash("Walk");
-        private static readonly int Attack = Animator.StringToHash("Attack");
-        private static readonly int Hitted = Animator.StringToHash("Hitted");
-        private static readonly int Spell = Animator.StringToHash("Spell");
+        private static readonly int Walk = Animator.StringToHash("IsWalking");
+        private static readonly int Attack = Animator.StringToHash("Punch");
+        private static readonly int Hitted = Animator.StringToHash("Hit");
+        //private static readonly int Spell = Animator.StringToHash("Spell");
         
         public Animator _animator { get; private set; }
         
@@ -16,7 +17,7 @@ namespace Gameplay.Enemies
             _animator.GetCurrentAnimatorStateInfo(layerIndex).normalizedTime >= time && 
             _animator.GetCurrentAnimatorStateInfo(layerIndex).IsName(stateName);
 
-        private void Awake()
+        public void Init()
         {
             _animator = GetComponent<Animator>();
         }
@@ -34,7 +35,6 @@ namespace Gameplay.Enemies
         public void IdleEvent()
         {
             _animator.SetBool(Walk, false);
-        
         }
         
         public void DoAttack()
@@ -47,10 +47,10 @@ namespace Gameplay.Enemies
             _animator.SetTrigger(Hitted);
         }
 
-        public void DoSpellEvent()
+        /*public void DoSpellEvent()
         {
             _animator.SetTrigger(Spell);
-        }
+        }*/
         
         
         

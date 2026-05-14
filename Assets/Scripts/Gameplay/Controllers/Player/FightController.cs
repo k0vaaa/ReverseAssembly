@@ -5,7 +5,6 @@ using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.StateMachines;
 using Gameplay.StateMachines.PlayerStates.AbilityStates;
-using Gameplay.StateMachines.PlayerStates.AbilityStates;
 using Gameplay.StateMachines.PlayerStates.FightStates;
 using UnityEngine;
 

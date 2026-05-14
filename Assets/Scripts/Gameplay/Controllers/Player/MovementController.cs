@@ -200,7 +200,7 @@ namespace Gameplay.Controllers.Player
         private void CheckGround()
         {
             Ray ray = new Ray(transform.TransformPoint(_controller.center), Vector3.down);
-            IsGrounded = Physics.SphereCast(ray, _controller.radius, _groundCheckDistance,
+            IsGrounded = Physics.SphereCast(ray, _controller.radius*transform.lossyScale.x, _groundCheckDistance,
                 LayerMask.GetMask("Ground"));
         }
 
@@ -221,10 +221,10 @@ namespace Gameplay.Controllers.Player
             Gizmos.color = Color.green;
 
             // Отрисовка SphereCast
-            Gizmos.DrawWireSphere(origin, _controller.radius); // Стартовая сфера (внутри тела)
+            Gizmos.DrawWireSphere(origin, _controller.radius * transform.lossyScale.x); // Стартовая сфера (внутри тела)
             Gizmos.color = IsGrounded ? Color.green : Color.red;
             Gizmos.DrawWireSphere(origin + Vector3.down * maxDistance,
-                _controller.radius); // Конечная сфера (возле ног)
+                _controller.radius * transform.lossyScale.x); // Конечная сфера (возле ног)
 
             // Линии, соединяющие сферы для имитации "капсулы" каста
             Gizmos.DrawLine(origin + Vector3.left * _controller.radius,

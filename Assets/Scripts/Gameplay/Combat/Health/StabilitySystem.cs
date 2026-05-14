@@ -1,3 +1,4 @@
+using Core.Bootstrap;
 using Core.Events;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
@@ -7,7 +8,7 @@ using UnityEngine.Events;
 
 namespace Gameplay.Combat.Health
 {
-    public class StabilitySystem : MonoBehaviour, IDamageable, IHealthChange, IHittable, IKillable
+    public class StabilitySystem : MonoBehaviour, IDamageable, IHealthChange, IHittable, IKillable, IInitializable
     {
         private ICharacterController _controller;
 
@@ -39,11 +40,13 @@ namespace Gameplay.Combat.Health
 
         [ContextMenuItem("meow", nameof(Die))]
         [SerializeField] private float _stability;
-
-        public void Awake()
+        
+        public void Init()
         {
             TryGetComponent<ICharacterController>(out var controller);
             _controller = controller;
+            MaxStability *= 1;
+            SetStabilityToMax();
         }
 
         public void Init(float stabilityMultiplier)
@@ -64,7 +67,7 @@ namespace Gameplay.Combat.Health
 
         [ContextMenu("TakeDamage10")]
         public void TakeDamageTest() => TakeDamage(new Damage(DamageType.Physic,10));
-        
+
         public void TakeDamage(Damage damage)
         {
             if (Stability - damage.Value <= 0)

@@ -47,7 +47,7 @@ namespace Core.Input
             
             _playerActions.Jump.performed += OnJumpPress;
             _playerActions.RightClick.performed += OnRightClickPress;
-            _playerActions.Interact.started += ctx => OnInteractPressed?.Invoke();
+            _playerActions.Interact.performed += ctx => OnInteractPressed?.Invoke();
             _playerActions.Scanner.performed += ctx => OnScannerPressed?.Invoke();
             _playerActions.BranchToggle.performed += ctx => OnBranchTogglePressed?.Invoke();
         }
