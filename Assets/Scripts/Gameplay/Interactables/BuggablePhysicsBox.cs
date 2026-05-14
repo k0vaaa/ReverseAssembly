@@ -1,12 +1,18 @@
-﻿using UnityEngine;
-using UnityEngine.UI;
+using UnityEngine;
+using Core.DI;
+using Core.UI;
+using Core.Input;
+using Gameplay.UI;
 
 namespace Gameplay.Interactables
 {
     [RequireComponent(typeof(Rigidbody))]
-    public class BuggablePhysicsBox : MonoBehaviour, IBuggable
+    public class BuggablePhysicsBox : MonoBehaviour, IBuggable, IInjectable
     {
         public bool IsBugged { get; private set; } = true;
+
+        [Inject] private ViewManager _viewManager;
+        [Inject] private InputManager _inputManager;
 
         private Rigidbody _rb;
         private Outline _outline; // Опционально: компонент обводки
@@ -33,10 +39,12 @@ namespace Gameplay.Interactables
             if (_outline != null)
             {
                 _outline.enabled = isScanning;
-                // TODO Добавить обоводку
-                //_outline.OutlineColor = Color.red;
+                _outline.OutlineColor = Color.red;
             }
 
+            var bugView = _viewManager.GetView<BugView>();
+            bugView.Place(transform);
+            bugView.SetVisible(isScanning);
             // В консоли можно вывести:[Property Error: Mass = 9999]
         }
 
@@ -46,12 +54,30 @@ namespace Gameplay.Interactables
 
             Debug.Log("Открытие мини-игры Синхронизации Физики...");
 
-            // В СЛЕДУЮЩЕМ ЭТАПЕ: 
-            // 1. Отключаем инпут игрока
-            // 2. _viewManager.GetView<PhysicsPuzzleView>().Show(this);
+            if (_viewManager == null)
+            {
+                Debug.LogError("ViewManager не внедрен (NULL)! Проверьте DI контейнер.");
+                return;
+            }
 
-            // Пока мини-игры нет, чиним сразу для теста:
-            FixBug();
+            var puzzleView = _viewManager.GetView<PhysicsPuzzleView>();
+            if (puzzleView == null)
+            {
+                Debug.LogError("PhysicsPuzzleView не найден! Вы добавили его в список ViewManager?");
+                return;
+            }
+
+            puzzleView.ShowPuzzle(this);
+
+            if (_inputManager == null)
+            {
+                Debug.LogError("InputManager не внедрен (NULL)!");
+                return;
+            }
+
+            _inputManager.DisablePlayerInput();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
         public void FixBug()
@@ -63,7 +89,7 @@ namespace Gameplay.Interactables
 
             if (_outline)
             {
-                //_outline.OutlineColor = Color.green; // Показываем, что починено
+                _outline.OutlineColor = Color.green; // Показываем, что починено
                 Invoke(nameof(DisableOutline), 1f); // Выключаем через секунду
             }
 

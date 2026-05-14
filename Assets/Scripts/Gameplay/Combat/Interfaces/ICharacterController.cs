@@ -14,6 +14,6 @@ namespace Gameplay.Combat.Interfaces
         StabilitySystem GetComponent<T>() where T : Component; // Для доступа к компонентам
         T GetComponentInChildren<T>() where T : Component; // Для доступа к компонентам в дочерних объектах
 
-        void Init(bool isPeaceful);
+        void Init(bool isPeaceful, Transform playerTransform);
     }
 }

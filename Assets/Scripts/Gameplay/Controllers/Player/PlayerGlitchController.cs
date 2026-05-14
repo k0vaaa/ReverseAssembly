@@ -1,13 +1,14 @@
-﻿using System;
+using System;
 using Core.Bootstrap;
 using Core.DI;
 using Core.Events;
+using Core.Extensions;
 using Gameplay.Events;
 using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class PlayerGlitchController : MonoBehaviour, IInjectable, IInitializable, IDisposable
+    public class PlayerGlitchController : MonoBehaviour, IInjectable, IInitializable
     {
         [Header("Visuals")]
         [SerializeField] private SkinnedMeshRenderer _playerRenderer;
@@ -23,7 +24,7 @@ namespace Gameplay.Controllers.Player
                 _playerMaterial = _playerRenderer.material;
             }
             
-            EventBus.Subscribe<PlayerStabilityChangedEvent>(OnStabilityChanged);
+            EventBus.Subscribe<PlayerStabilityChangedEvent>(OnStabilityChanged).AddTo(gameObject);
         }
 
         private void OnStabilityChanged(PlayerStabilityChangedEvent eventData)
@@ -37,11 +38,6 @@ namespace Gameplay.Controllers.Player
                 float intensity = IsCriticallyGlitched ? 1f : (1f - eventData.StabilityPercent) * 0.3f;
                 _playerMaterial.SetFloat("_GlitchIntensity", intensity);
             }
-        }
-
-        public void Dispose()
-        {
-            EventBus.Unsubscribe<PlayerStabilityChangedEvent>(OnStabilityChanged);
         }
     }
 }

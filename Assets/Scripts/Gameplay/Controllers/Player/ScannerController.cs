@@ -1,36 +1,57 @@
-﻿using System;
+using System;
 using Core.Bootstrap;
 using Core.DI;
+using Core.Events;
+using Core.Extensions;
 using Gameplay.Interactables;
 using UnityEngine;
 using InputManager = Core.Input.InputManager;
+
+using Gameplay.UI;
+using Core.UI;
+using Gameplay.Events;
 
 namespace Gameplay.Controllers.Player
 {
     public class ScannerController : MonoBehaviour, IInjectable, IInitializable, IDisposable
     {
         [Inject] private InputManager _inputManager;
-        // [Inject] private ViewManager _viewManager; // Понадобится позже для UI сканера
+        [Inject] private ViewManager _viewManager;
 
-        [SerializeField] private Transform _cameraTransform;
         [SerializeField] private float _scanDistance = 10f;
         [SerializeField] private LayerMask _interactableLayer;
 
         public bool IsScannerActive { get; private set; }
         private IBuggable _currentTarget;
+        private ScannerView _scannerView;
+        private Transform _cameraTransform;
+
 
         public void Init()
         {
+            EventBus.Subscribe<PlayerSpawnEvent>(HandlePlayerSpawn).AddTo(gameObject);
+            _scannerView = _viewManager.GetView<ScannerView>();
             _inputManager.OnScannerPressed += ToggleScanner;
             _inputManager.OnInteractPressed += TryInteract;
+        }
+
+        private void HandlePlayerSpawn(PlayerSpawnEvent e)
+        {
+            _cameraTransform = e.Camera.transform;
         }
 
         private void ToggleScanner()
         {
             IsScannerActive = !IsScannerActive;
             
-            // TODO: Сообщить ViewManager включить синюю рамку на экране
-            // TODO: Включить PostProcessing (изменение цвета мира)
+            if (IsScannerActive)
+            {
+                _scannerView?.Show();
+            }
+            else
+            {
+                _scannerView?.Hide();
+            }
 
             if (!IsScannerActive && _currentTarget != null)
             {

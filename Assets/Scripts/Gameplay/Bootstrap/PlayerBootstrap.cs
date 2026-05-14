@@ -1,9 +1,11 @@
 ﻿using Core.DI;
+using Core.Events;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Gameplay.Combat.Health;
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Controllers.Player;
+using Gameplay.Events;
 using Gameplay.UI.Views.Gameplay;
 using UnityEngine;
 
@@ -16,7 +18,7 @@ namespace Gameplay.Bootstrap
         private readonly DIContainer _diContainer;
         private readonly Transform _playerSpawnPoint;
         private readonly GameObject _playerPrefab;
-        private readonly Camera _camera;
+        private  Camera _camera;
         private readonly CooldownView _cooldownView;
         private readonly StabilityBarView _stabilityBarView;
 
@@ -35,7 +37,6 @@ namespace Gameplay.Bootstrap
             _playerDataInteractor = playerDataInteractor;
             _playerSpawnPoint = playerSpawnPoint;
             _playerPrefab = playerPrefab;
-            _camera = camera;
             _cooldownView = cooldownView;
             _stabilityBarView = stabilityBarView;
             _diContainer = diContainer;
@@ -44,23 +45,27 @@ namespace Gameplay.Bootstrap
         public GameObject SetupPlayer()
         {
             _player = Object.Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
-
+            _camera = _player.GetComponentInChildren<Camera>();
             _playerStabilitySystem = _player.GetComponent<StabilitySystem>();
+            var movementController = _player.GetComponent<MovementController>();
+            var fightController = _player.GetComponent<FightController>();
+            var skillsController = _player.GetComponent<SkillsController>();
+            
+            _diContainer.Inject(movementController);
+            _diContainer.Inject(fightController);
+            _diContainer.Inject(skillsController);
+            _diContainer.Inject(_player.GetComponentInChildren<FirstPersonLook>());
+            
+            
             _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeHp);
             // TODO настроить сейвы
             _playerStabilitySystem.Init(1);
             _playerStabilitySystem.SetStability(100);
 
-            var movementController = _player.GetComponent<MovementController>();
-            movementController.Init(_camera);
-            var fightController = _player.GetComponent<FightController>();
-            
-            var skillsController = _player.GetComponent<SkillsController>();
-            skillsController.Init(_camera);
 
-            _diContainer.Inject(movementController);
-            _diContainer.Inject(fightController);
             
+            movementController.Init(_camera);
+            skillsController.Init(_camera);
             SetupCooldownListeners(skillsController);
             // TODO настроить сейвы
             var currentSave = _playerDataInteractor.CurrentSave;
@@ -71,7 +76,11 @@ namespace Gameplay.Bootstrap
                 var monoBehaviour = _player.GetComponent<MonoBehaviour>();
                 monoBehaviour.Invoke(nameof(SetPos), 0.05f);
             }
-
+            EventBus.Raise(new PlayerSpawnEvent()
+            {
+                PlayerTransform = _player.transform,
+                Camera = _camera
+            });
             return _player;
         }
 

@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using Core.DI;
 using Core.Input;
 using Gameplay.Anims;
 using Gameplay.Combat.Interfaces;
 using Gameplay.StateMachines;
 using Gameplay.StateMachines.PlayerStates.MoveStates;
+using Gameplay.Combat.Health;
 using UnityEngine;
 
 namespace Gameplay.Controllers.Player
@@ -16,6 +17,9 @@ namespace Gameplay.Controllers.Player
         private IPlayerAnimator _playerAnimator;
         private CharacterController _controller;
         private Camera _camera;
+        private StabilitySystem _stabilitySystem;
+
+        public bool CanSprint => _stabilitySystem == null || (_stabilitySystem.Stability / _stabilitySystem.MaxStability) > 0.3f;
 
 
         public float WalkSpeed = 2f;
@@ -51,6 +55,7 @@ namespace Gameplay.Controllers.Player
             _moveStateMachine = new StateMachine();
             _playerAnimator = GetComponent<IPlayerAnimator>();
             _controller = GetComponent<CharacterController>();
+            _stabilitySystem = GetComponent<StabilitySystem>();
         }
 
         public void Init(Camera camera)
@@ -92,11 +97,11 @@ namespace Gameplay.Controllers.Player
             gameObject.GetComponent<IKillable>().OnDeath.AddListener(value => _death = value);
 
             _moveStateMachine.AddTransition(idleState, walkingState, () => _inputManager.MoveInput != Vector2.zero);
-            _moveStateMachine.AddTransition(idleState, sprintingState, () => _inputManager.SprintInput);
+            _moveStateMachine.AddTransition(idleState, sprintingState, () => _inputManager.SprintInput && CanSprint);
             _moveStateMachine.AddTransition(walkingState, idleState, () => _inputManager.MoveInput == Vector2.zero);
-            _moveStateMachine.AddTransition(walkingState, sprintingState, () => _inputManager.SprintInput);
+            _moveStateMachine.AddTransition(walkingState, sprintingState, () => _inputManager.SprintInput && CanSprint);
             _moveStateMachine.AddTransition(walkingState, fallingState, () => !IsGrounded);
-            _moveStateMachine.AddTransition(sprintingState, walkingState, () => !_inputManager.SprintInput);
+            _moveStateMachine.AddTransition(sprintingState, walkingState, () => !_inputManager.SprintInput || !CanSprint);
             _moveStateMachine.AddTransition(sprintingState, fallingState, () => !IsGrounded);
             _moveStateMachine.AddTransition(jumpingState, fallingState, () => !IsGrounded);
             _moveStateMachine.AddTransition(jumpingState, idleState, () => IsGrounded);

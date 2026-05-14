@@ -68,10 +68,10 @@ namespace Gameplay.Enemies
             hpCanvas = GetComponentInChildren<Canvas>();
         }
 
-        public void Init(bool isPeaceful)
+        public void Init(bool isPeaceful, Transform playerTransform)
         {
             _isPeaceful = isPeaceful;
-            _playerTransform = FindFirstObjectByType<CharacterController>().transform;
+            _playerTransform = playerTransform;
             EnemyStatesInit();
         }
 

@@ -265,7 +265,7 @@ namespace Gameplay.Enemies
                     Debug.LogWarning($"Enemy {enemy.name} does not have SkillsController component.");
                 }
 
-                enemy.Init(peaceMode);
+                enemy.Init(peaceMode, _player.transform);
                 stabilitySystem.Init(enemiesPower);
                 stabilitySystem.OnDeath.AddListener((_) => OnEnemyDeath());
                 skillsController?.Init(null);
@@ -379,7 +379,7 @@ namespace Gameplay.Enemies
 
                 character.UniqueId = enemyData.Id;
                 character.PrefabIndex = enemyData.PrefabIndex;
-                character.Init(loadSettings.PeaceMode);
+                character.Init(loadSettings.PeaceMode, _player.transform);
                 healthSystem.Init(enemiesPower);
                 healthSystem.OnDeath.AddListener((_) => OnEnemyDeath());
                 healthSystem.SetStability(enemyData.Health);
@@ -460,7 +460,7 @@ namespace Gameplay.Enemies
             healthSystem.Init(_settingsInteractor.LoadSettings().EnemiesPower);
             healthSystem.OnDeath.AddListener((_) => OnEnemyDeath());
             skillsController?.Init(null);
-            boss.Init(_settingsInteractor.LoadSettings().PeaceMode);
+            boss.Init(_settingsInteractor.LoadSettings().PeaceMode, _player.transform);
             boss.UniqueId = Guid.NewGuid().ToString();
             boss.PrefabIndex = -1; // Босс не использует индекс префаба из _enemyPrefabs
             _characters.Add(boss);

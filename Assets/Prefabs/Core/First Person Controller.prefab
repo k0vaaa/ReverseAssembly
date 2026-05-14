@@ -1066,7 +1066,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   character: {fileID: 9031696331191475878}
-  sensitivity: 2
+  sensitivity: 0.1
   smoothing: 1.5
 --- !u!114 &4874403472280053290
 MonoBehaviour:

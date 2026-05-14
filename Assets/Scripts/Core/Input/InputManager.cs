@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Core.Bootstrap;
 using UnityEngine;
 using static InputSystemActions;
@@ -21,6 +21,7 @@ namespace Core.Input
         public event Action OnBranchTogglePressed;
 
         public Vector2 MoveInput { get; private set; }
+        public Vector2 MouseInput { get; private set; }
         public bool SprintInput { get; private set; }
         public bool MeleeInput { get; private set; }
         public bool RMBInput { get; private set; }
@@ -46,7 +47,7 @@ namespace Core.Input
             
             _playerActions.Jump.performed += OnJumpPress;
             _playerActions.RightClick.performed += OnRightClickPress;
-            _playerActions.Interact.performed += ctx => OnInteractPressed?.Invoke();
+            _playerActions.Interact.started += ctx => OnInteractPressed?.Invoke();
             _playerActions.Scanner.performed += ctx => OnScannerPressed?.Invoke();
             _playerActions.BranchToggle.performed += ctx => OnBranchTogglePressed?.Invoke();
         }
@@ -55,6 +56,8 @@ namespace Core.Input
         {
             _playerActions.Move.performed += ctx => MoveInput = ctx.ReadValue<Vector2>();
             _playerActions.Move.canceled += ctx => MoveInput = Vector2.zero;
+            _playerActions.Look.performed += ctx => MouseInput = ctx.ReadValue<Vector2>();
+            _playerActions.Look.canceled += ctx => MouseInput = Vector2.zero;
             _playerActions.Sprint.performed += ctx => SprintInput = true;
             _playerActions.Sprint.canceled += ctx => SprintInput = false;
             _playerActions.Attack.performed += ctx => MeleeInput = true;
@@ -69,6 +72,17 @@ namespace Core.Input
         private void OnJumpPress(CallbackContext ctx) => OnJumpPressed?.Invoke();
         private void OnRightClickPress(CallbackContext ctx) => OnRightClick?.Invoke();
 
+        public void DisablePlayerInput()
+        {
+            _playerActions.Disable();
+            MoveInput = Vector2.zero;
+            SprintInput = false;
+        }
+
+        public void EnablePlayerInput()
+        {
+            _playerActions.Enable();
+        }
         
         public void Dispose()
         {

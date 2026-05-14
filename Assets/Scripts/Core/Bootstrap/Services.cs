@@ -1,4 +1,4 @@
-﻿using Core.Audio;
+using Core.Audio;
 using Core.Input;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
@@ -6,9 +6,11 @@ using Core.SaveLoad.Repos;
 using Core.Scenes;
 using Core.Static;
 using Core.UI;
+using Gameplay.Controllers.Player;
 using Gameplay.Core;
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.Rendering;
 
 namespace Core.Bootstrap
 {
@@ -19,6 +21,8 @@ namespace Core.Bootstrap
         [SerializeField] private AudioMixer _mainMixer;
         [SerializeField] private ViewManager _viewManager;
         [SerializeField] private BranchManager _branchManager;
+        [SerializeField] private Volume _postProcessVolume;
+        [SerializeField] private ScannerController _scannerController;
         private PlayerDataInteractor _playerDataInteractor;
         private IPlayerDataRepository _playerJsonRepository;
         private IDataRepository _playerPrefsRepository;

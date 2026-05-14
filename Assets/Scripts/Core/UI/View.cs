@@ -19,5 +19,18 @@ namespace Core.UI
             gameObject.SetActive(false);
             onHide?.Invoke();
         }
+
+        public void SetVisible(bool isVisible)
+        {
+            gameObject.SetActive(isVisible);
+            if (isVisible)
+            {
+                onShow?.Invoke();
+            }
+            else
+            {
+                onHide?.Invoke();
+            }
+        }
     }
 }

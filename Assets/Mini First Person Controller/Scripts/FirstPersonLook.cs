@@ -1,14 +1,35 @@
-﻿using UnityEngine;
+﻿using System;
+using Core.DI;
+using Core.Events;
+using Core.Input;
+using Core.Pause;
+using UnityEngine;
 
-public class FirstPersonLook : MonoBehaviour
+public class FirstPersonLook : MonoBehaviour, IInjectable
 {
-    [SerializeField]
-    Transform character;
+    [SerializeField] Transform character;
+    [Inject] private InputManager _inputManager;
     public float sensitivity = 2;
     public float smoothing = 1.5f;
 
     Vector2 velocity;
     Vector2 frameVelocity;
+
+    private bool _isActive = true;
+    private void OnEnable()
+    {
+        EventBus.Subscribe<GamePauseEvent>(HandleGamePauseEvent);
+    }
+
+    private void HandleGamePauseEvent(GamePauseEvent e)
+    {
+        _isActive = !e.IsPaused;
+    }
+
+    private void OnDisable()
+    {
+        EventBus.Unsubscribe<GamePauseEvent>(HandleGamePauseEvent);
+    }
 
 
     void Reset()
@@ -25,8 +46,9 @@ public class FirstPersonLook : MonoBehaviour
 
     void Update()
     {
+        if (!_isActive) return;
         // Get smooth velocity.
-        Vector2 mouseDelta = new Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y"));
+        Vector2 mouseDelta = _inputManager.MouseInput;
         Vector2 rawFrameVelocity = Vector2.Scale(mouseDelta, Vector2.one * sensitivity);
         frameVelocity = Vector2.Lerp(frameVelocity, rawFrameVelocity, 1 / smoothing);
         velocity += frameVelocity;

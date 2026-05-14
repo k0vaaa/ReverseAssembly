@@ -13,6 +13,7 @@ namespace Gameplay.StateMachines.PlayerStates.AbilityStates
         public override void Enter()
         {
             base.Enter();
+            
             SkillsController.Skills[SkillType.BranchSwitch].Cast();
         }
     }

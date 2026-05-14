@@ -69,10 +69,10 @@ namespace Gameplay.Enemies
             hpCanvas = GetComponentInChildren<Canvas>();
         }
 
-        public async void Init(bool isPeaceful)
+        public void Init(bool isPeaceful, Transform playerTransform)
         {
             _isPeaceful = isPeaceful;
-            await GetPlayer();
+            _playerTransform = playerTransform;
             print(_playerTransform);
             CreateParticles();
             BossStatesInit();
@@ -82,18 +82,6 @@ namespace Gameplay.Enemies
         {
             var part = _particles[Random.Range(0, _particles.Length)];
             Instantiate(part, _fist.transform.position, Quaternion.identity, _fist.transform);
-        }
-
-        private async Task GetPlayer()
-        {
-            CharacterController player;
-            do
-            {
-                player = FindFirstObjectByType<CharacterController>();
-                await Task.Delay(10);
-            } while (!player);
-
-            _playerTransform = player.transform;
         }
 
         private void Update()

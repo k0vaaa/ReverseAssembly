@@ -31,6 +31,7 @@ namespace Gameplay.Controllers.Player
         private IdleAttackState _idleAttackState;
         private SheathedSwordState _sheathState;
         private SwitchBranchAbilityState _switchBranchState;
+        private ScannerAbilityState _scannerState;
 
         #endregion
 
@@ -65,10 +66,11 @@ namespace Gameplay.Controllers.Player
             //_sheathState = new SheathedSwordState(this, _skillsController, _playerAnimator);
             _idleAttackState = new IdleAttackState(this, _skillsController, _playerAnimator);
             _switchBranchState = new SwitchBranchAbilityState(this, _skillsController, _playerAnimator);
+            _scannerState = new ScannerAbilityState(this, _skillsController, _playerAnimator);
 
 
             //bool MeleeAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Attack");
-            bool MeleeAnimationEnded() => _attackState.IsFinished;
+            //bool MeleeAnimationEnded() => _attackState.IsFinished;
             //bool SpellAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Spell");
             //bool SheathAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Sheath");
 
@@ -77,14 +79,15 @@ namespace Gameplay.Controllers.Player
             //_fightStateMachine.AddTransition(sheathState,idleAttackState, () => !_inputManager.IsSheathed);
 
             //_fightStateMachine.AddTransition(idleAttackState, attackState, () => _inputManager.MeleeInput && _skillsController.Skills[SkillType.Melee]._isReady);
-            
-            _inputManager.OnScannerPressed += HandleScannerPress;
+            //TODO подумать над реализацией сканера через стейты
+            //_inputManager.OnScannerPressed += HandleScannerPress;
             _inputManager.OnBranchTogglePressed += HandleBranchSwitchPress;
             
             //_fightStateMachine.AddTransition(idleAttackState, spellState,() => _inputManager.MeleeInput && _skillsController.Skills[SkillType.Fireball]._isReady);
             
-            _fightStateMachine.AddTransition(_attackState, _idleAttackState, MeleeAnimationEnded);
+            //_fightStateMachine.AddTransition(_attackState, _idleAttackState, MeleeAnimationEnded);
             _fightStateMachine.AddTransition(_switchBranchState, _idleAttackState, () => _switchBranchState.IsFinished);
+            _fightStateMachine.AddTransition(_scannerState, _idleAttackState, () => _scannerState.IsFinished);
             
             //_fightStateMachine.AddTransition(spellState,idleAttackState, SpellAnimationEnded);
 
@@ -95,9 +98,9 @@ namespace Gameplay.Controllers.Player
 
         private void HandleScannerPress()
         {
-            if (_skillsController.Skills[SkillType.Melee]._isReady)
+            if (_skillsController.Skills[SkillType.Scanner]._isReady)
             {
-                _fightStateMachine.SetState(_attackState);
+                _fightStateMachine.SetState(_scannerState);
             }
         }
         

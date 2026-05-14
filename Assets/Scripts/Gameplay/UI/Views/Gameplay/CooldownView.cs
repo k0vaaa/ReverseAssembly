@@ -19,17 +19,16 @@ namespace Gameplay.UI.Views.Gameplay
         {
             _updateSlot1.Invoke();
             _updateSlot2.Invoke();
-            //MeleeStatus.fillAmount = _skillsController.Skills[SkillType.Melee].GetReadyPercent();
-            //SpellStatus.fillAmount = _skillsController.Skills[SkillType.Fireball].GetReadyPercent();
+     
             Slot1Mask.enabled = Slot1Status.fillAmount > 0;
             Slot2Mask.enabled = Slot2Status.fillAmount > 0;
         }
-        
+
         public void SetSlot1Listener(UnityAction callback)
         {
             _updateSlot1.AddListener(callback);
         }
-        
+
         public void SetSlot2Listener(UnityAction callback)
         {
             _updateSlot2.AddListener(callback);
@@ -39,7 +38,7 @@ namespace Gameplay.UI.Views.Gameplay
         {
             Slot1Status.fillAmount = value;
         }
-        
+
         public void SetSlot2FillAmount(float value)
         {
             Slot2Status.fillAmount = value;

@@ -23,6 +23,9 @@ namespace Gameplay.StateMachines.PlayerStates
         public virtual void Enter()
         {
             _enterTime = Time.time;
+            var type = this.GetType().Name;
+            Debug.Log($"Entering {type}");
+            
         }
 
         public virtual void Execute()

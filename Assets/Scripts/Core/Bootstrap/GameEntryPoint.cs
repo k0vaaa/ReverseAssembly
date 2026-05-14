@@ -33,7 +33,7 @@ namespace Core.Bootstrap
 
         private void FindAndSortScripts()
         {
-            var scripts = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
+            var scripts = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (var script in scripts)
             {
                 if (script is IInjectable injectable)

@@ -22,7 +22,7 @@ namespace Gameplay.Combat.Health
                 {
                     EventBus.Raise(new PlayerStabilityChangedEvent()
                     {
-                        IsGlitched = false,
+                        IsGlitched = (_stability / MaxStability) < 0.3f,
                         StabilityPercent = _stability / MaxStability
                     });
                 }
@@ -30,13 +30,14 @@ namespace Gameplay.Combat.Health
         }
 
         [field:SerializeField] public float MaxStability { get; private set; } = 100f;
-
+        
         public UnityEvent<float, float> onStabilityChanged { get; } = new();
 
         public UnityEvent<bool> OnDeath { get; } = new();
 
         public UnityEvent onHit { get; } = new();
 
+        [ContextMenuItem("meow", nameof(Die))]
         [SerializeField] private float _stability;
 
         public void Awake()
@@ -61,6 +62,9 @@ namespace Gameplay.Combat.Health
             Stability = stability;
         }
 
+        [ContextMenu("TakeDamage10")]
+        public void TakeDamageTest() => TakeDamage(new Damage(DamageType.Physic,10));
+        
         public void TakeDamage(Damage damage)
         {
             if (Stability - damage.Value <= 0)

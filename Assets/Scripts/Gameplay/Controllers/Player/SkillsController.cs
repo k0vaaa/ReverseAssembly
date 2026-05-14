@@ -40,32 +40,52 @@ namespace Gameplay.Controllers.Player
                 _camera = camera;
                 _caster = _camera.transform;
             }
-
-            var @switch = new SwitchBranchAbility(_skillsArray.skillEntries[0].SkillData,_branchManager);
-
-            
-            Skills.Add(@switch.SkillType, @switch);
-            /*var melee = new MeleeSkill(_skillsArray.skillEntries[0].SkillData, _sword, gameObject.GetComponent<IDamageable>());
-            var spell = new SpellSkill(_skillsArray.skillEntries[1].SkillData,_castPoint, Camera.main.transform);
-            Skills.Add(spell.SkillType,spell);
-            Skills.Add(melee.SkillType,melee);*/
-            /*foreach (var skillEntry in _skillsArray.skillEntries)
+            else
             {
-                var skill = CreateSkill(skillEntry.SkillClass, skillEntry.SkillData,_castPoint,_caster, _sword, gameObject.GetComponent<IDamageable>());
-                Skills.Add(skillEntry.SkillData.skillType,skill);
-            }*/
-        }
-
-        /*private ISkill CreateSkill(Type skillType, SkillData skillData, Transform castPoint, Transform caster, GameObject sword, IDamageable damageable)
-        {
-            if (!typeof(ISkill).IsAssignableFrom(skillType) || !typeof(Skill).IsAssignableFrom(skillType))
-            {
-                throw new ArgumentException($"Type {skillType.Name} must inherit from Skill and implement ISkill");
+                _caster = transform;
             }
 
-            // Создаём экземпляр через Activator
-            return (ISkill)Activator.CreateInstance(skillType, skillData, castPoint, caster, sword, damageable);
-        }*/
+            if (_skillsArray == null || _skillsArray.skillEntries == null) return;
+
+            foreach (var skillEntry in _skillsArray.skillEntries)
+            {
+                if (skillEntry.SkillClass == typeof(SwitchBranchAbility))
+                {
+                    var skill = new SwitchBranchAbility(skillEntry.SkillData, _branchManager);
+                    Skills[skill.SkillType] = skill;
+                }
+                else if (skillEntry.SkillClass == typeof(ScannerAbility))
+                {
+                    var skill = new ScannerAbility(skillEntry.SkillData);
+                    Skills[skill.SkillType] = skill;
+                }
+                else if (skillEntry.SkillClass == typeof(MeleeSkill))
+                {
+                    var skill = new MeleeSkill(skillEntry.SkillData, _sword, gameObject.GetComponent<IDamageable>());
+                    Skills[skill.SkillType] = skill;
+                }
+                else if (skillEntry.SkillClass == typeof(SpellSkill))
+                {
+                    var skill = new SpellSkill(skillEntry.SkillData, _castPoint, _caster);
+                    Skills[skill.SkillType] = skill;
+                }
+                else if (skillEntry.SkillClass == typeof(PunchSkill))
+                {
+                    var skill = new PunchSkill(skillEntry.SkillData, _castPoint, _caster, _sword, gameObject.GetComponent<IDamageable>());
+                    Skills[skill.SkillType] = skill;
+                }
+                else if (skillEntry.SkillClass == typeof(MeteorRain))
+                {
+                    var skill = new MeteorRain(skillEntry.SkillData, _castPoint, _caster, _sword, gameObject.GetComponent<IDamageable>());
+                    Skills[skill.SkillType] = skill;
+                }
+                else if (skillEntry.SkillClass == typeof(HeavyAttack))
+                {
+                    var skill = new HeavyAttack(skillEntry.SkillData, _castPoint, _caster, _sword, gameObject.GetComponent<IDamageable>());
+                    Skills[skill.SkillType] = skill;
+                }
+            }
+        }
 
         private void Update()
         {
