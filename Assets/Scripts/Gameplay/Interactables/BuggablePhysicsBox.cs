@@ -14,6 +14,7 @@ namespace Gameplay.Interactables
         [Inject] private InputManager _inputManager;
         private Rigidbody _rb;
         private Outline _outline; // Опционально: компонент обводки
+        private BugView _bugView;
 
         private void Awake()
         {
@@ -21,7 +22,8 @@ namespace Gameplay.Interactables
             _outline = GetComponent<Outline>();
 
             if (_outline) _outline.enabled = false;
-
+            _bugView = _viewManager.GetView<BugView>();
+            
             if (IsBugged)
             {
                 _rb.mass = 9999f; // Игрок не сможет его сдвинуть
@@ -40,9 +42,8 @@ namespace Gameplay.Interactables
                 _outline.OutlineColor = Color.red;
             }
 
-            var bugView = _viewManager.GetView<BugView>();
-            bugView.Place(transform);
-            bugView.SetVisible(isScanning);
+            _bugView.Place(transform);
+            _bugView.SetVisible(isScanning);
             // В консоли можно вывести:[Property Error: Mass = 9999]
         }
 
@@ -106,6 +107,7 @@ namespace Gameplay.Interactables
         private void DisableOutline()
         {
             if (_outline) _outline.enabled = false;
+            _bugView.Hide();
         }
     }
 }

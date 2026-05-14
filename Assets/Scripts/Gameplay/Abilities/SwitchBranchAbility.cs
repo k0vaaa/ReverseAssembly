@@ -1,22 +1,26 @@
 ﻿using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.ScriptableObjects;
+using Gameplay.Controllers.Player;
 using Gameplay.Core;
 
 namespace Gameplay.Abilities
 {
     public class SwitchBranchAbility : Skill
     {
-        private readonly BranchManager _branchManager;
+        private readonly PlayerTerminalController _playerTerminalController;
 
-        public SwitchBranchAbility(SkillData skillData, BranchManager branchManager) : base(skillData)
+        public SwitchBranchAbility(SkillData skillData, PlayerTerminalController playerTerminalController) :
+            base(skillData)
         {
-            _branchManager = branchManager;
+            _playerTerminalController = playerTerminalController;
         }
 
         public override void Cast()
         {
-            base.Cast();
-            _branchManager.ToggleBranch();
+            if (_playerTerminalController.TryJump())
+            {
+                base.Cast();
+            }
         }
     }
 }

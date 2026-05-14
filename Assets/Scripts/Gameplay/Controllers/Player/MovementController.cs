@@ -34,11 +34,13 @@ namespace Gameplay.Controllers.Player
 
         [SerializeField] private float _rotationSpeed = 1f;
 
+        [SerializeField] private LayerMask _groundCheckLayerMask;
         private float _groundCheckDistance;
 
         private bool _death;
 
         private Vector3 _inertialMoveDirection;
+
 
         [Header("Controller")]
 
@@ -201,7 +203,7 @@ namespace Gameplay.Controllers.Player
         {
             Ray ray = new Ray(transform.TransformPoint(_controller.center), Vector3.down);
             IsGrounded = Physics.SphereCast(ray, _controller.radius*transform.lossyScale.x, _groundCheckDistance,
-                LayerMask.GetMask("Ground"));
+                _groundCheckLayerMask);
         }
 
         private void OnDestroy()

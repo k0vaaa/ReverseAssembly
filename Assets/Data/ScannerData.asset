@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Gameplay.Combat.Offensive.ScriptableObjects.SkillData
   skillType: 5
   skillName: Scaner
-  cooldownTime: 3
+  cooldownTime: 0.5
   sprite: {fileID: 0}
   damage:
     Value: 0

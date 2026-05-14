@@ -32,7 +32,7 @@ namespace Gameplay.Controllers.Player
         {
             EventBus.Subscribe<PlayerSpawnEvent>(HandlePlayerSpawn).AddTo(gameObject);
             _scannerView = _viewManager.GetView<ScannerView>();
-            _inputManager.OnScannerPressed += ToggleScanner;
+            //_inputManager.OnScannerPressed += ToggleScanner;
             _inputManager.OnInteractPressed += TryInteract;
         }
 
@@ -41,7 +41,7 @@ namespace Gameplay.Controllers.Player
             _cameraTransform = e.Camera.transform;
         }
 
-        private void ToggleScanner()
+        public void ToggleScanner()
         {
             IsScannerActive = !IsScannerActive;
             if (IsScannerActive)
@@ -103,7 +103,7 @@ namespace Gameplay.Controllers.Player
 
         public void Dispose()
         {
-            _inputManager.OnScannerPressed -= ToggleScanner;
+            //_inputManager.OnScannerPressed -= ToggleScanner;
             _inputManager.OnInteractPressed -= TryInteract;
         }
     }

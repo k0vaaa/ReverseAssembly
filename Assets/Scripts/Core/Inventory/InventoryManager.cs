@@ -16,6 +16,7 @@ namespace Core.Inventory
         [Inject] private ViewManager _viewManager;
 
         private PlayerHUDView _hudView;
+        private int _codeBlocks;
 
         public void Init()
         {
@@ -33,8 +34,9 @@ namespace Core.Inventory
 
         private void OnBlockCollected(CodeBlockCollectedEvent data)
         {
-            _playerData.CurrentSave.CodeBlocks++;
-            Debug.Log($"Collected! Total blocks: {_playerData.CurrentSave.CodeBlocks}");
+            _codeBlocks++;
+            //_playerData.CurrentSave.CodeBlocks++;
+            //Debug.Log($"Collected! Total blocks: {_playerData.CurrentSave.CodeBlocks}");
             
             UpdateHUD();
         }
@@ -43,7 +45,7 @@ namespace Core.Inventory
         {
             if (_hudView != null)
             {
-                _hudView.UpdateBlocksCount(_playerData.CurrentSave.CodeBlocks);
+                _hudView.UpdateBlocksCount(_codeBlocks);
             }
         }
     }

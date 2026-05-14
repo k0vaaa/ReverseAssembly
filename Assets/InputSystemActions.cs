@@ -612,7 +612,7 @@ public partial class @InputSystemActions: IInputActionCollection2, IDisposable
                 {
                     ""name"": """",
                     ""id"": ""82212b68-592c-40ff-a21f-d5d8d94d2b92"",
-                    ""path"": ""<Keyboard>/z"",
+                    ""path"": ""<Keyboard>/tab"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": "";Keyboard&Mouse"",

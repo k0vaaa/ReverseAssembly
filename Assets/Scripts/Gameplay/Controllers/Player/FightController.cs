@@ -79,8 +79,8 @@ namespace Gameplay.Controllers.Player
 
             //_fightStateMachine.AddTransition(idleAttackState, attackState, () => _inputManager.MeleeInput && _skillsController.Skills[SkillType.Melee]._isReady);
             //TODO подумать над реализацией сканера через стейты
-            //_inputManager.OnScannerPressed += HandleScannerPress;
-            _inputManager.OnBranchTogglePressed += HandleBranchSwitchPress;
+            _inputManager.OnScannerPressed += HandleScannerPress;
+            _inputManager.OnInteractPressed += HandleInteractPress;
             
             //_fightStateMachine.AddTransition(idleAttackState, spellState,() => _inputManager.MeleeInput && _skillsController.Skills[SkillType.Fireball]._isReady);
             
@@ -103,7 +103,7 @@ namespace Gameplay.Controllers.Player
             }
         }
         
-        private void HandleBranchSwitchPress()
+        private void HandleInteractPress()
         {
             if (_skillsController.Skills[SkillType.BranchSwitch]._isReady)
             {
@@ -114,7 +114,7 @@ namespace Gameplay.Controllers.Player
         private void OnDestroy()
         {
             _inputManager.OnScannerPressed -= HandleScannerPress;
-            _inputManager.OnBranchTogglePressed -= HandleBranchSwitchPress;
+            _inputManager.OnInteractPressed -= HandleInteractPress;
         }
     }
 }

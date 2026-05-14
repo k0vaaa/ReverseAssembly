@@ -18,7 +18,8 @@ namespace Gameplay.Controllers.Player
         [SerializeField] private Transform _caster;
         [SerializeField] public GameObject _sword;
 
-        [Inject] private BranchManager _branchManager;
+        private PlayerTerminalController _playerTerminalController;
+        private ScannerController _scannerController;
 
         private Camera _camera;
         public Dictionary<SkillType,ISkill> Skills = new ();
@@ -35,6 +36,8 @@ namespace Gameplay.Controllers.Player
 
         public void Init(Camera camera)
         {
+            _playerTerminalController = GetComponent<PlayerTerminalController>();
+            _scannerController = GetComponent<ScannerController>();
             if (camera)
             {
                 _camera = camera;
@@ -51,12 +54,12 @@ namespace Gameplay.Controllers.Player
             {
                 if (skillEntry.SkillClass == typeof(SwitchBranchAbility))
                 {
-                    var skill = new SwitchBranchAbility(skillEntry.SkillData, _branchManager);
+                    var skill = new SwitchBranchAbility(skillEntry.SkillData, _playerTerminalController);
                     Skills[skill.SkillType] = skill;
                 }
                 else if (skillEntry.SkillClass == typeof(ScannerAbility))
                 {
-                    var skill = new ScannerAbility(skillEntry.SkillData);
+                    var skill = new ScannerAbility(skillEntry.SkillData, _scannerController);
                     Skills[skill.SkillType] = skill;
                 }
                 else if (skillEntry.SkillClass == typeof(MeleeSkill))

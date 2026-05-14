@@ -300,7 +300,7 @@ namespace Core.Bootstrap
 
         private void FindAndSortScripts()
         {
-            var scripts = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
+            var scripts = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (var script in scripts)
             {
                 if (script is IInjectable injectable)
@@ -365,7 +365,7 @@ namespace Core.Bootstrap
 }
 
 === Scripts\Core\Bootstrap\Services.cs ===
-﻿using Core.Audio;
+using Core.Audio;
 using Core.Input;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
@@ -373,9 +373,13 @@ using Core.SaveLoad.Repos;
 using Core.Scenes;
 using Core.Static;
 using Core.UI;
+using Gameplay.Controllers.Player;
 using Gameplay.Core;
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.Rendering;
+
+using Core.Inventory;
 
 namespace Core.Bootstrap
 {
@@ -386,6 +390,8 @@ namespace Core.Bootstrap
         [SerializeField] private AudioMixer _mainMixer;
         [SerializeField] private ViewManager _viewManager;
         [SerializeField] private BranchManager _branchManager;
+        [SerializeField] private Volume _postProcessVolume;
+        [SerializeField] private InventoryManager _inventoryManager;
         private PlayerDataInteractor _playerDataInteractor;
         private IPlayerDataRepository _playerJsonRepository;
         private IDataRepository _playerPrefsRepository;
@@ -758,7 +764,7 @@ namespace Core.Gameplay
 }
 
 === Scripts\Core\Input\InputManager.cs ===
-﻿using System;
+using System;
 using Core.Bootstrap;
 using UnityEngine;
 using static InputSystemActions;
@@ -781,6 +787,7 @@ namespace Core.Input
         public event Action OnBranchTogglePressed;
 
         public Vector2 MoveInput { get; private set; }
+        public Vector2 MouseInput { get; private set; }
         public bool SprintInput { get; private set; }
         public bool MeleeInput { get; private set; }
         public bool RMBInput { get; private set; }
@@ -815,6 +822,8 @@ namespace Core.Input
         {
             _playerActions.Move.performed += ctx => MoveInput = ctx.ReadValue<Vector2>();
             _playerActions.Move.canceled += ctx => MoveInput = Vector2.zero;
+            _playerActions.Look.performed += ctx => MouseInput = ctx.ReadValue<Vector2>();
+            _playerActions.Look.canceled += ctx => MouseInput = Vector2.zero;
             _playerActions.Sprint.performed += ctx => SprintInput = true;
             _playerActions.Sprint.canceled += ctx => SprintInput = false;
             _playerActions.Attack.performed += ctx => MeleeInput = true;
@@ -829,6 +838,17 @@ namespace Core.Input
         private void OnJumpPress(CallbackContext ctx) => OnJumpPressed?.Invoke();
         private void OnRightClickPress(CallbackContext ctx) => OnRightClick?.Invoke();
 
+        public void DisablePlayerInput()
+        {
+            _playerActions.Disable();
+            MoveInput = Vector2.zero;
+            SprintInput = false;
+        }
+
+        public void EnablePlayerInput()
+        {
+            _playerActions.Enable();
+        }
         
         public void Dispose()
         {
@@ -836,6 +856,61 @@ namespace Core.Input
         }
     }
 }
+
+=== Scripts\Core\Inventory\InventoryManager.cs ===
+using Core.Bootstrap;
+using Core.DI;
+using Core.Events;
+using Core.Extensions;
+using Core.SaveLoad.PlayerSaves;
+using Core.UI;
+using Gameplay.Events;
+using Gameplay.UI;
+using UnityEngine;
+
+namespace Core.Inventory
+{
+    public class InventoryManager : MonoBehaviour, IInjectable, IInitializable
+    {
+        [Inject] private PlayerDataInteractor _playerData;
+        [Inject] private ViewManager _viewManager;
+
+        private PlayerHUDView _hudView;
+        private int _codeBlocks;
+
+        public void Init()
+        {
+            EventBus.Subscribe<CodeBlockCollectedEvent>(OnBlockCollected).AddTo(gameObject);
+            
+            // Получаем HUD и обновляем сразу
+            _hudView = _viewManager.GetView<PlayerHUDView>();
+            if (_hudView != null)
+            {
+                // Показываем HUD если он скрыт
+                _hudView.Show();
+                UpdateHUD();
+            }
+        }
+
+        private void OnBlockCollected(CodeBlockCollectedEvent data)
+        {
+            _codeBlocks++;
+            //_playerData.CurrentSave.CodeBlocks++;
+            //Debug.Log($"Collected! Total blocks: {_playerData.CurrentSave.CodeBlocks}");
+            
+            UpdateHUD();
+        }
+
+        private void UpdateHUD()
+        {
+            if (_hudView != null)
+            {
+                _hudView.UpdateBlocksCount(_codeBlocks);
+            }
+        }
+    }
+}
+
 
 === Scripts\Core\Observers\TriggerObserver.cs ===
 ﻿using System;
@@ -1317,7 +1392,7 @@ namespace Core.SaveLoad.Saveables
 }
 
 === Scripts\Core\SaveLoad\Saveables\PlayerData.cs ===
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -1329,6 +1404,7 @@ namespace Core.SaveLoad.Saveables
         public float Health;
         public Vector3 Position;
         public List<EnemyData> Enemies; 
+        public int CodeBlocks;
     }
 
     [Serializable]
@@ -1422,6 +1498,19 @@ namespace Core.UI
         {
             gameObject.SetActive(false);
             onHide?.Invoke();
+        }
+
+        public void SetVisible(bool isVisible)
+        {
+            gameObject.SetActive(isVisible);
+            if (isVisible)
+            {
+                onShow?.Invoke();
+            }
+            else
+            {
+                onHide?.Invoke();
+            }
         }
     }
 }
@@ -1529,6 +1618,25 @@ namespace Core.UI.Views
     }
 }
 
+=== Scripts\Core\UI\WorldSpaceView.cs ===
+﻿using Core.Extensions;
+using UnityEngine;
+
+namespace Core.UI
+{
+    public class WorldSpaceView : View
+    {
+        public void Place(Transform pos)
+        {
+            gameObject.transform.position = pos.position.Add(y:1f);
+            if (Camera.main != null)
+            {
+                gameObject.transform.rotation = Quaternion.LookRotation(Camera.main.transform.position - pos.position);
+            }
+        }
+    }
+}
+
 === Scripts\Core\Utilities\Utils.cs ===
 ﻿using UnityEngine;
 
@@ -1561,38 +1669,51 @@ namespace Core.Utilities
 === Scripts\Gameplay\Abilities\ScannerAbility.cs ===
 ﻿using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.ScriptableObjects;
+using Gameplay.Controllers.Player;
 
 namespace Gameplay.Abilities
 {
     public class ScannerAbility : Skill
     {
-        public ScannerAbility(SkillData skillData) : base(skillData)
+        private readonly ScannerController _scannerController;
+
+        public ScannerAbility(SkillData skillData, ScannerController scannerController) : base(skillData)
         {
+            _scannerController = scannerController;
         }
-		
+
+        public override void Cast()
+        {
+            base.Cast();
+            _scannerController.ToggleScanner();
+        }
     }
 }
 
 === Scripts\Gameplay\Abilities\SwitchBranchAbility.cs ===
 ﻿using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.ScriptableObjects;
+using Gameplay.Controllers.Player;
 using Gameplay.Core;
 
 namespace Gameplay.Abilities
 {
     public class SwitchBranchAbility : Skill
     {
-        private readonly BranchManager _branchManager;
+        private readonly PlayerTerminalController _playerTerminalController;
 
-        public SwitchBranchAbility(SkillData skillData, BranchManager branchManager) : base(skillData)
+        public SwitchBranchAbility(SkillData skillData, PlayerTerminalController playerTerminalController) :
+            base(skillData)
         {
-            _branchManager = branchManager;
+            _playerTerminalController = playerTerminalController;
         }
 
         public override void Cast()
         {
-            base.Cast();
-            _branchManager.ToggleBranch();
+            if (_playerTerminalController.TryJump())
+            {
+                base.Cast();
+            }
         }
     }
 }
@@ -2177,11 +2298,13 @@ namespace Gameplay.Bootstrap
 
 === Scripts\Gameplay\Bootstrap\PlayerBootstrap.cs ===
 ﻿using Core.DI;
+using Core.Events;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Gameplay.Combat.Health;
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Controllers.Player;
+using Gameplay.Events;
 using Gameplay.UI.Views.Gameplay;
 using UnityEngine;
 
@@ -2194,7 +2317,7 @@ namespace Gameplay.Bootstrap
         private readonly DIContainer _diContainer;
         private readonly Transform _playerSpawnPoint;
         private readonly GameObject _playerPrefab;
-        private readonly Camera _camera;
+        private  Camera _camera;
         private readonly CooldownView _cooldownView;
         private readonly StabilityBarView _stabilityBarView;
 
@@ -2213,7 +2336,6 @@ namespace Gameplay.Bootstrap
             _playerDataInteractor = playerDataInteractor;
             _playerSpawnPoint = playerSpawnPoint;
             _playerPrefab = playerPrefab;
-            _camera = camera;
             _cooldownView = cooldownView;
             _stabilityBarView = stabilityBarView;
             _diContainer = diContainer;
@@ -2222,23 +2344,34 @@ namespace Gameplay.Bootstrap
         public GameObject SetupPlayer()
         {
             _player = Object.Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
-
+            _camera = _player.GetComponentInChildren<Camera>();
+            
             _playerStabilitySystem = _player.GetComponent<StabilitySystem>();
+            var movementController = _player.GetComponent<MovementController>();
+            var fightController = _player.GetComponent<FightController>();
+            var skillsController = _player.GetComponent<SkillsController>();
+            var scannerController = _player.GetComponent<ScannerController>();
+            var terminalController = _player.GetComponent<PlayerTerminalController>();
+            
+            _diContainer.Inject(movementController);
+            _diContainer.Inject(fightController);
+            _diContainer.Inject(skillsController);
+            _diContainer.Inject(scannerController);
+            _diContainer.Inject(terminalController);
+            _diContainer.Inject(_player.GetComponentInChildren<FirstPersonLook>());
+            
+            scannerController.Init();
+            terminalController.Init();
+            
             _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeHp);
             // TODO настроить сейвы
             _playerStabilitySystem.Init(1);
             _playerStabilitySystem.SetStability(100);
 
-            var movementController = _player.GetComponent<MovementController>();
-            movementController.Init(_camera);
-            var fightController = _player.GetComponent<FightController>();
-            
-            var skillsController = _player.GetComponent<SkillsController>();
-            skillsController.Init(_camera);
 
-            _diContainer.Inject(movementController);
-            _diContainer.Inject(fightController);
             
+            movementController.Init(_camera);
+            skillsController.Init(_camera);
             SetupCooldownListeners(skillsController);
             // TODO настроить сейвы
             var currentSave = _playerDataInteractor.CurrentSave;
@@ -2249,7 +2382,11 @@ namespace Gameplay.Bootstrap
                 var monoBehaviour = _player.GetComponent<MonoBehaviour>();
                 monoBehaviour.Invoke(nameof(SetPos), 0.05f);
             }
-
+            EventBus.Raise(new PlayerSpawnEvent()
+            {
+                PlayerTransform = _player.transform,
+                Camera = _camera
+            });
             return _player;
         }
 
@@ -2272,6 +2409,7 @@ namespace Gameplay.Bootstrap
 }
 
 === Scripts\Gameplay\Combat\Health\StabilitySystem.cs ===
+using Core.Bootstrap;
 using Core.Events;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
@@ -2281,7 +2419,7 @@ using UnityEngine.Events;
 
 namespace Gameplay.Combat.Health
 {
-    public class StabilitySystem : MonoBehaviour, IDamageable, IHealthChange, IHittable, IKillable
+    public class StabilitySystem : MonoBehaviour, IDamageable, IHealthChange, IHittable, IKillable, IInitializable
     {
         private ICharacterController _controller;
 
@@ -2296,7 +2434,7 @@ namespace Gameplay.Combat.Health
                 {
                     EventBus.Raise(new PlayerStabilityChangedEvent()
                     {
-                        IsGlitched = false,
+                        IsGlitched = (_stability / MaxStability) < 0.3f,
                         StabilityPercent = _stability / MaxStability
                     });
                 }
@@ -2304,19 +2442,22 @@ namespace Gameplay.Combat.Health
         }
 
         [field:SerializeField] public float MaxStability { get; private set; } = 100f;
-
+        
         public UnityEvent<float, float> onStabilityChanged { get; } = new();
 
         public UnityEvent<bool> OnDeath { get; } = new();
 
         public UnityEvent onHit { get; } = new();
 
+        [ContextMenuItem("meow", nameof(Die))]
         [SerializeField] private float _stability;
-
-        public void Awake()
+        
+        public void Init()
         {
             TryGetComponent<ICharacterController>(out var controller);
             _controller = controller;
+            MaxStability *= 1;
+            SetStabilityToMax();
         }
 
         public void Init(float stabilityMultiplier)
@@ -2334,6 +2475,9 @@ namespace Gameplay.Combat.Health
         {
             Stability = stability;
         }
+
+        [ContextMenu("TakeDamage10")]
+        public void TakeDamageTest() => TakeDamage(new Damage(DamageType.Physic,10));
 
         public void TakeDamage(Damage damage)
         {
@@ -2379,7 +2523,7 @@ namespace Gameplay.Combat.Interfaces
         StabilitySystem GetComponent<T>() where T : Component; // Для доступа к компонентам
         T GetComponentInChildren<T>() where T : Component; // Для доступа к компонентам в дочерних объектах
 
-        void Init(bool isPeaceful);
+        void Init(bool isPeaceful, Transform playerTransform);
     }
 }
 
@@ -2394,6 +2538,16 @@ namespace Gameplay.Combat.Interfaces
         void TakeDamage(Damage damage);
     }
 }
+
+=== Scripts\Gameplay\Combat\Interfaces\IGlitchable.cs ===
+namespace Gameplay.Combat.Interfaces
+{
+    public interface IGlitchable
+    {
+        void ApplyGlitchStun(float duration);
+    }
+}
+
 
 === Scripts\Gameplay\Combat\Interfaces\IHealthChange.cs ===
 ﻿using UnityEngine.Events;
@@ -2610,7 +2764,7 @@ namespace Gameplay.Combat.Offensive.Collision
 }
 
 === Scripts\Gameplay\Combat\Offensive\Collision\Projectile.cs ===
-﻿using System.Collections;
+using System.Collections;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
 using UnityEngine;
@@ -2636,10 +2790,19 @@ namespace Gameplay.Combat.Offensive.Collision
         private void OnTriggerEnter(Collider other)
         {
             IDamageable damageable = other.gameObject.GetComponent<IDamageable>();
-            if (damageable == null) return;
-            if (damageable == _self) return;
-            DoDamage(damageable);
-            Destroy(gameObject);
+            if (damageable != null && damageable != _self)
+            {
+                DoDamage(damageable);
+                
+                var glitchable = other.gameObject.GetComponent<IGlitchable>();
+                glitchable?.ApplyGlitchStun(3f);
+            }
+            
+            // Снаряд должен уничтожаться в любом случае при столкновении с чем-либо (если это не сам стрелок)
+            if (damageable != _self)
+            {
+                Destroy(gameObject);
+            }
         }
 
         public IEnumerator Ttl()
@@ -2935,7 +3098,6 @@ using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.StateMachines;
 using Gameplay.StateMachines.PlayerStates.AbilityStates;
-using Gameplay.StateMachines.PlayerStates.AbilityStates;
 using Gameplay.StateMachines.PlayerStates.FightStates;
 using UnityEngine;
 
@@ -2961,6 +3123,7 @@ namespace Gameplay.Controllers.Player
         private IdleAttackState _idleAttackState;
         private SheathedSwordState _sheathState;
         private SwitchBranchAbilityState _switchBranchState;
+        private ScannerAbilityState _scannerState;
 
         #endregion
 
@@ -2995,10 +3158,11 @@ namespace Gameplay.Controllers.Player
             //_sheathState = new SheathedSwordState(this, _skillsController, _playerAnimator);
             _idleAttackState = new IdleAttackState(this, _skillsController, _playerAnimator);
             _switchBranchState = new SwitchBranchAbilityState(this, _skillsController, _playerAnimator);
+            _scannerState = new ScannerAbilityState(this, _skillsController, _playerAnimator);
 
 
             //bool MeleeAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Attack");
-            bool MeleeAnimationEnded() => _attackState.IsFinished;
+            //bool MeleeAnimationEnded() => _attackState.IsFinished;
             //bool SpellAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Spell");
             //bool SheathAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Sheath");
 
@@ -3007,14 +3171,15 @@ namespace Gameplay.Controllers.Player
             //_fightStateMachine.AddTransition(sheathState,idleAttackState, () => !_inputManager.IsSheathed);
 
             //_fightStateMachine.AddTransition(idleAttackState, attackState, () => _inputManager.MeleeInput && _skillsController.Skills[SkillType.Melee]._isReady);
-            
+            //TODO подумать над реализацией сканера через стейты
             _inputManager.OnScannerPressed += HandleScannerPress;
-            _inputManager.OnBranchTogglePressed += HandleBranchSwitchPress;
+            _inputManager.OnInteractPressed += HandleInteractPress;
             
             //_fightStateMachine.AddTransition(idleAttackState, spellState,() => _inputManager.MeleeInput && _skillsController.Skills[SkillType.Fireball]._isReady);
             
-            _fightStateMachine.AddTransition(_attackState, _idleAttackState, MeleeAnimationEnded);
+            //_fightStateMachine.AddTransition(_attackState, _idleAttackState, MeleeAnimationEnded);
             _fightStateMachine.AddTransition(_switchBranchState, _idleAttackState, () => _switchBranchState.IsFinished);
+            _fightStateMachine.AddTransition(_scannerState, _idleAttackState, () => _scannerState.IsFinished);
             
             //_fightStateMachine.AddTransition(spellState,idleAttackState, SpellAnimationEnded);
 
@@ -3025,13 +3190,13 @@ namespace Gameplay.Controllers.Player
 
         private void HandleScannerPress()
         {
-            if (_skillsController.Skills[SkillType.Melee]._isReady)
+            if (_skillsController.Skills[SkillType.Scanner]._isReady)
             {
-                _fightStateMachine.SetState(_attackState);
+                _fightStateMachine.SetState(_scannerState);
             }
         }
         
-        private void HandleBranchSwitchPress()
+        private void HandleInteractPress()
         {
             if (_skillsController.Skills[SkillType.BranchSwitch]._isReady)
             {
@@ -3042,19 +3207,20 @@ namespace Gameplay.Controllers.Player
         private void OnDestroy()
         {
             _inputManager.OnScannerPressed -= HandleScannerPress;
-            _inputManager.OnBranchTogglePressed -= HandleBranchSwitchPress;
+            _inputManager.OnInteractPressed -= HandleInteractPress;
         }
     }
 }
 
 === Scripts\Gameplay\Controllers\Player\MovementController.cs ===
-﻿using System;
+using System;
 using Core.DI;
 using Core.Input;
 using Gameplay.Anims;
 using Gameplay.Combat.Interfaces;
 using Gameplay.StateMachines;
 using Gameplay.StateMachines.PlayerStates.MoveStates;
+using Gameplay.Combat.Health;
 using UnityEngine;
 
 namespace Gameplay.Controllers.Player
@@ -3066,6 +3232,9 @@ namespace Gameplay.Controllers.Player
         private IPlayerAnimator _playerAnimator;
         private CharacterController _controller;
         private Camera _camera;
+        private StabilitySystem _stabilitySystem;
+
+        public bool CanSprint => _stabilitySystem == null || (_stabilitySystem.Stability / _stabilitySystem.MaxStability) > 0.3f;
 
 
         public float WalkSpeed = 2f;
@@ -3101,6 +3270,7 @@ namespace Gameplay.Controllers.Player
             _moveStateMachine = new StateMachine();
             _playerAnimator = GetComponent<IPlayerAnimator>();
             _controller = GetComponent<CharacterController>();
+            _stabilitySystem = GetComponent<StabilitySystem>();
         }
 
         public void Init(Camera camera)
@@ -3142,11 +3312,11 @@ namespace Gameplay.Controllers.Player
             gameObject.GetComponent<IKillable>().OnDeath.AddListener(value => _death = value);
 
             _moveStateMachine.AddTransition(idleState, walkingState, () => _inputManager.MoveInput != Vector2.zero);
-            _moveStateMachine.AddTransition(idleState, sprintingState, () => _inputManager.SprintInput);
+            _moveStateMachine.AddTransition(idleState, sprintingState, () => _inputManager.SprintInput && CanSprint);
             _moveStateMachine.AddTransition(walkingState, idleState, () => _inputManager.MoveInput == Vector2.zero);
-            _moveStateMachine.AddTransition(walkingState, sprintingState, () => _inputManager.SprintInput);
+            _moveStateMachine.AddTransition(walkingState, sprintingState, () => _inputManager.SprintInput && CanSprint);
             _moveStateMachine.AddTransition(walkingState, fallingState, () => !IsGrounded);
-            _moveStateMachine.AddTransition(sprintingState, walkingState, () => !_inputManager.SprintInput);
+            _moveStateMachine.AddTransition(sprintingState, walkingState, () => !_inputManager.SprintInput || !CanSprint);
             _moveStateMachine.AddTransition(sprintingState, fallingState, () => !IsGrounded);
             _moveStateMachine.AddTransition(jumpingState, fallingState, () => !IsGrounded);
             _moveStateMachine.AddTransition(jumpingState, idleState, () => IsGrounded);
@@ -3245,7 +3415,7 @@ namespace Gameplay.Controllers.Player
         private void CheckGround()
         {
             Ray ray = new Ray(transform.TransformPoint(_controller.center), Vector3.down);
-            IsGrounded = Physics.SphereCast(ray, _controller.radius, _groundCheckDistance,
+            IsGrounded = Physics.SphereCast(ray, _controller.radius*transform.lossyScale.x, _groundCheckDistance,
                 LayerMask.GetMask("Ground"));
         }
 
@@ -3266,10 +3436,10 @@ namespace Gameplay.Controllers.Player
             Gizmos.color = Color.green;
 
             // Отрисовка SphereCast
-            Gizmos.DrawWireSphere(origin, _controller.radius); // Стартовая сфера (внутри тела)
+            Gizmos.DrawWireSphere(origin, _controller.radius * transform.lossyScale.x); // Стартовая сфера (внутри тела)
             Gizmos.color = IsGrounded ? Color.green : Color.red;
             Gizmos.DrawWireSphere(origin + Vector3.down * maxDistance,
-                _controller.radius); // Конечная сфера (возле ног)
+                _controller.radius * transform.lossyScale.x); // Конечная сфера (возле ног)
 
             // Линии, соединяющие сферы для имитации "капсулы" каста
             Gizmos.DrawLine(origin + Vector3.left * _controller.radius,
@@ -3285,16 +3455,17 @@ namespace Gameplay.Controllers.Player
 }
 
 === Scripts\Gameplay\Controllers\Player\PlayerGlitchController.cs ===
-﻿using System;
+using System;
 using Core.Bootstrap;
 using Core.DI;
 using Core.Events;
+using Core.Extensions;
 using Gameplay.Events;
 using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class PlayerGlitchController : MonoBehaviour, IInjectable, IInitializable, IDisposable
+    public class PlayerGlitchController : MonoBehaviour, IInjectable, IInitializable
     {
         [Header("Visuals")]
         [SerializeField] private SkinnedMeshRenderer _playerRenderer;
@@ -3310,7 +3481,7 @@ namespace Gameplay.Controllers.Player
                 _playerMaterial = _playerRenderer.material;
             }
             
-            EventBus.Subscribe<PlayerStabilityChangedEvent>(OnStabilityChanged);
+            EventBus.Subscribe<PlayerStabilityChangedEvent>(OnStabilityChanged).AddTo(gameObject);
         }
 
         private void OnStabilityChanged(PlayerStabilityChangedEvent eventData)
@@ -3325,48 +3496,143 @@ namespace Gameplay.Controllers.Player
                 _playerMaterial.SetFloat("_GlitchIntensity", intensity);
             }
         }
+    }
+}
 
-        public void Dispose()
+=== Scripts\Gameplay\Controllers\Player\PlayerTerminalController.cs ===
+using Core.Bootstrap;
+using Core.DI;
+using Core.Input;
+using Core.UI;
+using Gameplay.Core;
+using Gameplay.UI;
+using UnityEngine;
+
+namespace Gameplay.Controllers.Player
+{
+    public class PlayerTerminalController : MonoBehaviour, IInjectable, IInitializable
+    {
+        [Inject] private InputManager _inputManager;
+        [Inject] private ViewManager _viewManager;
+        [Inject] private BranchManager _branchManager;
+
+        private TerminalView _terminalView;
+        private bool _isTerminalOpen;
+
+        public void Init()
         {
-            EventBus.Unsubscribe<PlayerStabilityChangedEvent>(OnStabilityChanged);
+            _inputManager.OnBranchTogglePressed += ToggleTerminal;
+            //_inputManager.OnInteractPressed += TryJump;
+        }
+
+        private void ToggleTerminal()
+        {
+            if (_terminalView == null)
+            {
+                _terminalView = _viewManager.GetView<TerminalView>();
+                if (_terminalView == null)
+                {
+                    Debug.LogError("TerminalView не найден в ViewManager!");
+                    return;
+                }
+            }
+
+            _isTerminalOpen = !_isTerminalOpen;
+
+            if (_isTerminalOpen)
+            {
+                _terminalView.UpdateInfo(_branchManager.CurrentBranch);
+                _terminalView.Show();
+            }
+            else
+            {
+                _terminalView.Hide();
+            }
+        }
+
+        public bool TryJump()
+        {
+            if (!_isTerminalOpen) return false;
+
+            // Выполняем прыжок
+            _branchManager.ToggleBranch();
+            
+            // Закрываем терминал после прыжка
+            ToggleTerminal();
+            return true;
+        }
+
+        private void OnDestroy()
+        {
+            if (_inputManager != null)
+            {
+                _inputManager.OnBranchTogglePressed -= ToggleTerminal;
+                //_inputManager.OnInteractPressed -= TryJump;
+            }
         }
     }
 }
 
+
 === Scripts\Gameplay\Controllers\Player\ScannerController.cs ===
-﻿using System;
+using System;
 using Core.Bootstrap;
 using Core.DI;
+using Core.Events;
+using Core.Extensions;
 using Gameplay.Interactables;
 using UnityEngine;
 using InputManager = Core.Input.InputManager;
+
+using Gameplay.UI;
+using Core.UI;
+using Gameplay.Events;
 
 namespace Gameplay.Controllers.Player
 {
     public class ScannerController : MonoBehaviour, IInjectable, IInitializable, IDisposable
     {
         [Inject] private InputManager _inputManager;
-        // [Inject] private ViewManager _viewManager; // Понадобится позже для UI сканера
+        [Inject] private ViewManager _viewManager;
 
-        [SerializeField] private Transform _cameraTransform;
         [SerializeField] private float _scanDistance = 10f;
         [SerializeField] private LayerMask _interactableLayer;
+        [SerializeField] private ParticleSystem _particleSystem;
 
         public bool IsScannerActive { get; private set; }
         private IBuggable _currentTarget;
+        private ScannerView _scannerView;
+        private Transform _cameraTransform;
+
 
         public void Init()
         {
-            _inputManager.OnScannerPressed += ToggleScanner;
+            EventBus.Subscribe<PlayerSpawnEvent>(HandlePlayerSpawn).AddTo(gameObject);
+            _scannerView = _viewManager.GetView<ScannerView>();
+            //_inputManager.OnScannerPressed += ToggleScanner;
             _inputManager.OnInteractPressed += TryInteract;
         }
 
-        private void ToggleScanner()
+        private void HandlePlayerSpawn(PlayerSpawnEvent e)
+        {
+            _cameraTransform = e.Camera.transform;
+        }
+
+        public void ToggleScanner()
         {
             IsScannerActive = !IsScannerActive;
+            if (IsScannerActive)
+            {
+                _particleSystem.Play();
+                _scannerView?.FillIn();
+            }
+            else
+            {
+                _particleSystem.Stop();
+                _scannerView?.FillOut();
+            }
             
-            // TODO: Сообщить ViewManager включить синюю рамку на экране
-            // TODO: Включить PostProcessing (изменение цвета мира)
+            //_scannerView?.SetVisible(IsScannerActive);
 
             if (!IsScannerActive && _currentTarget != null)
             {
@@ -3414,11 +3680,83 @@ namespace Gameplay.Controllers.Player
 
         public void Dispose()
         {
-            _inputManager.OnScannerPressed -= ToggleScanner;
+            //_inputManager.OnScannerPressed -= ToggleScanner;
             _inputManager.OnInteractPressed -= TryInteract;
         }
     }
 }
+
+=== Scripts\Gameplay\Controllers\Player\ScreenGlitchController.cs ===
+using Core.Bootstrap;
+using Core.DI;
+using Core.Events;
+using Core.Extensions;
+using Gameplay.Events;
+using UnityEngine;
+using UnityEngine.Rendering;
+
+namespace Gameplay.Controllers.Player
+{
+    public class ScreenGlitchController : MonoBehaviour, IInjectable, IInitializable
+    {
+        [Inject] private Volume _postProcessVolume;
+        
+        [Header("Audio")]
+        [SerializeField] private AudioClip _glitchLoopClip;
+        
+        private AudioSource _audioSource;
+
+        public void Init()
+        {
+            if (_glitchLoopClip != null)
+            {
+                _audioSource = gameObject.AddComponent<AudioSource>();
+                _audioSource.clip = _glitchLoopClip;
+                _audioSource.loop = true;
+                _audioSource.playOnAwake = false;
+                _audioSource.volume = 0.5f;
+            }
+
+            EventBus.Subscribe<PlayerStabilityChangedEvent>(OnStabilityChanged).AddTo(gameObject);
+        }
+
+        private void OnStabilityChanged(PlayerStabilityChangedEvent eventData)
+        {
+            if (_postProcessVolume != null && _postProcessVolume.profile != null)
+            {
+                // In a real implementation, you would try to get ChromaticAberration and LensDistortion
+                // and adjust their intensities. Since we are avoiding hard dependencies on URP/HDRP packages here,
+                // we leave this comment to indicate where those values are modified.
+                
+                // Example for URP:
+                if (_postProcessVolume.profile.TryGet<UnityEngine.Rendering.Universal.ChromaticAberration>(out var chromaticAberration))
+                {
+                    chromaticAberration.intensity.value = eventData.IsGlitched ? 1f : 0f;
+                }
+                if (_postProcessVolume.profile.TryGet<UnityEngine.Rendering.Universal.LensDistortion>(out var lensDistortion))
+                {
+                    lensDistortion.intensity.value = eventData.IsGlitched ? -0.5f : 0f;
+                }
+            }
+
+            if (eventData.IsGlitched)
+            {
+                if (_audioSource != null && !_audioSource.isPlaying)
+                {
+                    _audioSource.Play();
+                }
+            }
+            else
+            {
+                if (_audioSource != null && _audioSource.isPlaying)
+                {
+                    _audioSource.Stop();
+                }
+            }
+        }
+    }
+}
+
 
 === Scripts\Gameplay\Controllers\Player\SkillsController.cs ===
 ﻿using System;
@@ -3441,7 +3779,8 @@ namespace Gameplay.Controllers.Player
         [SerializeField] private Transform _caster;
         [SerializeField] public GameObject _sword;
 
-        [Inject] private BranchManager _branchManager;
+        private PlayerTerminalController _playerTerminalController;
+        private ScannerController _scannerController;
 
         private Camera _camera;
         public Dictionary<SkillType,ISkill> Skills = new ();
@@ -3458,37 +3797,59 @@ namespace Gameplay.Controllers.Player
 
         public void Init(Camera camera)
         {
+            _playerTerminalController = GetComponent<PlayerTerminalController>();
+            _scannerController = GetComponent<ScannerController>();
             if (camera)
             {
                 _camera = camera;
                 _caster = _camera.transform;
             }
-
-            var @switch = new SwitchBranchAbility(_skillsArray.skillEntries[0].SkillData,_branchManager);
-
-            
-            Skills.Add(@switch.SkillType, @switch);
-            /*var melee = new MeleeSkill(_skillsArray.skillEntries[0].SkillData, _sword, gameObject.GetComponent<IDamageable>());
-            var spell = new SpellSkill(_skillsArray.skillEntries[1].SkillData,_castPoint, Camera.main.transform);
-            Skills.Add(spell.SkillType,spell);
-            Skills.Add(melee.SkillType,melee);*/
-            /*foreach (var skillEntry in _skillsArray.skillEntries)
+            else
             {
-                var skill = CreateSkill(skillEntry.SkillClass, skillEntry.SkillData,_castPoint,_caster, _sword, gameObject.GetComponent<IDamageable>());
-                Skills.Add(skillEntry.SkillData.skillType,skill);
-            }*/
-        }
-
-        /*private ISkill CreateSkill(Type skillType, SkillData skillData, Transform castPoint, Transform caster, GameObject sword, IDamageable damageable)
-        {
-            if (!typeof(ISkill).IsAssignableFrom(skillType) || !typeof(Skill).IsAssignableFrom(skillType))
-            {
-                throw new ArgumentException($"Type {skillType.Name} must inherit from Skill and implement ISkill");
+                _caster = transform;
             }
 
-            // Создаём экземпляр через Activator
-            return (ISkill)Activator.CreateInstance(skillType, skillData, castPoint, caster, sword, damageable);
-        }*/
+            if (_skillsArray == null || _skillsArray.skillEntries == null) return;
+
+            foreach (var skillEntry in _skillsArray.skillEntries)
+            {
+                if (skillEntry.SkillClass == typeof(SwitchBranchAbility))
+                {
+                    var skill = new SwitchBranchAbility(skillEntry.SkillData, _playerTerminalController);
+                    Skills[skill.SkillType] = skill;
+                }
+                else if (skillEntry.SkillClass == typeof(ScannerAbility))
+                {
+                    var skill = new ScannerAbility(skillEntry.SkillData, _scannerController);
+                    Skills[skill.SkillType] = skill;
+                }
+                else if (skillEntry.SkillClass == typeof(MeleeSkill))
+                {
+                    var skill = new MeleeSkill(skillEntry.SkillData, _sword, gameObject.GetComponent<IDamageable>());
+                    Skills[skill.SkillType] = skill;
+                }
+                else if (skillEntry.SkillClass == typeof(SpellSkill))
+                {
+                    var skill = new SpellSkill(skillEntry.SkillData, _castPoint, _caster);
+                    Skills[skill.SkillType] = skill;
+                }
+                else if (skillEntry.SkillClass == typeof(PunchSkill))
+                {
+                    var skill = new PunchSkill(skillEntry.SkillData, _castPoint, _caster, _sword, gameObject.GetComponent<IDamageable>());
+                    Skills[skill.SkillType] = skill;
+                }
+                else if (skillEntry.SkillClass == typeof(MeteorRain))
+                {
+                    var skill = new MeteorRain(skillEntry.SkillData, _castPoint, _caster, _sword, gameObject.GetComponent<IDamageable>());
+                    Skills[skill.SkillType] = skill;
+                }
+                else if (skillEntry.SkillClass == typeof(HeavyAttack))
+                {
+                    var skill = new HeavyAttack(skillEntry.SkillData, _castPoint, _caster, _sword, gameObject.GetComponent<IDamageable>());
+                    Skills[skill.SkillType] = skill;
+                }
+            }
+        }
 
         private void Update()
         {
@@ -3547,6 +3908,7 @@ namespace Gameplay.Controllers.Player
 ﻿using Core.Bootstrap;
 using Core.DI;
 using Core.Events;
+using DG.Tweening;
 using Gameplay.Events;
 using UnityEngine;
 
@@ -3560,19 +3922,54 @@ namespace Gameplay.Core
         [SerializeField] private GameObject _mainBranchEnv;
         [SerializeField] private GameObject _alphaBranchEnv;
 
+        [Header("Effects")]
+        [SerializeField] private CanvasGroup _flashCanvas;
+        [SerializeField] private AudioClip _jumpSound;
+        private AudioSource _audioSource;
+
         public void Init()
         {
+            if (_jumpSound != null)
+            {
+                _audioSource = gameObject.AddComponent<AudioSource>();
+                _audioSource.playOnAwake = false;
+            }
+
             // По умолчанию начинаем в Main
-            SwitchBranch(WorldBranch.Main);
+            SwitchBranch(WorldBranch.Main, true);
         }
 
-        public void SwitchBranch(WorldBranch branch)
+        public void SwitchBranch(WorldBranch branch, bool instant = false)
         {
             CurrentBranch = branch;
 
             // Жестко переключаем объекты окружения
             if (_mainBranchEnv != null) _mainBranchEnv.SetActive(CurrentBranch == WorldBranch.Main);
             if (_alphaBranchEnv != null) _alphaBranchEnv.SetActive(CurrentBranch == WorldBranch.Alpha);
+
+            if (!instant)
+            {
+                // Визуальный эффект вспышки
+                if (_flashCanvas != null)
+                {
+                    // Делаем вспышку непрозрачной, затем плавно гасим
+                    _flashCanvas.alpha = 1f;
+                    _flashCanvas.DOFade(0f, 0.5f).SetEase(Ease.OutQuad);
+                }
+
+                // Эффект тряски камеры
+                if (Camera.main != null)
+                {
+                    Camera.main.DOComplete(); // Останавливаем предыдущую тряску, если есть
+                    Camera.main.DOShakePosition(0.4f, 0.3f, 20, 90f, false, ShakeRandomnessMode.Harmonic);
+                }
+
+                // Звук
+                if (_audioSource != null && _jumpSound != null)
+                {
+                    _audioSource.PlayOneShot(_jumpSound);
+                }
+            }
 
             // Рассылаем глобальное событие (для звуков, партиклов или ИИ)
             EventBus.Raise(new BranchSwitchedEvent(CurrentBranch));
@@ -3771,10 +4168,10 @@ namespace Gameplay.Enemies
             hpCanvas = GetComponentInChildren<Canvas>();
         }
 
-        public async void Init(bool isPeaceful)
+        public void Init(bool isPeaceful, Transform playerTransform)
         {
             _isPeaceful = isPeaceful;
-            await GetPlayer();
+            _playerTransform = playerTransform;
             print(_playerTransform);
             CreateParticles();
             BossStatesInit();
@@ -3784,18 +4181,6 @@ namespace Gameplay.Enemies
         {
             var part = _particles[Random.Range(0, _particles.Length)];
             Instantiate(part, _fist.transform.position, Quaternion.identity, _fist.transform);
-        }
-
-        private async Task GetPlayer()
-        {
-            CharacterController player;
-            do
-            {
-                player = FindFirstObjectByType<CharacterController>();
-                await Task.Delay(10);
-            } while (!player);
-
-            _playerTransform = player.transform;
         }
 
         private void Update()
@@ -4110,17 +4495,18 @@ namespace Gameplay.Enemies.BossStates
 }
 
 === Scripts\Gameplay\Enemies\EnemyAnimator.cs ===
-﻿using UnityEngine;
+﻿using Core.Bootstrap;
+using UnityEngine;
 
 namespace Gameplay.Enemies
 {
     public class EnemyAnimator : MonoBehaviour
     {
         private static readonly int Death = Animator.StringToHash("Death");
-        private static readonly int Walk = Animator.StringToHash("Walk");
-        private static readonly int Attack = Animator.StringToHash("Attack");
-        private static readonly int Hitted = Animator.StringToHash("Hitted");
-        private static readonly int Spell = Animator.StringToHash("Spell");
+        private static readonly int Walk = Animator.StringToHash("IsWalking");
+        private static readonly int Attack = Animator.StringToHash("Punch");
+        private static readonly int Hitted = Animator.StringToHash("Hit");
+        //private static readonly int Spell = Animator.StringToHash("Spell");
         
         public Animator _animator { get; private set; }
         
@@ -4128,7 +4514,7 @@ namespace Gameplay.Enemies
             _animator.GetCurrentAnimatorStateInfo(layerIndex).normalizedTime >= time && 
             _animator.GetCurrentAnimatorStateInfo(layerIndex).IsName(stateName);
 
-        private void Awake()
+        public void Init()
         {
             _animator = GetComponent<Animator>();
         }
@@ -4146,7 +4532,6 @@ namespace Gameplay.Enemies
         public void IdleEvent()
         {
             _animator.SetBool(Walk, false);
-        
         }
         
         public void DoAttack()
@@ -4159,10 +4544,10 @@ namespace Gameplay.Enemies
             _animator.SetTrigger(Hitted);
         }
 
-        public void DoSpellEvent()
+        /*public void DoSpellEvent()
         {
             _animator.SetTrigger(Spell);
-        }
+        }*/
         
         
         
@@ -4172,11 +4557,17 @@ namespace Gameplay.Enemies
 }
 
 === Scripts\Gameplay\Enemies\EnemyController.cs ===
-﻿using Gameplay.Combat.Health;
+﻿using System;
+using Core.Bootstrap;
+using Core.DI;
+using Core.Events;
+using Core.Extensions;
+using Gameplay.Combat.Health;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Controllers.Player;
 using Gameplay.Enemies.States;
+using Gameplay.Events;
 using Gameplay.StateMachines;
 using UnityEngine;
 using UnityEngine.AI;
@@ -4184,17 +4575,9 @@ using AttackState = Gameplay.Enemies.States.AttackState;
 
 namespace Gameplay.Enemies
 {
-    public class EnemyController : MonoBehaviour, ICharacterController
-    {   
-        
-        // public bool isDead { get; set; }
-        // public string UniqueId { get; set; }
-        // public int PrefabIndex { get; set; }
-        // Transform ICharacterController.transform => transform;
-        // GameObject ICharacterController.gameObject => gameObject;
-        // HealthSystem ICharacterController.GetComponent<T>() => GetComponent<HealthSystem>();
-        // T ICharacterController.GetComponentInChildren<T>() => GetComponentInChildren<T>();
-        
+    public class EnemyController : MonoBehaviour, ICharacterController, IGlitchable, IInitializable, IInjectable
+    {
+        [Inject] private DIContainer _diContainer;
         public bool isDead { get; set; }
         public string UniqueId { get; set; }
         public int PrefabIndex { get; set; }
@@ -4202,58 +4585,108 @@ namespace Gameplay.Enemies
         GameObject ICharacterController.gameObject => gameObject;
         StabilitySystem ICharacterController.GetComponent<T>() => GetComponent<StabilitySystem>();
         T ICharacterController.GetComponentInChildren<T>() => GetComponentInChildren<T>();
-        
-        
-        
-        
-        
-        
-        
-        
+
         [SerializeField] private GameObject _sword;
-        
+
         public Collider SwordCollider { get; private set; }
-        // public string UniqueId;
-        // public int PrefabIndex;
-        private Canvas hpCanvas;
-        private StateMachine enemyStateMachine;
-        private EnemyAnimator enemyAnimator;
-        private StabilitySystem stabilitySystem;
+
+        private Canvas _hpCanvas;
+
+        private StateMachine _enemyStateMachine;
+
+        private EnemyAnimator _enemyAnimator;
+
+        private StabilitySystem _stabilitySystem;
+
         private NavMeshAgent _agent;
+
         private Transform _playerTransform;
+
         private SkillsController _skillsController;
+
         [SerializeField] private float _rotationSpeed;
-        [SerializeField] private float searchRadius;
-        [SerializeField] private float attackRange;
-        public int deadEnemies;
-        public bool IsChasing { get; private set;}
-        // public bool isDead;
-        public bool IsInAttackRange { get; private set;}
+
+        [SerializeField] private float _searchRadius;
+
+        [SerializeField] private float _attackRange;
+
+        public int DeadEnemies;
+
+        public bool IsChasing { get; private set; }
+
+        public bool IsInAttackRange { get; private set; }
+
         private bool _isPeaceful;
-        private void Awake()
+
+        public bool IsStunned { get; private set; }
+
+        private float _stunEndTime;
+
+        [Header("Loot")] [SerializeField] private GameObject _codeBlockPrefab;
+
+        private void GetComponents()
         {
             SwordCollider = _sword.GetComponent<BoxCollider>();
-            enemyStateMachine = new StateMachine();
+            _enemyStateMachine = new StateMachine();
             _skillsController = GetComponent<SkillsController>();
-            enemyAnimator = GetComponent<EnemyAnimator>();
-            stabilitySystem = GetComponent<StabilitySystem>();
-            gameObject.GetComponent<IHittable>().onHit.AddListener(enemyAnimator.DoHitEvent);
+            _enemyAnimator = GetComponent<EnemyAnimator>();
+            _stabilitySystem = GetComponent<StabilitySystem>();
+            gameObject.GetComponent<IHittable>().onHit.AddListener(_enemyAnimator.DoHitEvent);
             _agent = GetComponent<NavMeshAgent>();
-            hpCanvas = GetComponentInChildren<Canvas>();
+            _hpCanvas = GetComponentInChildren<Canvas>();
         }
 
-        public void Init(bool isPeaceful)
+        public void Init()
         {
-            _isPeaceful = isPeaceful;
-            _playerTransform = FindFirstObjectByType<CharacterController>().transform;
+            EventBus.Subscribe<PlayerSpawnEvent>(HandlePlayerSpawn).AddTo(gameObject);
+            _isPeaceful = false;
+            GetComponents();
+            InjectAndInit();
             EnemyStatesInit();
         }
 
+        private void InjectAndInit()
+        {
+            _diContainer.Inject(_skillsController);
+            _enemyAnimator.Init();
+            _skillsController.Init(null);
+
+        }
+
+        public void Init(bool isPeaceful, Transform playerTransform)
+        {
+        }
+
+        public void HandlePlayerSpawn(PlayerSpawnEvent e)
+        {
+            _playerTransform = e.PlayerTransform;
+        }
+
         private void Update()
-        {   
-            if(!_playerTransform) return;
+        {
+            if (!_playerTransform) return;
+
+            if (IsStunned && Time.time >= _stunEndTime)
+            {
+                IsStunned = false;
+            }
+
             ChasingChecker();
-            enemyStateMachine.Tick();
+            _enemyStateMachine.Tick();
+        }
+
+        public void ApplyGlitchStun(float duration)
+        {
+            IsStunned = true;
+            _stunEndTime = Time.time + duration;
+        }
+
+        public void SpawnLoot()
+        {
+            if (_codeBlockPrefab != null)
+            {
+                Instantiate(_codeBlockPrefab, transform.position + Vector3.up, Quaternion.identity);
+            }
         }
 
         public void SetFollowPlayer()
@@ -4266,8 +4699,9 @@ namespace Gameplay.Enemies
             _agent.SetDestination(GetRunPoint());
         }
 
-        private Vector3 GetRunPoint() => (transform.position - _playerTransform.position).normalized * 2f + transform.position;
- 
+        private Vector3 GetRunPoint() =>
+            (transform.position - _playerTransform.position).normalized * 2f + transform.position;
+
 
         public void RotateToPlayer()
         {
@@ -4282,45 +4716,50 @@ namespace Gameplay.Enemies
             SkillType type;
             if (CompareTag("Wizard"))
             {
-                attackState = new RangeAttackState(this, enemyAnimator, _agent, _skillsController);
+                attackState = new RangeAttackState(this, _enemyAnimator, _agent, _skillsController);
                 type = SkillType.Fireball;
             }
             else
             {
-                attackState = new AttackState(this, enemyAnimator, _agent, _skillsController);
+                attackState = new AttackState(this, _enemyAnimator, _agent, _skillsController);
                 type = SkillType.Melee;
             }
+
             bool AttackReady() => _skillsController.Skills[type]._isReady;
-            
-            
-            
-            var idleState = new IdleState(this,enemyAnimator, _agent);
-            var walkState =  new WalkState(this,enemyAnimator,_agent);
-            var fearState =  new FearState(this,enemyAnimator,_agent);
-            var deathState = new DeathState(this,enemyAnimator,_agent, hpCanvas);
-            
-            bool AttackAnimationEnded() => enemyAnimator.CheckAnimationState(0,1f,"attackTest");
 
 
-            enemyStateMachine.AddAnyTransition(deathState, () => stabilitySystem.Stability <= 0f);
+            var idleState = new IdleState(this, _enemyAnimator, _agent);
+            var walkState = new WalkState(this, _enemyAnimator, _agent);
+            var fearState = new FearState(this, _enemyAnimator, _agent);
+            var deathState = new DeathState(this, _enemyAnimator, _agent, _hpCanvas);
+
+            bool AttackAnimationEnded() => _enemyAnimator.CheckAnimationState(0, 0.99f, "PunchEnemyMain");
+
+
+            _enemyStateMachine.AddAnyTransition(deathState, () => _stabilitySystem.Stability <= 0f);
+
+            var stunState = new GlitchStunState(this, _enemyAnimator, _agent);
+            _enemyStateMachine.AddAnyTransition(stunState, () => IsStunned);
+            _enemyStateMachine.AddTransition(stunState, idleState, () => !IsStunned);
 
             if (_isPeaceful)
             {
-                enemyStateMachine.AddTransition(idleState, fearState, () => stabilitySystem.Stability/stabilitySystem.MaxStability <= .3f);
+                _enemyStateMachine.AddTransition(idleState, fearState,
+                    () => _stabilitySystem.Stability / _stabilitySystem.MaxStability <= .3f);
             }
             else
             {
-                enemyStateMachine.AddTransition(idleState, walkState, () => IsChasing && !IsInAttackRange);
-                enemyStateMachine.AddTransition(idleState, attackState,
+                _enemyStateMachine.AddTransition(idleState, walkState, () => IsChasing && !IsInAttackRange);
+                _enemyStateMachine.AddTransition(idleState, attackState,
                     () => IsInAttackRange && AttackReady());
             }
-            
-            
-            enemyStateMachine.AddTransition(walkState, idleState, () => !IsChasing || IsInAttackRange);
-            enemyStateMachine.AddTransition(walkState, attackState, () => IsInAttackRange && AttackReady());
-            enemyStateMachine.AddTransition(attackState, idleState,
+
+
+            _enemyStateMachine.AddTransition(walkState, idleState, () => !IsChasing || IsInAttackRange);
+            _enemyStateMachine.AddTransition(walkState, attackState, () => IsInAttackRange && AttackReady());
+            _enemyStateMachine.AddTransition(attackState, idleState,
                 () => IsInAttackRange && AttackAnimationEnded());
-            enemyStateMachine.AddTransition(attackState, walkState,
+            _enemyStateMachine.AddTransition(attackState, walkState,
                 () => !IsInAttackRange && AttackAnimationEnded());
 
 
@@ -4328,37 +4767,38 @@ namespace Gameplay.Enemies
             // enemyStateMachine.AddTransition(spellState, idleState, () => IsInCastRange && RangeAnimationEnded());
             // enemyStateMachine.AddTransition(walkState, spellState, () => IsInCastRange);
             // enemyStateMachine.AddTransition(spellState, walkState, () => !IsInCastRange && RangeAnimationEnded());
-            
-            
-            
-            
-            enemyStateMachine.SetState(idleState);
+
+
+            _enemyStateMachine.SetState(idleState);
         }
-        
+
         private void ChasingChecker()
         {
-            if (Vector3.Distance(_agent.transform.position, _playerTransform.position) <= searchRadius)
-            {   
+            if (Vector3.Distance(_agent.transform.position, _playerTransform.position) <= _searchRadius)
+            {
                 IsChasing = true;
-                if (Vector3.Distance(_agent.transform.position, _playerTransform.position) <= attackRange)
+                if (Vector3.Distance(_agent.transform.position, _playerTransform.position) <= _attackRange)
                 {
                     IsInAttackRange = true;
                 }
                 else
-                {   
+                {
                     IsInAttackRange = false;
                 }
             }
             else
-            {   
+            {
                 IsChasing = false;
             }
         }
-        
-        
-}
-}
 
+        private void OnDrawGizmos()
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(transform.position, _searchRadius);
+        }
+    }
+}
 
 === Scripts\Gameplay\Enemies\EnemyManager.cs ===
 ﻿// using System;
@@ -4628,7 +5068,7 @@ namespace Gameplay.Enemies
                     Debug.LogWarning($"Enemy {enemy.name} does not have SkillsController component.");
                 }
 
-                enemy.Init(peaceMode);
+                enemy.Init(peaceMode, _player.transform);
                 stabilitySystem.Init(enemiesPower);
                 stabilitySystem.OnDeath.AddListener((_) => OnEnemyDeath());
                 skillsController?.Init(null);
@@ -4742,7 +5182,7 @@ namespace Gameplay.Enemies
 
                 character.UniqueId = enemyData.Id;
                 character.PrefabIndex = enemyData.PrefabIndex;
-                character.Init(loadSettings.PeaceMode);
+                character.Init(loadSettings.PeaceMode, _player.transform);
                 healthSystem.Init(enemiesPower);
                 healthSystem.OnDeath.AddListener((_) => OnEnemyDeath());
                 healthSystem.SetStability(enemyData.Health);
@@ -4823,7 +5263,7 @@ namespace Gameplay.Enemies
             healthSystem.Init(_settingsInteractor.LoadSettings().EnemiesPower);
             healthSystem.OnDeath.AddListener((_) => OnEnemyDeath());
             skillsController?.Init(null);
-            boss.Init(_settingsInteractor.LoadSettings().PeaceMode);
+            boss.Init(_settingsInteractor.LoadSettings().PeaceMode, _player.transform);
             boss.UniqueId = Guid.NewGuid().ToString();
             boss.PrefabIndex = -1; // Босс не использует индекс префаба из _enemyPrefabs
             _characters.Add(boss);
@@ -4869,63 +5309,66 @@ namespace Gameplay.Enemies.States
         
         private IEnumerator SwordColliderSwitch()
         {
-            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.3f, "attackTest"));
+            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.33f, "attackTest"));
             EnemyController.SwordCollider.enabled = true;
-            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.53f, "attackTest"));
+            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.63f, "attackTest"));
             EnemyController.SwordCollider.enabled = false;
         }
     }
 }
 
 === Scripts\Gameplay\Enemies\States\DeathState.cs ===
-﻿using System.Collections;
-using UnityEngine;
-using UnityEngine.AI;
-
-namespace Gameplay.Enemies.States
-
-{  
-    
-    public class DeathState : StatesEnemyConst
-    {   
-        private readonly Canvas hpCanvas;
-        public DeathState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent, Canvas hpCanvas) : base(enemyController, animator, navMeshAgent)
-        {
-            this.hpCanvas = hpCanvas;
-            
-        }
-        
-        public override void Enter()
-        {
-            // EnemyController.isDead = true;
-            hpCanvas.enabled = false;
-            EnemyController.GetComponent<Collider>().enabled = false;
-            EnemyAnimator.DeathEvent();
-            NavMeshAgent.ResetPath();
-            NavMeshAgent.isStopped = true;
-            NavMeshAgent.angularSpeed = 0f;
-            // Debug.Log(EnemyController.isDead);
-            EnemyController.StartCoroutine(Destroy());
-            
-        }
-
-        public override void Execute()
-        {
-        }
-
-        public override void Exit()
-        {
-        }
-
-        public IEnumerator Destroy()
-        {
-            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.99f, "deathTest"));
-            Object.Destroy(EnemyController.gameObject);
-            
-            
-        }
-    }
-}
+�� u s i n g   S y s t e m . C o l l e c t i o n s ; 
+ u s i n g   U n i t y E n g i n e ; 
+ u s i n g   U n i t y E n g i n e . A I ; 
+ 
+ n a m e s p a c e   G a m e p l a y . E n e m i e s . S t a t e s 
+ 
+ {     
+         
+         p u b l i c   c l a s s   D e a t h S t a t e   :   S t a t e s E n e m y C o n s t 
+         {       
+                 p r i v a t e   r e a d o n l y   C a n v a s   h p C a n v a s ; 
+                 p u b l i c   D e a t h S t a t e ( E n e m y C o n t r o l l e r   e n e m y C o n t r o l l e r ,   E n e m y A n i m a t o r   a n i m a t o r ,   N a v M e s h A g e n t   n a v M e s h A g e n t ,   C a n v a s   h p C a n v a s )   :   b a s e ( e n e m y C o n t r o l l e r ,   a n i m a t o r ,   n a v M e s h A g e n t ) 
+                 { 
+                         t h i s . h p C a n v a s   =   h p C a n v a s ; 
+                         
+                 } 
+                 
+                 p u b l i c   o v e r r i d e   v o i d   E n t e r ( ) 
+                 { 
+                         / /   E n e m y C o n t r o l l e r . i s D e a d   =   t r u e ; 
+                         h p C a n v a s . e n a b l e d   =   f a l s e ; 
+                         E n e m y C o n t r o l l e r . G e t C o m p o n e n t < C o l l i d e r > ( ) . e n a b l e d   =   f a l s e ; 
+                         E n e m y A n i m a t o r . D e a t h E v e n t ( ) ; 
+                         N a v M e s h A g e n t . R e s e t P a t h ( ) ; 
+                         N a v M e s h A g e n t . i s S t o p p e d   =   t r u e ; 
+                         N a v M e s h A g e n t . a n g u l a r S p e e d   =   0 f ; 
+                         / /   D e b u g . L o g ( E n e m y C o n t r o l l e r . i s D e a d ) ; 
+                         
+                         E n e m y C o n t r o l l e r . S p a w n L o o t ( ) ; 
+                         
+                         E n e m y C o n t r o l l e r . S t a r t C o r o u t i n e ( D e s t r o y ( ) ) ; 
+                         
+                 } 
+ 
+                 p u b l i c   o v e r r i d e   v o i d   E x e c u t e ( ) 
+                 { 
+                 } 
+ 
+                 p u b l i c   o v e r r i d e   v o i d   E x i t ( ) 
+                 { 
+                 } 
+ 
+                 p u b l i c   I E n u m e r a t o r   D e s t r o y ( ) 
+                 { 
+                         y i e l d   r e t u r n   n e w   W a i t U n t i l ( ( ) = > E n e m y A n i m a t o r . C h e c k A n i m a t i o n S t a t e ( 0 ,   0 . 9 9 f ,   " d e a t h T e s t " ) ) ; 
+                         O b j e c t . D e s t r o y ( E n e m y C o n t r o l l e r . g a m e O b j e c t ) ; 
+                         
+                         
+                 } 
+         } 
+ }
 
 === Scripts\Gameplay\Enemies\States\FearState.cs ===
 ﻿using UnityEngine;
@@ -4958,6 +5401,48 @@ namespace Gameplay.Enemies.States
     }
 }
 
+=== Scripts\Gameplay\Enemies\States\GlitchStunState.cs ===
+using UnityEngine.AI;
+
+namespace Gameplay.Enemies.States
+{
+    public class GlitchStunState : StatesEnemyConst
+    {
+        public GlitchStunState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent) 
+            : base(enemyController, animator, navMeshAgent) { }
+
+        public override void Enter()
+        {
+            if (NavMeshAgent != null && NavMeshAgent.isOnNavMesh)
+            {
+                NavMeshAgent.isStopped = true;
+            }
+            if (EnemyAnimator != null && EnemyAnimator._animator != null)
+            {
+                EnemyAnimator._animator.speed = 0f;
+            }
+        }
+
+        public override void Execute()
+        {
+            
+        }
+
+        public override void Exit()
+        {
+            if (EnemyAnimator != null && EnemyAnimator._animator != null)
+            {
+                EnemyAnimator._animator.speed = 1f;
+            }
+            if (NavMeshAgent != null && NavMeshAgent.isOnNavMesh)
+            {
+                NavMeshAgent.isStopped = false;
+            }
+        }
+    }
+}
+
+
 === Scripts\Gameplay\Enemies\States\IdleState.cs ===
 ﻿using UnityEngine;
 using UnityEngine.AI;
@@ -4974,7 +5459,10 @@ namespace Gameplay.Enemies.States
         {
             EnemyAnimator.IdleEvent();
             Debug.Log("Entering ENEMY Idle");
-            NavMeshAgent.isStopped = true;
+            if (NavMeshAgent.isActiveAndEnabled && NavMeshAgent.isOnNavMesh)
+            {
+                NavMeshAgent.isStopped = true;
+            }
         }
 
         public override void Execute()
@@ -5166,6 +5654,28 @@ namespace Gameplay.Events
     }
 }
 
+=== Scripts\Gameplay\Events\CodeBlockCollectedEvent.cs ===
+using Core.Events;
+
+namespace Gameplay.Events
+{
+    public struct CodeBlockCollectedEvent : IEvent { }
+}
+
+
+=== Scripts\Gameplay\Events\PlayerSpawnEvent.cs ===
+﻿using Core.Events;
+using UnityEngine;
+
+namespace Gameplay.Events
+{
+    public class PlayerSpawnEvent : IEvent
+    {
+        public Transform PlayerTransform;
+        public Camera Camera;
+    }
+}
+
 === Scripts\Gameplay\Events\PlayerStabilityChangedEvent.cs ===
 ﻿using Core.Events;
 
@@ -5191,19 +5701,54 @@ namespace Gameplay.Events
 }
 
 
+=== Scripts\Gameplay\Interactables\BuggableBase.cs ===
+﻿using Core.UI;
+using Gameplay.UI;
+using UnityEngine;
+
+namespace Gameplay.Interactables
+{
+    public class BuggableBase : MonoBehaviour, IBuggable
+    {
+        [SerializeField] protected PuzzleViewBase _puzzleView;
+        
+        public bool IsBugged { get; protected set; } = true;
+
+        public virtual void OnScanned(bool isScanning)
+        {
+            
+        }
+
+        public virtual void OnInteract()
+        {
+            
+        }
+
+        public virtual void FixBug()
+        {
+            
+        }
+    }
+}
+
 === Scripts\Gameplay\Interactables\BuggablePhysicsBox.cs ===
-﻿using UnityEngine;
-using UnityEngine.UI;
+using System;
+using UnityEngine;
+using Core.DI;
+using Core.UI;
+using Core.Input;
+using Gameplay.UI;
 
 namespace Gameplay.Interactables
 {
     [RequireComponent(typeof(Rigidbody))]
-    public class BuggablePhysicsBox : MonoBehaviour, IBuggable
+    public class BuggablePhysicsBox : BuggableBase, IInjectable
     {
-        public bool IsBugged { get; private set; } = true;
-
+        [Inject] private ViewManager _viewManager;
+        [Inject] private InputManager _inputManager;
         private Rigidbody _rb;
         private Outline _outline; // Опционально: компонент обводки
+        private BugView _bugView;
 
         private void Awake()
         {
@@ -5211,7 +5756,8 @@ namespace Gameplay.Interactables
             _outline = GetComponent<Outline>();
 
             if (_outline) _outline.enabled = false;
-
+            _bugView = _viewManager.GetView<BugView>();
+            
             if (IsBugged)
             {
                 _rb.mass = 9999f; // Игрок не сможет его сдвинуть
@@ -5219,7 +5765,7 @@ namespace Gameplay.Interactables
             }
         }
 
-        public void OnScanned(bool isScanning)
+        public override void OnScanned(bool isScanning)
         {
             if (!IsBugged) return;
 
@@ -5227,28 +5773,56 @@ namespace Gameplay.Interactables
             if (_outline != null)
             {
                 _outline.enabled = isScanning;
-                // TODO Добавить обоводку
-                //_outline.OutlineColor = Color.red;
+                _outline.OutlineColor = Color.red;
             }
 
+            _bugView.Place(transform);
+            _bugView.SetVisible(isScanning);
             // В консоли можно вывести:[Property Error: Mass = 9999]
         }
 
-        public void OnInteract()
+        public override void OnInteract()
         {
             if (!IsBugged) return;
 
             Debug.Log("Открытие мини-игры Синхронизации Физики...");
 
-            // В СЛЕДУЮЩЕМ ЭТАПЕ: 
-            // 1. Отключаем инпут игрока
-            // 2. _viewManager.GetView<PhysicsPuzzleView>().Show(this);
+            if (_viewManager == null)
+            {
+                Debug.LogError("ViewManager не внедрен (NULL)! Проверьте DI контейнер.");
+                return;
+            }
 
-            // Пока мини-игры нет, чиним сразу для теста:
-            FixBug();
+            
+            if (_puzzleView != null)
+            {
+                _puzzleView.ShowPuzzle(this);
+            }
+            else
+            {
+                var puzzleView = _viewManager.GetView<PhysicsPuzzleView>();
+                if (puzzleView == null)
+                {
+                    Debug.LogError("PhysicsPuzzleView не найден! Вы добавили его в список ViewManager?");
+                    return;
+                }
+
+                puzzleView.ShowPuzzle(this);
+            }
+            
+
+            if (_inputManager == null)
+            {
+                Debug.LogError("InputManager не внедрен (NULL)!");
+                return;
+            }
+
+            _inputManager.DisablePlayerInput();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
-        public void FixBug()
+        public override void FixBug()
         {
             IsBugged = false;
 
@@ -5257,7 +5831,7 @@ namespace Gameplay.Interactables
 
             if (_outline)
             {
-                //_outline.OutlineColor = Color.green; // Показываем, что починено
+                _outline.OutlineColor = Color.green; // Показываем, что починено
                 Invoke(nameof(DisableOutline), 1f); // Выключаем через секунду
             }
 
@@ -5267,9 +5841,31 @@ namespace Gameplay.Interactables
         private void DisableOutline()
         {
             if (_outline) _outline.enabled = false;
+            _bugView.Hide();
         }
     }
 }
+
+=== Scripts\Gameplay\Interactables\CodeBlockPickup.cs ===
+using Core.Events;
+using Gameplay.Events;
+using UnityEngine;
+
+namespace Gameplay.Interactables
+{
+    public class CodeBlockPickup : MonoBehaviour
+    {
+        private void OnTriggerEnter(Collider other)
+        {
+            if (other.CompareTag("Player"))
+            {
+                EventBus.Raise(new CodeBlockCollectedEvent()); 
+                Destroy(gameObject);
+            }
+        }
+    }
+}
+
 
 === Scripts\Gameplay\Interactables\IBuggable.cs ===
 ﻿namespace Gameplay.Interactables
@@ -5469,6 +6065,7 @@ namespace Gameplay.StateMachines.PlayerStates.AbilityStates
         public override void Enter()
         {
             base.Enter();
+            
             SkillsController.Skills[SkillType.BranchSwitch].Cast();
         }
     }
@@ -5500,6 +6097,9 @@ namespace Gameplay.StateMachines.PlayerStates
         public virtual void Enter()
         {
             _enterTime = Time.time;
+            var type = this.GetType().Name;
+            Debug.Log($"Entering {type}");
+            
         }
 
         public virtual void Execute()
@@ -6092,6 +6692,399 @@ namespace Gameplay.StateMachines
     }
 }
 
+=== Scripts\Gameplay\UI\BugView.cs ===
+﻿using Core.UI;
+
+namespace Gameplay.UI
+{
+    public class BugView : WorldSpaceView
+    {
+        
+    }
+}
+
+=== Scripts\Gameplay\UI\CommitPuzzleView.cs ===
+using UnityEngine;
+using Gameplay.Interactables;
+using UnityEngine.UI;
+
+namespace Gameplay.UI
+{
+    public class CommitPuzzleView : PuzzleViewBase
+    {
+        [Header("UI Elements")]
+        [Tooltip("Список всех перетаскиваемых строк кода")]
+        [SerializeField] private DraggableCodeLine[] _codeLines;
+        
+        [Tooltip("Установите сюда Transforms строк в правильном порядке (сверху вниз)")]
+        [SerializeField] private Transform[] _correctOrder;
+
+        [SerializeField] private Button _closeButton;
+        public override void ShowPuzzle(IBuggable target)
+        {
+            base.ShowPuzzle(target);
+            
+            if (_codeLines == null || _codeLines.Length == 0) return;
+
+            // Перемешиваем строки
+            for (int i = 0; i < 15; i++)
+            {
+                int rnd = Random.Range(0, _codeLines.Length);
+                _codeLines[rnd].transform.SetAsLastSibling();
+            }
+
+            // Подписываемся на события конца перетаскивания
+            foreach (var line in _codeLines)
+            {
+                if (line == null) continue;
+                line.OnDragEnded -= CheckWinCondition;
+                line.OnDragEnded += CheckWinCondition;
+            }
+            
+            if (_closeButton != null)
+            {
+                _closeButton.onClick.RemoveAllListeners();
+                _closeButton.onClick.AddListener(ClosePuzzle);
+            }
+        }
+
+        private void CheckWinCondition()
+        {
+            if (_correctOrder == null || _correctOrder.Length == 0) return;
+
+            for (int i = 0; i < _correctOrder.Length - 1; i++)
+            {
+                // Проверяем относительный порядок: каждый следующий элемент должен быть НИЖЕ (иметь SiblingIndex больше)
+                if (_correctOrder[i] != null && _correctOrder[i+1] != null)
+                {
+                    if (_correctOrder[i].GetSiblingIndex() > _correctOrder[i+1].GetSiblingIndex())
+                    {
+                        return; // Порядок еще не верный
+                    }
+                }
+            }
+            
+            // Если мы дошли сюда, значит порядок верный! ПАЗЛ РЕШЕН
+            foreach (var line in _codeLines)
+            {
+                if (line != null) line.OnDragEnded -= CheckWinCondition;
+            }
+            
+            OnWin();
+        }
+        
+        public override void ClosePuzzle()
+        {
+            base.ClosePuzzle();
+            if (_codeLines != null)
+            {
+                foreach (var line in _codeLines)
+                {
+                    if (line != null) line.OnDragEnded -= CheckWinCondition;
+                }
+            }
+            _closeButton.onClick.RemoveAllListeners();
+        }
+    }
+}
+
+
+=== Scripts\Gameplay\UI\DraggableCodeLine.cs ===
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+namespace Gameplay.UI
+{
+    [RequireComponent(typeof(CanvasGroup))]
+    public class DraggableCodeLine : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+    {
+        public delegate void DragAction();
+        public event DragAction OnDragEnded;
+
+        private Transform _parent;
+        private GameObject _placeholder;
+        private CanvasGroup _canvasGroup;
+        private LayoutElement _layoutElement;
+
+        private void Awake()
+        {
+            _canvasGroup = GetComponent<CanvasGroup>();
+            _layoutElement = GetComponent<LayoutElement>();
+            if (_layoutElement == null)
+            {
+                _layoutElement = gameObject.AddComponent<LayoutElement>();
+            }
+        }
+
+        public void OnBeginDrag(PointerEventData eventData)
+        {
+            _parent = transform.parent;
+            
+            // Создаем плейсхолдер, чтобы остальные элементы не "схлопнулись"
+            _placeholder = new GameObject("Placeholder");
+            var rect = _placeholder.AddComponent<RectTransform>();
+            var myRect = GetComponent<RectTransform>();
+            rect.sizeDelta = myRect.sizeDelta;
+            
+            var le = _placeholder.AddComponent<LayoutElement>();
+            le.preferredWidth = _layoutElement.preferredWidth > 0 ? _layoutElement.preferredWidth : myRect.sizeDelta.x;
+            le.preferredHeight = _layoutElement.preferredHeight > 0 ? _layoutElement.preferredHeight : myRect.sizeDelta.y;
+            le.flexibleWidth = 0;
+            le.flexibleHeight = 0;
+
+            _placeholder.transform.SetParent(_parent, false);
+            _placeholder.transform.SetSiblingIndex(transform.GetSiblingIndex());
+
+            _layoutElement.ignoreLayout = true;
+            _canvasGroup.blocksRaycasts = false; // Чтобы луч мыши пробивал этот объект и попадал в другие
+        }
+
+        public void OnDrag(PointerEventData eventData)
+        {
+            transform.position = eventData.position;
+
+            int newSiblingIndex = _parent.childCount - 1; // По умолчанию в конец
+
+            for (int i = 0; i < _parent.childCount; i++)
+            {
+                Transform sibling = _parent.GetChild(i);
+                if (sibling == this.transform || sibling == _placeholder.transform) continue;
+
+                // Для VerticalLayoutGroup элементы идут сверху вниз (Y уменьшается)
+                // Если мышка выше (Y больше), чем центр элемента, ставим перед ним
+                if (eventData.position.y > sibling.position.y)
+                {
+                    newSiblingIndex = sibling.GetSiblingIndex();
+                    // Корректируем индекс, если плейсхолдер уже стоит перед ним
+                    if (_placeholder.transform.GetSiblingIndex() < newSiblingIndex)
+                    {
+                        newSiblingIndex--; 
+                    }
+                    break;
+                }
+            }
+
+            _placeholder.transform.SetSiblingIndex(newSiblingIndex);
+        }
+
+        public void OnEndDrag(PointerEventData eventData)
+        {
+            _layoutElement.ignoreLayout = false;
+            _canvasGroup.blocksRaycasts = true;
+            
+            transform.SetSiblingIndex(_placeholder.transform.GetSiblingIndex());
+            Destroy(_placeholder);
+            
+            OnDragEnded?.Invoke();
+        }
+    }
+}
+
+
+=== Scripts\Gameplay\UI\PhysicsPuzzleView.cs ===
+using UnityEngine;
+using UnityEngine.UI;
+using Gameplay.Interactables;
+
+namespace Gameplay.UI
+{
+    public class PhysicsPuzzleView : PuzzleViewBase
+    {
+        [Header("UI Elements")]
+        [SerializeField] private Slider[] _sliders;
+        [SerializeField] private Button _applyButton;
+        [SerializeField] private Button _closeButton;
+
+        [Header("Settings")]
+        [SerializeField] private float _targetMin = 0.45f;
+        [SerializeField] private float _targetMax = 0.55f;
+
+        public override void ShowPuzzle(IBuggable target)
+        {
+            base.ShowPuzzle(target);
+            
+            // Randomize sliders and subscribe
+            foreach (var slider in _sliders)
+            {
+                if (slider == null) continue;
+                slider.value = Random.Range(0f, 1f);
+                slider.onValueChanged.RemoveAllListeners();
+                slider.onValueChanged.AddListener(CheckWinCondition);
+            }
+            
+            if (_applyButton != null)
+            {
+                _applyButton.interactable = false;
+                _applyButton.onClick.RemoveAllListeners();
+                _applyButton.onClick.AddListener(OnWin);
+            }
+
+            if (_closeButton != null)
+            {
+                _closeButton.onClick.RemoveAllListeners();
+                _closeButton.onClick.AddListener(ClosePuzzle);
+            }
+
+            CheckWinCondition(0f);
+        }
+
+        private void CheckWinCondition(float _)
+        {
+            if (_sliders == null || _sliders.Length == 0) return;
+
+            bool isWin = true;
+            foreach (var slider in _sliders)
+            {
+                if (slider == null) continue;
+                if (slider.value < _targetMin || slider.value > _targetMax)
+                {
+                    isWin = false;
+                    break;
+                }
+            }
+            
+            if (_applyButton != null)
+            {
+                _applyButton.interactable = isWin;
+            }
+            
+            // Опционально: здесь можно добавить проигрывание звука сдвига ползунка
+        }
+
+        public override void ClosePuzzle()
+        {
+            base.ClosePuzzle();
+            if (_sliders != null)
+            {
+                foreach (var slider in _sliders)
+                {
+                    if (slider != null) slider.onValueChanged.RemoveAllListeners();
+                }
+            }
+        }
+    }
+}
+
+
+=== Scripts\Gameplay\UI\PlayerHUDView.cs ===
+using Core.UI;
+using TMPro;
+using UnityEngine;
+
+namespace Gameplay.UI
+{
+    public class PlayerHUDView : View
+    {
+        [SerializeField] private TextMeshProUGUI _blocksText;
+
+        public void UpdateBlocksCount(int count)
+        {
+            if (_blocksText != null)
+            {
+                _blocksText.text = $"Blocks: {count}";
+            }
+        }
+    }
+}
+
+
+=== Scripts\Gameplay\UI\PuzzleViewBase.cs ===
+using Core.UI;
+using Core.Input;
+using Core.DI;
+using Gameplay.Interactables;
+using UnityEngine;
+
+namespace Gameplay.UI
+{
+    public abstract class PuzzleViewBase : View, IInjectable
+    {
+        [Inject] protected InputManager _inputManager;
+        protected IBuggable _currentTarget;
+
+        public virtual void ShowPuzzle(IBuggable target)
+        {
+            _currentTarget = target;
+            Show();
+        }
+
+        public virtual void ClosePuzzle()
+        {
+            Hide();
+            _currentTarget = null;
+            
+            _inputManager.EnablePlayerInput();
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
+        protected void OnWin()
+        {
+            _currentTarget?.FixBug();
+            ClosePuzzle();
+        }
+    }
+}
+
+
+=== Scripts\Gameplay\UI\ScannerView.cs ===
+using Core.UI;
+using DG.Tweening;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI
+{
+    public class ScannerView : View
+    {
+        [SerializeField] private RectTransform _mask;
+        [SerializeField] private float _fillDuration = .5f;
+        [SerializeField] private Vector2 _maskSize = new Vector2(2600, 2600);
+        public void FillIn()
+        {
+            _mask.DOSizeDelta(_maskSize, _fillDuration);
+        }
+
+        public void FillOut()
+        {
+            _mask.DOSizeDelta(Vector2.zero, _fillDuration);
+        }
+    }
+}
+
+
+=== Scripts\Gameplay\UI\TerminalView.cs ===
+using Core.UI;
+using Gameplay.Core;
+using Gameplay.Events;
+using TMPro;
+using UnityEngine;
+
+namespace Gameplay.UI
+{
+    public class TerminalView : View
+    {
+        [SerializeField] private TextMeshProUGUI _branchInfoText;
+        [SerializeField] private TextMeshProUGUI _promptText;
+
+        public void UpdateInfo(WorldBranch currentBranch)
+        {
+            if (_branchInfoText != null)
+            {
+                _branchInfoText.text = $"CURRENT BRANCH: {currentBranch.ToString().ToUpper()}";
+            }
+
+            if (_promptText != null)
+            {
+                WorldBranch targetBranch = currentBranch == WorldBranch.Main ? WorldBranch.Alpha : WorldBranch.Main;
+                _promptText.text = $"PRESS [E] TO JUMP TO {targetBranch.ToString().ToUpper()}";
+            }
+        }
+    }
+}
+
+
 === Scripts\Gameplay\UI\Views\Gameplay\CooldownView.cs ===
 ﻿using Core.UI;
 using UnityEngine;
@@ -6114,17 +7107,16 @@ namespace Gameplay.UI.Views.Gameplay
         {
             _updateSlot1.Invoke();
             _updateSlot2.Invoke();
-            //MeleeStatus.fillAmount = _skillsController.Skills[SkillType.Melee].GetReadyPercent();
-            //SpellStatus.fillAmount = _skillsController.Skills[SkillType.Fireball].GetReadyPercent();
+     
             Slot1Mask.enabled = Slot1Status.fillAmount > 0;
             Slot2Mask.enabled = Slot2Status.fillAmount > 0;
         }
-        
+
         public void SetSlot1Listener(UnityAction callback)
         {
             _updateSlot1.AddListener(callback);
         }
-        
+
         public void SetSlot2Listener(UnityAction callback)
         {
             _updateSlot2.AddListener(callback);
@@ -6134,7 +7126,7 @@ namespace Gameplay.UI.Views.Gameplay
         {
             Slot1Status.fillAmount = value;
         }
-        
+
         public void SetSlot2FillAmount(float value)
         {
             Slot2Status.fillAmount = value;

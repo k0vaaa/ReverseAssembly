@@ -46,19 +46,23 @@ namespace Gameplay.Bootstrap
         {
             _player = Object.Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
             _camera = _player.GetComponentInChildren<Camera>();
+            
             _playerStabilitySystem = _player.GetComponent<StabilitySystem>();
             var movementController = _player.GetComponent<MovementController>();
             var fightController = _player.GetComponent<FightController>();
             var skillsController = _player.GetComponent<SkillsController>();
             var scannerController = _player.GetComponent<ScannerController>();
+            var terminalController = _player.GetComponent<PlayerTerminalController>();
             
             _diContainer.Inject(movementController);
             _diContainer.Inject(fightController);
             _diContainer.Inject(skillsController);
             _diContainer.Inject(scannerController);
+            _diContainer.Inject(terminalController);
             _diContainer.Inject(_player.GetComponentInChildren<FirstPersonLook>());
             
             scannerController.Init();
+            terminalController.Init();
             
             _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeHp);
             // TODO настроить сейвы
