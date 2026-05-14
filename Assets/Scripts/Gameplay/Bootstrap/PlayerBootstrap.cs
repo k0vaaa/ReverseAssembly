@@ -50,12 +50,15 @@ namespace Gameplay.Bootstrap
             var movementController = _player.GetComponent<MovementController>();
             var fightController = _player.GetComponent<FightController>();
             var skillsController = _player.GetComponent<SkillsController>();
+            var scannerController = _player.GetComponent<ScannerController>();
             
             _diContainer.Inject(movementController);
             _diContainer.Inject(fightController);
             _diContainer.Inject(skillsController);
+            _diContainer.Inject(scannerController);
             _diContainer.Inject(_player.GetComponentInChildren<FirstPersonLook>());
             
+            scannerController.Init();
             
             _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeHp);
             // TODO настроить сейвы

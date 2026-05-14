@@ -20,6 +20,7 @@ namespace Gameplay.Controllers.Player
 
         [SerializeField] private float _scanDistance = 10f;
         [SerializeField] private LayerMask _interactableLayer;
+        [SerializeField] private ParticleSystem _particleSystem;
 
         public bool IsScannerActive { get; private set; }
         private IBuggable _currentTarget;
@@ -43,15 +44,18 @@ namespace Gameplay.Controllers.Player
         private void ToggleScanner()
         {
             IsScannerActive = !IsScannerActive;
-            
             if (IsScannerActive)
             {
-                _scannerView?.Show();
+                _particleSystem.Play();
+                _scannerView?.FillIn();
             }
             else
             {
-                _scannerView?.Hide();
+                _particleSystem.Stop();
+                _scannerView?.FillOut();
             }
+            
+            //_scannerView?.SetVisible(IsScannerActive);
 
             if (!IsScannerActive && _currentTarget != null)
             {
