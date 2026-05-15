@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86387ac64a0c48b9a694268d6f052572, type: 3}
+  m_Name: SkillsArray
+  m_EditorClassIdentifier: Assembly-CSharp::Gameplay.Combat.Offensive.ScriptableObjects.SkillsArray
+  skillEntries:
+  - _skillClass: {fileID: 11500000, guid: f3edf37adfce4920aa3b50857a0cd6ea, type: 3}
+    _skillData: {fileID: 11400000, guid: 3bb1386e57676ba4e9148713c4a240bb, type: 2}
+  - _skillClass: {fileID: 11500000, guid: c5e2df0ded364792b67db449f6d7e700, type: 3}
+    _skillData: {fileID: 11400000, guid: b9b5b53a50bded24f88c6f133aa213bd, type: 2}
