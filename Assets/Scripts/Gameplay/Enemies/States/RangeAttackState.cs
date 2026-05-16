@@ -43,18 +43,18 @@ namespace Gameplay.Enemies.States
             var plug = (SpellSkill)_skillsController.Skills[SkillType.Fireball];
             if (Random.Range(0, 2) == 1)
             {
-                _skillsController.Skills[SkillType.Fireball].Cast();
+                _skillsController.Skills[SkillType.Fireball].TryCast();
             }
             else
             {
                 if (_skillsController.Skills[SkillType.Meteor]._isReady)
                 {
-                    _skillsController.Skills[SkillType.Meteor].Cast();
+                    _skillsController.Skills[SkillType.Meteor].TryCast();
                     plug.CastPlug();
                 }
                 else
                 {
-                    _skillsController.Skills[SkillType.Fireball].Cast();
+                    _skillsController.Skills[SkillType.Fireball].TryCast();
                 }
             }
             

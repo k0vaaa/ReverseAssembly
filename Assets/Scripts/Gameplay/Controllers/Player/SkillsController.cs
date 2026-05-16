@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using Core.DI;
+
 using Gameplay.Abilities;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class SkillsController : MonoBehaviour, IInjectable
+    public class SkillsController : MonoBehaviour
     {
         [SerializeField] private SkillsArray _skillsArray;
         [SerializeField] private Transform _castPoint;

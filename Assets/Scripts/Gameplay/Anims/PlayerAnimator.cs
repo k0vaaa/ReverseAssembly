@@ -1,10 +1,11 @@
-﻿using Core.DI;
+﻿
 using Core.Input;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Gameplay.Anims
 {
-    public class PlayerAnimator : MonoBehaviour, IInjectable, IPlayerAnimator
+    public class PlayerAnimator : MonoBehaviour, IPlayerAnimator
     {
         [Inject] public InputManager InputManager;
         private static readonly int Attack = Animator.StringToHash("Attack");

@@ -1,12 +1,13 @@
 ﻿using System;
 using Core.Audio;
-using Core.DI;
+
+using Reflex.Attributes;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Core.UI.Views
 {
-    public class SettingsView : MonoBehaviour, IInjectable
+    public class SettingsView : MonoBehaviour
     {
         [SerializeField] private Slider _musicSlider;
         [SerializeField] private Slider _sfxSlider;

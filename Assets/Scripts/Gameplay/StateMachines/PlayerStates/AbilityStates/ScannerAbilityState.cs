@@ -13,7 +13,7 @@ namespace Gameplay.StateMachines.PlayerStates.AbilityStates
         public override void Enter()
         {
             base.Enter();
-            SkillsController.Skills[SkillType.Scanner].Cast();
+            SkillsController.Skills[SkillType.Scanner].TryCast();
         }
     }
 }

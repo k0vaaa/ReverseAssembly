@@ -1,12 +1,13 @@
 using Core.UI;
 using Core.Input;
-using Core.DI;
+
 using Gameplay.Interactables;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Gameplay.UI
 {
-    public abstract class PuzzleViewBase : View, IInjectable
+    public abstract class PuzzleViewBase : View
     {
         [Inject] protected InputManager _inputManager;
         protected IBuggable _currentTarget;

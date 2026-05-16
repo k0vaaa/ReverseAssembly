@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Gameplay.Combat.Offensive.Collision
 {
-    public class Sword : MonoBehaviour, IDamaging
+    public class DamageCollider : MonoBehaviour, IDamaging
     {
         private Damage _damage;
         private IDamageable _self;
@@ -26,8 +26,7 @@ namespace Gameplay.Combat.Offensive.Collision
         {
             print($"Hit made by {_self}");
             IDamageable damageable = other.gameObject.GetComponent<IDamageable>();
-            if (damageable == null) return;
-            if (damageable == _self) return;
+            if (damageable == null || damageable == _self) return;
             print($"Hit Happened on {damageable}");
             if (_enemies.Contains(damageable)) return;
             print("Does Damage");

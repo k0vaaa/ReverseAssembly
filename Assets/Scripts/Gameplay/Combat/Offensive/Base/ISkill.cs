@@ -4,7 +4,7 @@
     {
         public bool _isReady { get;}
         float GetReadyPercent();
-        void Cast();
+        void TryCast();
         void Tick();
     }
 }

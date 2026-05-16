@@ -1,14 +1,15 @@
 using Core.Bootstrap;
-using Core.DI;
+
 using Core.Input;
 using Core.UI;
 using Gameplay.Core;
 using Gameplay.UI;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class PlayerTerminalController : MonoBehaviour, IInjectable, IInitializable
+    public class PlayerTerminalController : MonoBehaviour, IInitializable
     {
         [Inject] private InputManager _inputManager;
         [Inject] private ViewManager _viewManager;

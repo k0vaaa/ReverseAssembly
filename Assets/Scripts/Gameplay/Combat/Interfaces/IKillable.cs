@@ -5,6 +5,6 @@ namespace Gameplay.Combat.Interfaces
     public interface IKillable
     {
         public void Die();
-        public UnityEvent<bool> OnDeath { get;}
+        public UnityEvent OnDeath { get;}
     }
 }

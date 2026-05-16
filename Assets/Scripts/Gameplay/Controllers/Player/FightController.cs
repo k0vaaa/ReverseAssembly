@@ -1,4 +1,4 @@
-﻿using Core.DI;
+﻿
 using Core.Input;
 using Gameplay.Anims;
 using Gameplay.Combat.Interfaces;
@@ -6,11 +6,12 @@ using Gameplay.Combat.Offensive.Base;
 using Gameplay.StateMachines;
 using Gameplay.StateMachines.PlayerStates.AbilityStates;
 using Gameplay.StateMachines.PlayerStates.FightStates;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class FightController : MonoBehaviour, IInjectable
+    public class FightController : MonoBehaviour
     {
         private StateMachine _fightStateMachine;
         private IPlayerAnimator _playerAnimator;

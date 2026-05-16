@@ -14,7 +14,7 @@ namespace Gameplay.StateMachines.PlayerStates.AbilityStates
         {
             base.Enter();
             
-            SkillsController.Skills[SkillType.BranchSwitch].Cast();
+            SkillsController.Skills[SkillType.BranchSwitch].TryCast();
         }
     }
 }

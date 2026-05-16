@@ -16,7 +16,7 @@ namespace Gameplay.Enemies.States
 
         public override void Enter()
         {
-            _skillsController.Skills[SkillType.Melee].Cast();
+            _skillsController.Skills[SkillType.Melee].TryCast();
             EnemyAnimator.StartCoroutine(SwordColliderSwitch());
             Debug.Log("Entering ENEMY ATTACK");
             EnemyAnimator.DoAttack();

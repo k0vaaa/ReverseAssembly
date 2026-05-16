@@ -15,7 +15,7 @@ namespace Gameplay.Enemies.BossStates
 
         public override void Enter()
         {
-            _skillsController.Skills[SkillType.Heavy].Cast();
+            _skillsController.Skills[SkillType.Heavy].TryCast();
             BossAnimator.DoSuperAttack();
             NavMeshAgent.isStopped = true;
             Debug.Log("Entering BOSS SUPER ATTACK");

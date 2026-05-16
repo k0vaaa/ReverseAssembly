@@ -1,16 +1,19 @@
 using System;
-using Core.DI;
+using Core.Events;
+using Core.Extensions;
 using Core.Input;
 using Gameplay.Anims;
 using Gameplay.Combat.Interfaces;
 using Gameplay.StateMachines;
 using Gameplay.StateMachines.PlayerStates.MoveStates;
 using Gameplay.Combat.Health;
+using Gameplay.Events;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class MovementController : MonoBehaviour, IInjectable
+    public class MovementController : MonoBehaviour
     {
         [Inject] private InputManager _inputManager;
         private StateMachine _moveStateMachine;
@@ -37,7 +40,7 @@ namespace Gameplay.Controllers.Player
         [SerializeField] private LayerMask _groundCheckLayerMask;
         private float _groundCheckDistance;
 
-        private bool _death;
+        private bool _isDead;
 
         private Vector3 _inertialMoveDirection;
 
@@ -58,9 +61,10 @@ namespace Gameplay.Controllers.Player
             _playerAnimator = GetComponent<IPlayerAnimator>();
             _controller = GetComponent<CharacterController>();
             _stabilitySystem = GetComponent<StabilitySystem>();
+            _camera = GetComponentInChildren<Camera>();
         }
 
-        public void Init(Camera camera)
+        /*public void Init(Camera camera)
         {
             if (camera == null)
             {
@@ -70,7 +74,7 @@ namespace Gameplay.Controllers.Player
             {
                 _camera = camera;
             }
-        }
+        }*/
 
         private void Start()
         {
@@ -96,7 +100,7 @@ namespace Gameplay.Controllers.Player
             var sprintingState = new SprintingState(this, _playerAnimator);
             var fallingState = new FallingState(this, _playerAnimator);
             var deathState = new DeathState(this, _playerAnimator);
-            gameObject.GetComponent<IKillable>().OnDeath.AddListener(value => _death = value);
+            EventBus.Subscribe<PlayerDeathEvent>(_ => _isDead = true).AddTo(gameObject);
 
             _moveStateMachine.AddTransition(idleState, walkingState, () => _inputManager.MoveInput != Vector2.zero);
             _moveStateMachine.AddTransition(idleState, sprintingState, () => _inputManager.SprintInput && CanSprint);
@@ -116,7 +120,7 @@ namespace Gameplay.Controllers.Player
                 _inputManager.OnJumpPressed += HandleJump;
             }
 
-            _moveStateMachine.AddAnyTransition(deathState, () => _death);
+            _moveStateMachine.AddAnyTransition(deathState, () => _isDead);
 
             _moveStateMachine.SetState(idleState);
         }
@@ -202,7 +206,8 @@ namespace Gameplay.Controllers.Player
         private void CheckGround()
         {
             Ray ray = new Ray(transform.TransformPoint(_controller.center), Vector3.down);
-            IsGrounded = Physics.SphereCast(ray, _controller.radius*transform.lossyScale.x, _groundCheckDistance,
+            var radius = _controller.radius*transform.lossyScale.x;
+            IsGrounded = Physics.SphereCast(ray, radius, _groundCheckDistance - radius,
                 _groundCheckLayerMask);
         }
 
@@ -216,17 +221,18 @@ namespace Gameplay.Controllers.Player
             if (_controller == null) return;
 
             Vector3 origin = transform.TransformPoint(_controller.center);
-            float maxDistance = (_controller.height * transform.lossyScale.y / 2) + 0.1f;
+            var radius = _controller.radius * transform.lossyScale.x;
+            float maxDistance = (_controller.height * transform.lossyScale.y / 2) + 0.1f - radius;
             //float maxDistance = 5;
 
             // Зеленый цвет, если на земле, красный если в воздухе
             Gizmos.color = Color.green;
 
             // Отрисовка SphereCast
-            Gizmos.DrawWireSphere(origin, _controller.radius * transform.lossyScale.x); // Стартовая сфера (внутри тела)
+            Gizmos.DrawWireSphere(origin, radius); // Стартовая сфера (внутри тела)
             Gizmos.color = IsGrounded ? Color.green : Color.red;
             Gizmos.DrawWireSphere(origin + Vector3.down * maxDistance,
-                _controller.radius * transform.lossyScale.x); // Конечная сфера (возле ног)
+                radius); // Конечная сфера (возле ног)
 
             // Линии, соединяющие сферы для имитации "капсулы" каста
             Gizmos.DrawLine(origin + Vector3.left * _controller.radius,

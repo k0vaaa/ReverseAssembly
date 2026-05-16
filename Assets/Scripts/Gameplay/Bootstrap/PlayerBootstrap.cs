@@ -1,77 +1,68 @@
-﻿using Core.DI;
+﻿
 using Core.Events;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
+using Core.UI;
 using Gameplay.Combat.Health;
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Controllers.Player;
 using Gameplay.Events;
 using Gameplay.UI.Views.Gameplay;
+using Reflex.Attributes;
+using Reflex.Core;
+using Reflex.Injectors;
 using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class PlayerBootstrap
+    public class PlayerBootstrap : MonoBehaviour, IBootstrapComponent
     {
-        private PlayerDataInteractor _playerDataInteractor;
+        [HideInInspector] public GameObject Player;
 
-        private readonly DIContainer _diContainer;
-        private readonly Transform _playerSpawnPoint;
-        private readonly GameObject _playerPrefab;
-        private  Camera _camera;
-        private readonly CooldownView _cooldownView;
-        private readonly StabilityBarView _stabilityBarView;
+        [Inject] private PlayerDataInteractor _playerDataInteractor;
+        [Inject] private SettingsInteractor _settingsInteractor;
+        [Inject] private Container _container;
+        
+        [SerializeField] private Transform _playerSpawnPoint;
+        [SerializeField] private GameObject _playerPrefab;
+        [SerializeField] private Camera _camera;
+        [Inject] private ViewManager _viewManager;
+        
+        private CooldownView _cooldownView;
+        private StabilityBarView _stabilityBarView;
 
-        private GameObject _player;
         private StabilitySystem _playerStabilitySystem;
 
-        public PlayerBootstrap(
-            PlayerDataInteractor playerDataInteractor,
-            Transform playerSpawnPoint,
-            GameObject playerPrefab,
-            Camera camera,
-            CooldownView cooldownView,
-            StabilityBarView stabilityBarView,
-            DIContainer diContainer)
+        public void Boot()
         {
-            _playerDataInteractor = playerDataInteractor;
-            _playerSpawnPoint = playerSpawnPoint;
-            _playerPrefab = playerPrefab;
-            _cooldownView = cooldownView;
-            _stabilityBarView = stabilityBarView;
-            _diContainer = diContainer;
+            SetupPlayer();
         }
 
-        public GameObject SetupPlayer()
+        private void SetupPlayer()
         {
-            _player = Object.Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
-            _camera = _player.GetComponentInChildren<Camera>();
-            
-            _playerStabilitySystem = _player.GetComponent<StabilitySystem>();
-            var movementController = _player.GetComponent<MovementController>();
-            var fightController = _player.GetComponent<FightController>();
-            var skillsController = _player.GetComponent<SkillsController>();
-            var scannerController = _player.GetComponent<ScannerController>();
-            var terminalController = _player.GetComponent<PlayerTerminalController>();
-            
-            _diContainer.Inject(movementController);
-            _diContainer.Inject(fightController);
-            _diContainer.Inject(skillsController);
-            _diContainer.Inject(scannerController);
-            _diContainer.Inject(terminalController);
-            _diContainer.Inject(_player.GetComponentInChildren<FirstPersonLook>());
+            Player = Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
+            GameObjectInjector.InjectRecursive(Player,_container);
+            _camera = Player.GetComponentInChildren<Camera>();
+            _playerStabilitySystem = Player.GetComponent<StabilitySystem>();
+            var movementController = Player.GetComponent<MovementController>();
+            var skillsController = Player.GetComponent<SkillsController>();
+            var scannerController = Player.GetComponent<ScannerController>();
+            var terminalController = Player.GetComponent<PlayerTerminalController>();
+
+            _stabilityBarView = _viewManager.GetView<StabilityBarView>();
+            _cooldownView = _viewManager.GetView<CooldownView>();
             
             scannerController.Init();
             terminalController.Init();
             
             _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeHp);
+            
             // TODO настроить сейвы
             _playerStabilitySystem.Init(1);
             _playerStabilitySystem.SetStability(100);
 
 
             
-            movementController.Init(_camera);
             skillsController.Init(_camera);
             SetupCooldownListeners(skillsController);
             // TODO настроить сейвы
@@ -80,15 +71,15 @@ namespace Gameplay.Bootstrap
             {
                 // Запускаем корутину или просто меняем позицию через задержку.
                 // Так как это не MonoBehaviour, используем сам Player для корутины или Invoke.
-                var monoBehaviour = _player.GetComponent<MonoBehaviour>();
+                var monoBehaviour = Player.GetComponent<MonoBehaviour>();
                 monoBehaviour.Invoke(nameof(SetPos), 0.05f);
             }
             EventBus.Raise(new PlayerSpawnEvent()
             {
-                PlayerTransform = _player.transform,
+                PlayerTransform = Player.transform,
                 Camera = _camera
             });
-            return _player;
+            
         }
 
         private void SetupCooldownListeners(SkillsController skillsController)
@@ -101,9 +92,9 @@ namespace Gameplay.Bootstrap
 
         private void SetPos()
         {
-            if (_player != null && _playerDataInteractor != null)
+            if (Player != null && _playerDataInteractor != null)
             {
-                _player.transform.position = _playerDataInteractor.CurrentSave.Position;
+                Player.transform.position = _playerDataInteractor.CurrentSave.Position;
             }
         }
     }

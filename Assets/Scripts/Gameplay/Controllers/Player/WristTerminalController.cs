@@ -1,13 +1,14 @@
 ﻿using System;
 using Core.Bootstrap;
-using Core.DI;
+
 using Gameplay.Core;
+using Reflex.Attributes;
 using UnityEngine;
 using InputManager = Core.Input.InputManager;
 
 namespace Gameplay.Controllers.Player
 {
-    public class WristTerminalController : MonoBehaviour, IInjectable, IInitializable, IDisposable
+    public class WristTerminalController : MonoBehaviour, IInitializable, IDisposable
     {
         [Inject] private InputManager _inputManager;
         [Inject] private BranchManager _branchManager;

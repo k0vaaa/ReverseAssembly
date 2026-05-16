@@ -1,16 +1,17 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Core.DI;
+
 using Core.Events;
 using Core.Pause;
+using Reflex.Attributes;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.Pool;
 
 namespace Core.Audio
 {
-    public class AudioManager : MonoBehaviour, IInjectable
+    public class AudioManager : MonoBehaviour
     {
         public VolumeSettings Settings { get; private set; }
         
@@ -18,9 +19,9 @@ namespace Core.Audio
         [SerializeField] private AudioSource _musicSourceB;
         [SerializeField] private AudioSource _uiSource;
         [SerializeField] private bool _sfxIgnorePause;
+        [SerializeField] private AudioMixer _mainMixer;
         private ObjectPool<AudioSource> _sfxSources;
         private GameObject _sfxContainer;
-        [Inject] private AudioMixer _mainMixer;
 
 
         private void Awake()
