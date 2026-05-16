@@ -43,12 +43,14 @@ namespace Gameplay.Combat.Offensive.Base
         }
 
 
-        public virtual void Cast()
+        public void TryCast()
         {
             if(!_isReady) return;
             timeUntilReady = _cooldownTime;
-            
+            CastAction();
         }
+
+        protected abstract void CastAction();
     }
 
     public enum SkillType

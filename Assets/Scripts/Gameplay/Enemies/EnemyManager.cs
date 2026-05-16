@@ -1,184 +1,4 @@
-﻿// using System;
-// using System.Collections;
-// using System.Collections.Generic;
-// using Bootstraps;
-// using Controllers.Entities;
-// using Controllers.Entities.HealthController;
-// using Controllers.SaveLoad.Saveables;
-// using Controllers.SaveLoad.Settings;
-// using UnityEngine;
-// using Views.Gameplay;
-// using Object = UnityEngine.Object;
-// using Random = UnityEngine.Random;
-//
-// namespace Enemy
-// {
-//     public class EnemyManager
-//     {
-//         private SettingsInteractor _settingsInteractor;
-//         private GameObject[] _enemyPrefabs;
-//         private Vector2 _enemiesSpawnAreaExtents;
-//         private Vector3 _enemiesSpawnAreaCenter;
-//         private int _enemiesCount;
-//         private List<EnemyController> _enemies = new();
-//         private List<BossController> _boss = new();
-//
-//         private GameObject _bossPrefab;
-//         private Vector3 _bossSpawnPoint;
-//         
-//         public EnemyManager(SettingsInteractor settingsInteractor, Vector2 enemiesSpawnAreaSize, GameObject[] enemyPrefabs, Vector3 enemiesSpawnAreaCenter, int enemiesCount, GameObject _boss, Vector3 bossSpawnPoint)
-//         {
-//             _settingsInteractor = settingsInteractor;
-//             _enemiesSpawnAreaExtents = enemiesSpawnAreaSize;
-//             _enemyPrefabs = enemyPrefabs;
-//             _enemiesSpawnAreaCenter = enemiesSpawnAreaCenter;
-//             _enemiesCount = enemiesCount;
-//             _bossPrefab = _boss;
-//             SpawnEnemies(_enemiesCount);
-//             _bossSpawnPoint = bossSpawnPoint;
-//         }
-//         
-//         
-//         public void SpawnEnemies(int enemiesCount)
-//         {   
-//             
-//                  
-//             var enemiesPower = _settingsInteractor.LoadSettings().EnemiesPower;
-//             for (int i = 0; i < enemiesCount; i++)
-//             {
-//                 int prefabIndex = Random.Range(0, _enemyPrefabs.Length);
-//
-//                 var enemyPrefab = _enemyPrefabs[prefabIndex];
-//                 var enemy = Object.Instantiate(enemyPrefab, GetRandomPosition(), Quaternion.identity)
-//                     .GetComponent<EnemyController>();
-//                 var healthSystem = enemy.GetComponent<HealthSystem>();
-//                 healthSystem.onHealthChanged.AddListener(enemy.GetComponentInChildren<HealthBarView>().ChangeHp);
-//                 healthSystem.Init(enemiesPower);
-//                 healthSystem.onDeath.AddListener((_) => OnEnemyDeath());
-//                 enemy.GetComponent<SkillsController>().Init(null);
-//                 enemy.UniqueId = System.Guid.NewGuid().ToString(); // Уникальный ID
-//                 enemy.PrefabIndex = prefabIndex; // Сохраняем индекс префаба
-//
-//                 _enemies.Add(enemy);
-//
-//                 
-//                 // healthSystem.onDeath.AddListener((isDead) => CheckAllEnemiesDead());
-//             }
-//         }
-//         
-//         public List<EnemyData> GetEnemyData()
-//         {
-//             List<EnemyData> enemyDataList = new List<EnemyData>();
-//             foreach (var enemy in _enemies)
-//             {
-//                 if (enemy != null && !enemy.isDead) // Сохраняем только живых врагов
-//                 {
-//                     enemyDataList.Add(new EnemyData
-//                     {
-//                         Id = enemy.UniqueId,
-//                         Position = enemy.transform.position,
-//                         Health = enemy.GetComponent<HealthSystem>().Health, // Предполагается, что HealthSystem имеет CurrentHealth
-//                         PrefabIndex = enemy.PrefabIndex
-//                     });
-//                 }
-//             }
-//             return enemyDataList;
-//         }
-//
-//         public void LoadEnemies(List<EnemyData> enemyDataList)
-//         {   
-//             if (enemyDataList.Count == 0) return;
-//             // Очищаем существующих врагов
-//             foreach (var enemy in _enemies)
-//             {
-//                 if (enemy != null)
-//                 {
-//                     Object.Destroy(enemy.gameObject);
-//                 }
-//             }
-//             _enemies.Clear();
-//             
-//             // Создаём врагов из сохранённых данных
-//
-//             var enemiesPower = _settingsInteractor.LoadSettings().EnemiesPower;
-//             foreach (var enemyData in enemyDataList)
-//             {   
-//                 if (enemyData.PrefabIndex >= 0 && enemyData.PrefabIndex < _enemyPrefabs.Length)
-//                 {
-//                     var enemyPrefab = _enemyPrefabs[enemyData.PrefabIndex];
-//                     var enemy = Object.Instantiate(enemyPrefab, enemyData.Position, Quaternion.identity)
-//                         .GetComponent<EnemyController>();
-//                     enemy.UniqueId = enemyData.Id;
-//                     enemy.PrefabIndex = enemyData.PrefabIndex;
-//                     
-//                     var healthSystem = enemy.GetComponent<HealthSystem>();
-//
-//                     healthSystem.onHealthChanged.AddListener(enemy.GetComponentInChildren<HealthBarView>().ChangeHp);
-//                     healthSystem.Init(enemiesPower);
-//                     healthSystem.onDeath.AddListener((_) => OnEnemyDeath());
-//                     healthSystem.SetHealth(enemyData.Health);
-//                     enemy.GetComponent<SkillsController>().Init(null);
-//                     _enemies.Add(enemy);
-//
-//                 }
-//                 else
-//                 {
-//                     Debug.LogWarning($"Недопустимый PrefabIndex: {enemyData.PrefabIndex}");
-//                 }
-//             }
-//         }
-//         
-//         private void OnEnemyDeath()
-//         {   
-//             foreach (var obj in _enemies)
-//             {
-//                 Debug.Log(obj.UniqueId + "АЙДИ");
-//                 Debug.Log(obj.isDead + "СОСТОЯНИЕ");
-//
-//                 if (!obj.isDead)
-//                 {
-//                     return;
-//                 }
-//             }
-//             
-//             Debug.Log("все умерли");
-//             SpawnBoss();
-//         }
-//         
-//         
-//         
-//         private Vector3 GetRandomPosition()
-//         {
-//             return new Vector3(
-//                 Random.Range(_enemiesSpawnAreaCenter.x - _enemiesSpawnAreaExtents.x, _enemiesSpawnAreaCenter.x + _enemiesSpawnAreaExtents.x),
-//                 _enemiesSpawnAreaCenter.y,
-//                 Random.Range(_enemiesSpawnAreaCenter.z - _enemiesSpawnAreaExtents.y, _enemiesSpawnAreaCenter.z + _enemiesSpawnAreaExtents.y));
-//         }
-//
-//         private void SpawnBoss()
-//         {
-//             var bossPrefab = _bossPrefab;
-//             var enemy = Object.Instantiate(bossPrefab, _bossSpawnPoint, Quaternion.identity)
-//                 .GetComponent<BossController>();
-//             // enemy.UniqueId = enemyData.Id;
-//             // enemy.PrefabIndex = enemyData.PrefabIndex;
-//                     
-//             var healthSystem = enemy.GetComponent<HealthSystem>();
-//
-//             healthSystem.onHealthChanged.AddListener(enemy.GetComponentInChildren<HealthBarView>().ChangeHp);
-//             // healthSystem.Init(enemiesPower);
-//             healthSystem.onDeath.AddListener((_) => OnEnemyDeath());
-//             // healthSystem.SetHealth(b.Health);
-//             enemy.GetComponent<SkillsController>().Init(null);
-//         }
-//         
-//         
-//         
-//     }
-// }
-
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.Saveables;
@@ -187,6 +7,7 @@ using Gameplay.Combat.Interfaces;
 using Gameplay.Controllers.Player;
 using Gameplay.UI.Views;
 using Gameplay.UI.Views.Gameplay;
+using Reflex.Attributes;
 using UnityEngine;
 using Object = UnityEngine.Object; 
 using Random = UnityEngine.Random;
@@ -196,7 +17,7 @@ namespace Gameplay.Enemies
     public class EnemyManager
     {
         private CharacterController _player;
-        private readonly SettingsInteractor _settingsInteractor;
+        [Inject] private  SettingsInteractor _settingsInteractor;
         private readonly GameObject[] _enemyPrefabs;
         private readonly Vector2 _enemiesSpawnAreaExtents;
         private readonly Vector3 _enemiesSpawnAreaCenter;
@@ -267,7 +88,7 @@ namespace Gameplay.Enemies
 
                 enemy.Init(peaceMode, _player.transform);
                 stabilitySystem.Init(enemiesPower);
-                stabilitySystem.OnDeath.AddListener((_) => OnEnemyDeath());
+                stabilitySystem.OnDeath.AddListener(OnEnemyDeath);
                 skillsController?.Init(null);
                 enemy.UniqueId = Guid.NewGuid().ToString();
                 enemy.PrefabIndex = prefabIndex;
@@ -360,16 +181,7 @@ namespace Gameplay.Enemies
                     _aliveCount--;
                     continue;
                 }
-
-                /*var healthBarView = character.GetComponentInChildren<HealthBarView>();
-                if (healthBarView == null)
-                {
-                    Debug.LogWarning($"Character {instantiatedObject.name} does not have HealthBarView component.");
-                }
-                else
-                {
-                    healthSystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
-                }*/
+                
 
                 var skillsController = instantiatedObject.GetComponent<SkillsController>();
                 if (skillsController == null)
@@ -381,7 +193,7 @@ namespace Gameplay.Enemies
                 character.PrefabIndex = enemyData.PrefabIndex;
                 character.Init(loadSettings.PeaceMode, _player.transform);
                 healthSystem.Init(enemiesPower);
-                healthSystem.OnDeath.AddListener((_) => OnEnemyDeath());
+                healthSystem.OnDeath.AddListener(OnEnemyDeath);
                 healthSystem.SetStability(enemyData.Health);
                 skillsController?.Init(null);
                 _characters.Add(character);
@@ -458,7 +270,7 @@ namespace Gameplay.Enemies
             }
 
             healthSystem.Init(_settingsInteractor.LoadSettings().EnemiesPower);
-            healthSystem.OnDeath.AddListener((_) => OnEnemyDeath());
+            healthSystem.OnDeath.AddListener(OnEnemyDeath);
             skillsController?.Init(null);
             boss.Init(_settingsInteractor.LoadSettings().PeaceMode, _player.transform);
             boss.UniqueId = Guid.NewGuid().ToString();

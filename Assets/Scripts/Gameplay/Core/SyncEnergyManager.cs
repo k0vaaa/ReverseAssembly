@@ -1,11 +1,11 @@
 ﻿using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Gameplay.Events;
 
 namespace Gameplay.Core
 {
-    public class SyncEnergyManager : IInjectable, IInitializable
+    public class SyncEnergyManager : IInitializable
     {
         public float MaxEnergy { get; private set; } = 100f;
         public float JumpCost { get; private set; } = 30f;

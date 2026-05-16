@@ -1,5 +1,5 @@
 ﻿using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Core.Extensions;
 using Core.Pause;
@@ -8,11 +8,12 @@ using Core.Scenes;
 using Core.UI;
 using Gameplay.UI.Views.Gameplay;
 using Gameplay.UI.Views.MainMenu;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Gameplay.Pause
 {
-    public class PauseMenuController : MonoBehaviour, IInjectable, IInitializable
+    public class PauseMenuController : MonoBehaviour, IInitializable
     {
         [Inject] private ViewManager _viewManager;
         [Inject] private SceneLoader _sceneLoader;

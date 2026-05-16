@@ -1,6 +1,6 @@
 using System;
 using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Core.Extensions;
 using Gameplay.Interactables;
@@ -10,10 +10,11 @@ using InputManager = Core.Input.InputManager;
 using Gameplay.UI;
 using Core.UI;
 using Gameplay.Events;
+using Reflex.Attributes;
 
 namespace Gameplay.Controllers.Player
 {
-    public class ScannerController : MonoBehaviour, IInjectable, IInitializable, IDisposable
+    public class ScannerController : MonoBehaviour, IInitializable, IDisposable
     {
         [Inject] private InputManager _inputManager;
         [Inject] private ViewManager _viewManager;

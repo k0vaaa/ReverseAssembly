@@ -1,11 +1,11 @@
 ﻿using System;
-using Core.DI;
 using Core.Events;
 using Core.Input;
 using Core.Pause;
+using Reflex.Attributes;
 using UnityEngine;
 
-public class FirstPersonLook : MonoBehaviour, IInjectable
+public class FirstPersonLook : MonoBehaviour
 {
     [SerializeField] Transform character;
     [Inject] private InputManager _inputManager;

@@ -8,17 +8,16 @@ namespace Gameplay.Combat.Offensive.Skills
 {
     public class MeleeSkill : Skill
     {
-        private Sword _sword;
+        private DamageCollider _damageCollider;
         public MeleeSkill(SkillData skillData, GameObject sword, IDamageable self) : base(skillData)
         {
-            _sword = sword.AddComponent<Sword>();
-            _sword.Init(self,skillData.damage);
+            _damageCollider = sword.AddComponent<DamageCollider>();
+            _damageCollider.Init(self,skillData.damage);
         }
 
-        public override void Cast()
+        protected override void CastAction()
         {
-            base.Cast();
-            _sword.ClearEnemiesList();
+            _damageCollider.ClearEnemiesList();
         }
     }
 }

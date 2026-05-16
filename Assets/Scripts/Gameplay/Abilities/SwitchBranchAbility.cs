@@ -15,11 +15,11 @@ namespace Gameplay.Abilities
             _playerTerminalController = playerTerminalController;
         }
 
-        public override void Cast()
+        protected override void CastAction()
         {
             if (_playerTerminalController.TryJump())
             {
-                base.Cast();
+                base.TryCast();
             }
         }
     }

@@ -15,7 +15,7 @@ namespace Gameplay.Enemies.BossStates
 
         public override void Enter()
         {
-            _skillsController.Skills[SkillType.Punch].Cast();
+            _skillsController.Skills[SkillType.Punch].TryCast();
             // EnemyAnimator.StartCoroutine(SwordColliderSwitch());
             Debug.Log("Entering BOSS ATTACK");
             BossAnimator.DoAttack();

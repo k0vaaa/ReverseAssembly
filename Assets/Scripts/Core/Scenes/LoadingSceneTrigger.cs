@@ -1,10 +1,11 @@
 ﻿using Core.Bootstrap;
-using Core.DI;
+
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Core.Scenes
 {
-    public class LoadingSceneTrigger : MonoBehaviour, IInjectable, IInitializable
+    public class LoadingSceneTrigger : MonoBehaviour, IInitializable
     {
         [Inject] private SceneLoader _sceneLoader;
 

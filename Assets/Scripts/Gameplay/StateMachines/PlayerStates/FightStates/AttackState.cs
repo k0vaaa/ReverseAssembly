@@ -20,7 +20,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
             Debug.Log("Entering Melee");
             FightController.StartCoroutine(SwordColliderSwitch());
             PlayerAnimator.DoAttack();
-            SkillsController.Skills[SkillType.Melee].Cast();
+            SkillsController.Skills[SkillType.Melee].TryCast();
 
         }
 

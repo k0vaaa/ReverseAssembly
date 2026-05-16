@@ -8,18 +8,17 @@ namespace Gameplay.Combat.Offensive.Skills
 {
     public class HeavyAttack : Skill
     {
-        private readonly Sword _sword;
+        private readonly DamageCollider _damageCollider;
 
         public HeavyAttack(SkillData skillData, Transform a, Transform b, GameObject sword, IDamageable self) : base(skillData)
         {
-            _sword = sword.AddComponent<Sword>();
-            _sword.Init(self,skillData.damage);
+            _damageCollider = sword.AddComponent<DamageCollider>();
+            _damageCollider.Init(self,skillData.damage);
         }
 
-        public override void Cast()
+        protected override void CastAction()
         {
-            base.Cast();
-            _sword.ClearEnemiesList();
+            _damageCollider.ClearEnemiesList();
         }
     }
 }

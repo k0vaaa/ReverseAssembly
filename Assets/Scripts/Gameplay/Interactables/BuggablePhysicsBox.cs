@@ -1,14 +1,15 @@
 using System;
 using UnityEngine;
-using Core.DI;
+
 using Core.UI;
 using Core.Input;
 using Gameplay.UI;
+using Reflex.Attributes;
 
 namespace Gameplay.Interactables
 {
     [RequireComponent(typeof(Rigidbody))]
-    public class BuggablePhysicsBox : BuggableBase, IInjectable
+    public class BuggablePhysicsBox : BuggableBase
     {
         [Inject] private ViewManager _viewManager;
         [Inject] private InputManager _inputManager;

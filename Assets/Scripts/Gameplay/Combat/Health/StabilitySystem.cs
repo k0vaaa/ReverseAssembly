@@ -8,7 +8,7 @@ using UnityEngine.Events;
 
 namespace Gameplay.Combat.Health
 {
-    public class StabilitySystem : MonoBehaviour, IDamageable, IHealthChange, IHittable, IKillable, IInitializable
+    public class StabilitySystem : MonoBehaviour, IDamageable, IHittable, IKillable, IInitializable
     {
         private ICharacterController _controller;
 
@@ -19,14 +19,6 @@ namespace Gameplay.Combat.Health
             {
                 _stability = value;
                 onStabilityChanged?.Invoke(_stability, MaxStability);
-                if (_controller == null)
-                {
-                    EventBus.Raise(new PlayerStabilityChangedEvent()
-                    {
-                        IsGlitched = (_stability / MaxStability) < 0.3f,
-                        StabilityPercent = _stability / MaxStability
-                    });
-                }
             }
         }
 
@@ -34,7 +26,7 @@ namespace Gameplay.Combat.Health
         
         public UnityEvent<float, float> onStabilityChanged { get; } = new();
 
-        public UnityEvent<bool> OnDeath { get; } = new();
+        public UnityEvent OnDeath { get; } = new();
 
         public UnityEvent onHit { get; } = new();
 
@@ -89,7 +81,7 @@ namespace Gameplay.Combat.Health
 
         public void Die()
         {
-            OnDeath?.Invoke(true);
+            OnDeath?.Invoke();
         }
     }
 

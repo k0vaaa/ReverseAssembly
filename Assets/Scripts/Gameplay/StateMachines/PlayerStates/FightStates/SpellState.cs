@@ -35,7 +35,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
         private IEnumerator SpellCast()
         {
             yield return new WaitUntil(()=>PlayerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.425f, "Spell"));
-            SkillsController.Skills[SkillType.Fireball].Cast();
+            SkillsController.Skills[SkillType.Fireball].TryCast();
         }
     }
 }

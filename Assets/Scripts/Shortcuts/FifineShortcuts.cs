@@ -1,4 +1,6 @@
 using System;
+using System.Reflection;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -11,39 +13,18 @@ namespace Shortcuts
         // Символы в конце: % = Ctrl, # = Shift, & = Alt. 
         // То есть шорткат будет: Ctrl + Alt + 1
         [MenuItem("MyTools/Focus Folders/Prefabs %#&1")]
-        public static void FocusPrefabsFolder()
+        public static async void FocusPrefabsFolder()
         {
-            // Укажи путь к нужной тебе папке внутри проекта
-            Object folder = AssetDatabase.LoadAssetAtPath<Object>("Assets/Prefabs");
-        
-            if (folder != null)
-            {
-                // Делаем папку активной (как будто кликнули по ней)
-                Selection.activeObject = folder;
-                EditorUtility.FocusProjectWindow();
-                // "Пингуем" её (папка мигнет желтым цветом в окне Project)
-                //EditorGUIUtility.PingObject(folder);
-            }
-            else
-            {
-                Debug.LogWarning("Папка не найдена!");
-            }
+            await FocusOnFolder("Assets/Prefabs");
         }
 
-        // Можешь добавить сколько угодно таких папок!
         // Шорткат: Ctrl + Shift + Alt + 2
         [MenuItem("MyTools/Focus Folders/Scripts %#&2")]
-        public static void FocusScriptsFolder()
+        public static async void FocusScriptsFolder()
         {
-            Object folder = AssetDatabase.LoadAssetAtPath<Object>("Assets/Scripts");
-            if (folder != null)
-            {
-                Selection.activeObject = folder;
-                EditorUtility.FocusProjectWindow();
-                //EditorGUIUtility.PingObject(folder);
-            }
+            await FocusOnFolder("Assets/Scripts");
         }
-        
+
         [MenuItem("MyTools/Toggle Inspector Lock %#&3")]
         public static void ToggleInspectorLock()
         {
@@ -64,6 +45,70 @@ namespace Shortcuts
                 Debug.Log("<b>[Fifine]</b> Инспектор <color=green>РАЗБЛОКИРОВАН 🔓</color>");
             }
         }
+
+        private static async Task FocusOnFolder(string path)
+        {
+            Object folder = AssetDatabase.LoadAssetAtPath<Object>(path);
+            if (folder != null)
+            {
+                var selection = Selection.activeObject;
+                Selection.activeObject = folder;
+                EditorUtility.FocusProjectWindow();
+                await Task.Delay(100);
+                Selection.activeObject = selection;
+            }
+            else
+            {
+                Debug.LogWarning("Папка не найдена!");
+            }
+        }
         
+        private static void OpenAndFocusFolder(string path)
+        {
+            Object folder = AssetDatabase.LoadAssetAtPath<Object>(path);
+        
+            if (folder != null)
+            {
+                // 1. Делаем окно Project АКТИВНЫМ (переводим на него фокус)
+                EditorUtility.FocusProjectWindow();
+
+                // 2. Выделяем папку и подсвечиваем её (Ping)
+                Selection.activeObject = folder;
+                EditorGUIUtility.PingObject(folder);
+
+                // 3. Заходим внутрь папки (эмуляция двойного клика)
+                EnterFolder(folder);
+            }
+            else
+            {
+                Debug.LogWarning($"[Fifine] Папка по пути {path} не найдена!");
+            }
+        }
+
+        // Та самая "чёрная магия" через рефлексию
+        private static void EnterFolder(Object folder)
+        {
+            // Ищем внутренний (скрытый) класс ProjectBrowser
+            System.Type projectBrowserType = System.Type.GetType("UnityEditor.ProjectBrowser,UnityEditor");
+            if (projectBrowserType != null)
+            {
+                // Получаем текущее открытое окно Project
+                EditorWindow window = EditorWindow.GetWindow(projectBrowserType);
+                if (window != null)
+                {
+                    // Ищем скрытый метод "ShowFolderContents", который отвечает за вход в папку
+                    MethodInfo showFolderMethod = projectBrowserType.GetMethod(
+                        "ShowFolderContents",
+                        BindingFlags.Instance | BindingFlags.NonPublic);
+
+                    if (showFolderMethod != null)
+                    {
+                        // Вызываем этот метод, передавая ему ID нашей папки
+                        showFolderMethod.Invoke(window, new object[] { folder.GetInstanceID(), true });
+                    }
+                }
+            }
+        }
+
     }
 }

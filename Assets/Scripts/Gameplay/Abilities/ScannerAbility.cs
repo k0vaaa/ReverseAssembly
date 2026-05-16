@@ -13,9 +13,8 @@ namespace Gameplay.Abilities
             _scannerController = scannerController;
         }
 
-        public override void Cast()
+        protected override void CastAction()
         {
-            base.Cast();
             _scannerController.ToggleScanner();
         }
     }

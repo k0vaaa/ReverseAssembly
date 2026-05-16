@@ -20,9 +20,8 @@ namespace Gameplay.Combat.Offensive.Skills
             _prefab = _spellSkillData._projectilePrefab;
         }
 
-        public override void Cast()
+        protected override void CastAction()
         {
-            base.Cast();
             _castPoint = GameObject.FindGameObjectWithTag("Player").transform;
             var spell = Object.Instantiate(_prefab, _castPoint.position, Quaternion.identity).GetComponent<AOESpell>();
             spell.Init(_spellSkillData.damage, _caster.GetComponent<IDamageable>());

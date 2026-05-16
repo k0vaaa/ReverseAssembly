@@ -1,11 +1,12 @@
 ﻿using Core.Audio;
-using Core.DI;
+
 using Gameplay.Core;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Gameplay.Interactables
 {
-    public class SyncEnergyFragment : MonoBehaviour, IInjectable
+    public class SyncEnergyFragment : MonoBehaviour
     {
         [Inject] private SyncEnergyManager _syncEnergyManager;
         [Inject] private AudioManager _audioManager;

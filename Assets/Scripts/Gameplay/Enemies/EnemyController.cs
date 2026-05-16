@@ -1,6 +1,6 @@
 ﻿using System;
 using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Core.Extensions;
 using Gameplay.Combat.Health;
@@ -10,15 +10,16 @@ using Gameplay.Controllers.Player;
 using Gameplay.Enemies.States;
 using Gameplay.Events;
 using Gameplay.StateMachines;
+using Reflex.Attributes;
 using UnityEngine;
 using UnityEngine.AI;
 using AttackState = Gameplay.Enemies.States.AttackState;
 
 namespace Gameplay.Enemies
 {
-    public class EnemyController : MonoBehaviour, ICharacterController, IGlitchable, IInitializable, IInjectable
+    public class EnemyController : MonoBehaviour, ICharacterController, IGlitchable, IInitializable
     {
-        [Inject] private DIContainer _diContainer;
+        
         public bool isDead { get; set; }
         public string UniqueId { get; set; }
         public int PrefabIndex { get; set; }
@@ -88,7 +89,7 @@ namespace Gameplay.Enemies
 
         private void InjectAndInit()
         {
-            _diContainer.Inject(_skillsController);
+            // todo skill controller needs inject
             _enemyAnimator.Init();
             _skillsController.Init(null);
 

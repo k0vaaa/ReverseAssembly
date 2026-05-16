@@ -21,9 +21,8 @@ namespace Gameplay.Combat.Offensive.Skills
             _caster = caster;
         }
 
-        public override void Cast()
+        protected override void CastAction()
         {
-            base.Cast();
             var obj = Object.Instantiate(_spellProjectile,_castPoint.position, Quaternion.identity);
             var proj = obj.AddComponent<Projectile>();
             proj.Init(Damage, _castPoint.GetComponentInParent<IDamageable>());
@@ -37,7 +36,7 @@ namespace Gameplay.Combat.Offensive.Skills
 
         public void CastPlug()
         {
-            base.Cast();
+            base.TryCast();
         }
     }
 }

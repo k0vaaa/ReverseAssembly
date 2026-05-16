@@ -1,11 +1,12 @@
-﻿using Core.DI;
+﻿
 using Core.Input;
 using Core.Pause;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Core.Gameplay
 {
-    public class LevelManager : MonoBehaviour, IInjectable
+    public class KeyBindingManager : MonoBehaviour
     {
         [Inject] private InputManager _inputManager;
         
