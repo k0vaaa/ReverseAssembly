@@ -1,5 +1,4 @@
 ﻿using System.Collections;
-using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Controllers.Player;
 using UnityEngine;
@@ -10,10 +9,10 @@ namespace Gameplay.Enemies.States
     public class RangeAttackState : StatesEnemyConst
     {
         
-        private SkillsController _skillsController;
-        public RangeAttackState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent, SkillsController skillsController ) : base(enemyController, animator, navMeshAgent)
+        private AbilitiesController _abilitiesController;
+        public RangeAttackState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent, AbilitiesController abilitiesController ) : base(enemyController, animator, navMeshAgent)
         {
-            _skillsController = skillsController;
+            _abilitiesController = abilitiesController;
         }
 
         public override void Enter()
@@ -40,21 +39,21 @@ namespace Gameplay.Enemies.States
         private IEnumerator SpellCast()
         {
             yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.425f, "attackTest"));
-            var plug = (SpellSkill)_skillsController.Skills[SkillType.Fireball];
+            var plug = _abilitiesController.TryGetSkill<ProjectileSkill>();
             if (Random.Range(0, 2) == 1)
             {
-                _skillsController.Skills[SkillType.Fireball].TryCast();
+                _abilitiesController.TryGetSkill<ProjectileSkill>().TryCast();
             }
             else
             {
-                if (_skillsController.Skills[SkillType.Meteor]._isReady)
+                if (_abilitiesController.TryGetSkill<MeteorRain>().IsReady)
                 {
-                    _skillsController.Skills[SkillType.Meteor].TryCast();
+                    _abilitiesController.TryGetSkill<MeteorRain>().TryCast();
                     plug.CastPlug();
                 }
                 else
                 {
-                    _skillsController.Skills[SkillType.Fireball].TryCast();
+                    _abilitiesController.TryGetSkill<ProjectileSkill>().TryCast();
                 }
             }
             

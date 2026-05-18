@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace Invector_3rdPersonController_LITE._3D_Models.Others.HealthItem
+namespace ExternalAssets.Invector_3rdPersonController_LITE._3D_Models.Others.HealthItem
 {
     public class vAnimateUV : MonoBehaviour
     {

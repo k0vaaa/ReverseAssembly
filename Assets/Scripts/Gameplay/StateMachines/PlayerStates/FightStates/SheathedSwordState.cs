@@ -7,16 +7,16 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class SheathedSwordState : FightPlayerState
     {
-        public SheathedSwordState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
+        public SheathedSwordState(FightController fight, AbilitiesController abilities, IPlayerAnimator animator) : base(fight, abilities, animator)
         {
         }
         
         public override void Enter()
         {
             Debug.Log("Entering Sheathed Sword");
-            if (FightController.IsSheathed) return;
-            PlayerAnimator.DoSheath();
-            FightController.StartCoroutine(Sheath());
+            if (Fight.IsSheathed) return;
+            Animator.DoSheath();
+            Fight.StartCoroutine(Sheath());
         }
 
         public override void Exit()
@@ -27,11 +27,10 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
         
         private IEnumerator Sheath()
         {
-            yield return new WaitUntil(()=>PlayerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.8f, "Sheath"));
-            FightController.swordGameObject.SetActive(false);
-            FightController.hipSwordGameObject.SetActive(true);
-            yield return new WaitUntil(()=>PlayerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Sheath"));
-            FightController.IsSheathed = true;
+            yield return new WaitUntil(()=>Animator.CheckAnimationState((int)LayerNames.Fight, 0.8f, "Sheath"));
+            Fight.hipSwordGameObject.SetActive(true);
+            yield return new WaitUntil(()=>Animator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Sheath"));
+            Fight.IsSheathed = true;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Gameplay.StateMachines;
+﻿using Core.StateMachines;
 using UnityEngine.AI;
 
 namespace Gameplay.Enemies

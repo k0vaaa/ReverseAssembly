@@ -1,8 +1,6 @@
 using Core.Bootstrap;
-using Core.Events;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
-using Gameplay.Events;
 using UnityEngine;
 using UnityEngine.Events;
 

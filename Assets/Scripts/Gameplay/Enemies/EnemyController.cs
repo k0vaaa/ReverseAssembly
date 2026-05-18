@@ -3,22 +3,30 @@ using Core.Bootstrap;
 
 using Core.Events;
 using Core.Extensions;
+using Core.StateMachines;
+using Gameplay.Anims;
 using Gameplay.Combat.Health;
 using Gameplay.Combat.Interfaces;
-using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Controllers.Player;
 using Gameplay.Enemies.States;
 using Gameplay.Events;
+
 using Gameplay.StateMachines;
 using Gameplay.UI.Views.Gameplay;
+
 using Reflex.Attributes;
+using Reflex.Core;
+using Reflex.Extensions;
+using Reflex.Injectors;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.SceneManagement;
 using AttackState = Gameplay.Enemies.States.AttackState;
 
 namespace Gameplay.Enemies
 {
-    public class EnemyController : MonoBehaviour, ICharacterController, IGlitchable, IInitializable
+    public class EnemyController : StateBehaviourController, ICharacterController, IGlitchable, IInitializable
     {
         
         public bool isDead { get; set; }
@@ -35,8 +43,6 @@ namespace Gameplay.Enemies
 
         private Canvas _hpCanvas;
 
-        private StateMachine _enemyStateMachine;
-
         private EnemyAnimator _enemyAnimator;
 
         private StabilitySystem _stabilitySystem;
@@ -45,7 +51,7 @@ namespace Gameplay.Enemies
 
         private Transform _playerTransform;
 
-        private SkillsController _skillsController;
+        private EnemySkillsController _abilitiesController;
 
         [SerializeField] private float _rotationSpeed;
 
@@ -65,14 +71,20 @@ namespace Gameplay.Enemies
 
         private float _stunEndTime;
 
+        [SerializeField] private AnimationEventsHandler _animHandler;
+        
+        [Header("Loot")] 
+        [SerializeField] private GameObject _codeBlockPrefab;
+        [Inject] private Container _container;
+        private Container _enemyContainer;
+        private bool _attackAnimEnded;
 
-        [Header("Loot")] [SerializeField] private GameObject _codeBlockPrefab;
 
         private void GetComponents()
         {
             SwordCollider = _sword.GetComponent<BoxCollider>();
-            _enemyStateMachine = new StateMachine();
-            _skillsController = GetComponent<SkillsController>();
+            _stateMachine = new StateMachine();
+            _abilitiesController = GetComponent<EnemySkillsController>();
             _enemyAnimator = GetComponent<EnemyAnimator>();
             _stabilitySystem = GetComponent<StabilitySystem>();
             gameObject.GetComponent<IHittable>().onHit.AddListener(_enemyAnimator.DoHitEvent);
@@ -85,6 +97,10 @@ namespace Gameplay.Enemies
             EventBus.Subscribe<PlayerSpawnEvent>(HandlePlayerSpawn).AddTo(gameObject);
             EventBus.Subscribe<BranchSwitchedEvent>(OnBranchSwitched).AddTo(gameObject);
             _isPeaceful = false;
+            _enemyContainer = _container.Scope(builder =>
+            {
+                builder.RegisterValue(this);
+            });
             GetComponents();
             InjectAndInit();
             EnemyStatesInit();
@@ -94,10 +110,36 @@ namespace Gameplay.Enemies
         private void InjectAndInit()
         {
             // todo skill controller needs inject
+            
+            GameObjectInjector.InjectRecursive(gameObject, _container);
             _enemyAnimator.Init();
-            _skillsController.Init(null);
+            _abilitiesController.Init();
             UpdateUIReference();
+            
 
+
+        }
+
+        private void HandleAnimEnd()
+        {
+            _attackAnimEnded = true;
+        }
+
+        public void ResetAnim()
+        {
+            _attackAnimEnded = false;
+        }
+
+        private void OnEnable()
+        {
+            _animHandler.OnAnimationEnded += HandleAnimEnd;
+            ForceRequestState<IdleState>();
+            
+        }
+
+        private void OnDisable()
+        {
+            _animHandler.OnAnimationEnded -= HandleAnimEnd;
         }
 
         public void Init(bool isPeaceful, Transform playerTransform)
@@ -120,7 +162,7 @@ namespace Gameplay.Enemies
             }
 
             ChasingChecker();
-            _enemyStateMachine.Tick();
+            _stateMachine.Tick();
         }
 
         public void ApplyGlitchStun(float duration)
@@ -158,22 +200,24 @@ namespace Gameplay.Enemies
             transform.rotation = Quaternion.Slerp(transform.rotation, desiredRotation, _rotationSpeed * Time.deltaTime);
         }
 
+        
+
         private void EnemyStatesInit()
         {
             IState attackState;
-            SkillType type;
+            Type type;
             if (CompareTag("Wizard"))
             {
-                attackState = new RangeAttackState(this, _enemyAnimator, _agent, _skillsController);
-                type = SkillType.Fireball;
+                attackState = new RangeAttackState(this, _enemyAnimator, _agent, _abilitiesController);
+                type = typeof(ProjectileSkill);
             }
             else
             {
-                attackState = new AttackState(this, _enemyAnimator, _agent, _skillsController);
-                type = SkillType.Melee;
+                attackState = new AttackState(this, _enemyAnimator, _agent, _abilitiesController);
+                type = typeof(PunchSkill);
             }
-
-            bool AttackReady() => _skillsController.Skills[type]._isReady;
+            var skill = _abilitiesController.TryGetSkill(type);
+            bool AttackReady() => skill.IsReady;
 
 
             var idleState = new IdleState(this, _enemyAnimator, _agent);
@@ -181,34 +225,41 @@ namespace Gameplay.Enemies
             var fearState = new FearState(this, _enemyAnimator, _agent);
             var deathState = new DeathState(this, _enemyAnimator, _agent, _hpCanvas);
 
-            bool AttackAnimationEnded() => _enemyAnimator.CheckAnimationState(0, 0.99f, "PunchEnemyMain");
+            
 
 
-            _enemyStateMachine.AddAnyTransition(deathState, () => _stabilitySystem.Stability <= 0f);
+            _stateMachine.AddAnyTransition(deathState, () => _stabilitySystem.Stability <= 0f);
 
             var stunState = new GlitchStunState(this, _enemyAnimator, _agent);
-            _enemyStateMachine.AddAnyTransition(stunState, () => IsStunned);
-            _enemyStateMachine.AddTransition(stunState, idleState, () => !IsStunned);
+            _states[typeof(IdleState)] = idleState;
+            _states[typeof(WalkState)] = walkState;
+            _states[typeof(FearState)] = fearState;
+            _states[typeof(DeathState)] = deathState;
+            _states[typeof(AttackState)] = attackState;
+            _states[typeof(GlitchStunState)] = stunState;
+
+            _stateMachine.AddAnyTransition(stunState, () => IsStunned);
+            _stateMachine.AddTransition(stunState, idleState, () => !IsStunned);
 
             if (_isPeaceful)
             {
-                _enemyStateMachine.AddTransition(idleState, fearState,
+                _stateMachine.AddTransition(idleState, fearState,
                     () => _stabilitySystem.Stability / _stabilitySystem.MaxStability <= .3f);
             }
             else
             {
-                _enemyStateMachine.AddTransition(idleState, walkState, () => IsChasing && !IsInAttackRange);
-                _enemyStateMachine.AddTransition(idleState, attackState,
+                _stateMachine.AddTransition(idleState, walkState, () => IsChasing && !IsInAttackRange);
+                _stateMachine.AddTransition(idleState, attackState,
                     () => IsInAttackRange && AttackReady());
             }
 
 
-            _enemyStateMachine.AddTransition(walkState, idleState, () => !IsChasing || IsInAttackRange);
-            _enemyStateMachine.AddTransition(walkState, attackState, () => IsInAttackRange && AttackReady());
-            _enemyStateMachine.AddTransition(attackState, idleState,
-                () => IsInAttackRange && AttackAnimationEnded());
-            _enemyStateMachine.AddTransition(attackState, walkState,
-                () => !IsInAttackRange && AttackAnimationEnded());
+            _stateMachine.AddTransition(walkState, idleState, () => !IsChasing || IsInAttackRange);
+            _stateMachine.AddTransition(walkState, attackState, () => IsInAttackRange && AttackReady());
+            _stateMachine.AddTransition(attackState, idleState,
+                () => IsInAttackRange && _attackAnimEnded);
+            _stateMachine.AddTransition(attackState, walkState,
+                () => !IsInAttackRange && _attackAnimEnded);
 
 
             // enemyStateMachine.AddTransition(idleState, spellState, () => IsInCastRange && (Time.time - lastAttackTime >= attackCooldown));
@@ -217,7 +268,7 @@ namespace Gameplay.Enemies
             // enemyStateMachine.AddTransition(spellState, walkState, () => !IsInCastRange && RangeAnimationEnded());
 
 
-            _enemyStateMachine.SetState(idleState);
+            _stateMachine.TrySetState(idleState);
         }
 
         private void ChasingChecker()

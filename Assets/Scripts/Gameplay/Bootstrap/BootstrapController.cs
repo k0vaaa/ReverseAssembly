@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using Core.Bootstrap;
-using Core.SaveLoad.Interactors;
-using Core.SaveLoad.PlayerSaves;
-using Core.UI;
+﻿using System.Collections.Generic;
 using Core.Utilities;
-using Gameplay.UI.Views.Gameplay;
-using Reflex.Attributes;
 using UnityEngine;
 
 namespace Gameplay.Bootstrap

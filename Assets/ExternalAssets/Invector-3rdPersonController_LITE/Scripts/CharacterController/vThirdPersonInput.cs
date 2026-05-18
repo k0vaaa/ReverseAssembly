@@ -1,7 +1,7 @@
-﻿using Invector_3rdPersonController_LITE.Scripts.Camera;
+﻿using ExternalAssets.Invector_3rdPersonController_LITE.Scripts.Camera;
 using UnityEngine;
 
-namespace Invector_3rdPersonController_LITE.Scripts.CharacterController
+namespace ExternalAssets.Invector_3rdPersonController_LITE.Scripts.CharacterController
 {
     public class vThirdPersonInput : MonoBehaviour
     {

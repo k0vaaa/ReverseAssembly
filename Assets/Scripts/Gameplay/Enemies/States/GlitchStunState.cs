@@ -14,9 +14,11 @@ namespace Gameplay.Enemies.States
             {
                 NavMeshAgent.isStopped = true; 
             }
-            if (EnemyAnimator != null && EnemyAnimator._animator != null)
+            
+            // Запускаем эффект глитча!
+            if (EnemyAnimator != null)
             {
-                EnemyAnimator._animator.speed = 0f;
+                EnemyAnimator.StartGlitchStun();
             }
         }
 
@@ -27,13 +29,15 @@ namespace Gameplay.Enemies.States
 
         public override void Exit()
         {
-            if (EnemyAnimator != null && EnemyAnimator._animator != null)
-            {
-                EnemyAnimator._animator.speed = 1f;
-            }
             if (NavMeshAgent != null && NavMeshAgent.isOnNavMesh)
             {
                 NavMeshAgent.isStopped = false;
+            }
+            
+            // Выключаем эффект и возвращаем анимации в норму
+            if (EnemyAnimator != null)
+            {
+                EnemyAnimator.StopGlitchStun();
             }
         }
     }

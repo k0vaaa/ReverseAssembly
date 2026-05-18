@@ -2,7 +2,7 @@ using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace LineworkLite.Editor.Common.Utils
+namespace LineworkLite.Editor.Editor.Common.Utils
 {
     public static class EditorUtils
     {

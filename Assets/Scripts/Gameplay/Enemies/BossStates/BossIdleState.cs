@@ -6,7 +6,7 @@ namespace Gameplay.Enemies.BossStates
 {
     public class BossIdleState : StatesBossConst
     {
-        private SkillsController _skillsController;
+        private AbilitiesController _abilitiesController;
         public BossIdleState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent) : base(bossController, animator, navMeshAgent)
         {
             // _skillsController = skillsController;

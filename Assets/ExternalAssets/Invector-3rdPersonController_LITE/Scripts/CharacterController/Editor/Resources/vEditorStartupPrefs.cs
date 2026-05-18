@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor.Resources
+namespace ExternalAssets.Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor.Resources
 {
     [Serializable]
     public class vEditorStartupPrefs : ScriptableObject

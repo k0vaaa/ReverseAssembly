@@ -1,5 +1,4 @@
-﻿using System;
-using Core.Audio;
+﻿using Core.Audio;
 using Core.Bootstrap;
 using Core.Input;
 using Core.SaveLoad.Interactors;
@@ -9,9 +8,7 @@ using Core.Scenes;
 using Core.Static;
 using Reflex.Core;
 using Reflex.Enums;
-using Reflex.Injectors;
 using UnityEngine;
-using UnityEngine.Audio;
 using Resolution = Reflex.Enums.Resolution;
 
 namespace Core.Installers

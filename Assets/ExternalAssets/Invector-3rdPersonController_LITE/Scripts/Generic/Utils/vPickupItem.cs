@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace Invector_3rdPersonController_LITE.Scripts.Generic.Utils
+namespace ExternalAssets.Invector_3rdPersonController_LITE.Scripts.Generic.Utils
 {
     public class vPickupItem : MonoBehaviour
     {

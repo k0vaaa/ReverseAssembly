@@ -1,10 +1,8 @@
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 using Core.Events;
 using Core.Pause;
-using Reflex.Attributes;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.Pool;

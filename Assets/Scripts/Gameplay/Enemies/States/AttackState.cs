@@ -1,5 +1,5 @@
 ﻿using System.Collections;
-using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Controllers.Player;
 using UnityEngine;
 using UnityEngine.AI;
@@ -8,16 +8,17 @@ namespace Gameplay.Enemies.States
 {
     public class AttackState : StatesEnemyConst
     {
-        private SkillsController _skillsController;
-        public AttackState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent, SkillsController skillsController) : base(enemyController, animator, navMeshAgent)
+        private readonly EnemySkillsController _abilitiesController;
+
+        public AttackState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent, EnemySkillsController abilitiesController) : base(enemyController, animator, navMeshAgent)
         {
-            _skillsController = skillsController;
+            _abilitiesController = abilitiesController;
         }
 
         public override void Enter()
         {
-            _skillsController.Skills[SkillType.Melee].TryCast();
-            EnemyAnimator.StartCoroutine(SwordColliderSwitch());
+            _abilitiesController.TryGetSkill<PunchSkill>().TryCast();
+            EnemyController.ResetAnim();
             Debug.Log("Entering ENEMY ATTACK");
             EnemyAnimator.DoAttack();
             if (NavMeshAgent.isActiveAndEnabled && NavMeshAgent.isOnNavMesh)
@@ -33,15 +34,8 @@ namespace Gameplay.Enemies.States
 
         public override void Exit()
         {
-            
+            _abilitiesController.TryGetSkill<PunchSkill>().ClearCollider();
         }
         
-        private IEnumerator SwordColliderSwitch()
-        {
-            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.33f, "attackTest"));
-            EnemyController.SwordCollider.enabled = true;
-            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.63f, "attackTest"));
-            EnemyController.SwordCollider.enabled = false;
-        }
     }
 }

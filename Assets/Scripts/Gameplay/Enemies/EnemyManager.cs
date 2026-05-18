@@ -5,7 +5,6 @@ using Core.SaveLoad.Saveables;
 using Gameplay.Combat.Health;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Controllers.Player;
-using Gameplay.UI.Views;
 using Gameplay.UI.Views.Gameplay;
 using Reflex.Attributes;
 using UnityEngine;
@@ -80,7 +79,7 @@ namespace Gameplay.Enemies
                     stabilitySystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
                 }
 
-                var skillsController = enemy.GetComponent<SkillsController>();
+                var skillsController = enemy.GetComponent<AbilitiesController>();
                 if (skillsController == null)
                 {
                     Debug.LogWarning($"Enemy {enemy.name} does not have SkillsController component.");
@@ -89,7 +88,7 @@ namespace Gameplay.Enemies
                 enemy.Init(peaceMode, _player.transform);
                 stabilitySystem.Init(enemiesPower);
                 stabilitySystem.OnDeath.AddListener(OnEnemyDeath);
-                skillsController?.Init(null);
+                //skillsController?.Init(null);
                 enemy.UniqueId = Guid.NewGuid().ToString();
                 enemy.PrefabIndex = prefabIndex;
                 _characters.Add(enemy);
@@ -183,7 +182,7 @@ namespace Gameplay.Enemies
                 }
                 
 
-                var skillsController = instantiatedObject.GetComponent<SkillsController>();
+                var skillsController = instantiatedObject.GetComponent<AbilitiesController>();
                 if (skillsController == null)
                 {
                     Debug.LogWarning($"Character {instantiatedObject.name} does not have SkillsController component.");
@@ -195,7 +194,7 @@ namespace Gameplay.Enemies
                 healthSystem.Init(enemiesPower);
                 healthSystem.OnDeath.AddListener(OnEnemyDeath);
                 healthSystem.SetStability(enemyData.Health);
-                skillsController?.Init(null);
+                //skillsController?.Init(null);
                 _characters.Add(character);
             }
         }
@@ -263,7 +262,7 @@ namespace Gameplay.Enemies
                 healthSystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
             }
 
-            var skillsController = boss.GetComponent<SkillsController>();
+            var skillsController = boss.GetComponent<AbilitiesController>();
             if (skillsController == null)
             {
                 Debug.LogWarning($"Boss {boss.name} does not have SkillsController component.");
@@ -271,7 +270,7 @@ namespace Gameplay.Enemies
 
             healthSystem.Init(_settingsInteractor.LoadSettings().EnemiesPower);
             healthSystem.OnDeath.AddListener(OnEnemyDeath);
-            skillsController?.Init(null);
+            //skillsController?.Init(null);
             boss.Init(_settingsInteractor.LoadSettings().PeaceMode, _player.transform);
             boss.UniqueId = Guid.NewGuid().ToString();
             boss.PrefabIndex = -1; // Босс не использует индекс префаба из _enemyPrefabs

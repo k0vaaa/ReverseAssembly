@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using Core.Input;
-using Gameplay.Anims;
+﻿using Gameplay.Anims;
 using Gameplay.Controllers.Player;
 using UnityEngine;
 

@@ -1,6 +1,4 @@
-﻿using UnityEngine;
-
-namespace Gameplay.Bootstrap
+﻿namespace Gameplay.Bootstrap
 {
     public interface IBootstrapComponent
     {

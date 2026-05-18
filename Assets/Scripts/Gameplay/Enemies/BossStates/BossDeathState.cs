@@ -7,7 +7,7 @@ namespace Gameplay.Enemies.BossStates
 {
     public class BossDeathState : StatesBossConst
     {
-        private SkillsController _skillsController;
+        private AbilitiesController _abilitiesController;
         private readonly Canvas hpCanvas;
  
         public BossDeathState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent, Canvas hpCanvas) : base(bossController, animator, navMeshAgent)

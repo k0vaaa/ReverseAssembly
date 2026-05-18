@@ -1,9 +1,9 @@
-﻿using Invector_3rdPersonController_LITE.Scripts.Camera;
-using Invector_3rdPersonController_LITE.Scripts.CharacterController;
+﻿using ExternalAssets.Invector_3rdPersonController_LITE.Scripts.Camera;
+using ExternalAssets.Invector_3rdPersonController_LITE.Scripts.CharacterController;
 using UnityEditor;
 using UnityEngine;
 
-namespace Invector_3rdPersonController_LITE.Scripts.CharacterCreator.Script.Editor
+namespace ExternalAssets.Invector_3rdPersonController_LITE.Scripts.CharacterCreator.Script.Editor
 {
     public class vCreateBasicCharacterEditor : EditorWindow
     {

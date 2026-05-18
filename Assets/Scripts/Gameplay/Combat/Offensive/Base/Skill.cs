@@ -5,31 +5,32 @@ namespace Gameplay.Combat.Offensive.Base
 {
     public abstract class Skill : ISkill
     {
-        private SkillData SkillData;
-        public SkillType SkillType { get; private set; }
-        public Damage Damage { get; private set; }
+        protected Damage Damage { get; private set; }
         private float _cooldownTime;
         private float timeUntilReady { get; set; } = 0f;
-        public bool _isReady { get; private set; }
+        public bool IsReady { get; private set; }
 
-        protected Skill(SkillData skillData)
+        protected Skill(AbilityDefinition abilityDefinition)
         {
-            Damage = skillData.damage;
-            SkillData = skillData;
-            SkillType = SkillData.skillType;
-            _cooldownTime = SkillData.cooldownTime;
+            Damage = abilityDefinition.damage;
+            _cooldownTime = abilityDefinition.cooldownTime;
+        }
+
+        public virtual void Init()
+        {
+            
         }
 
         private void CheckCooldown()
         {
             if (timeUntilReady <= 0)
             {
-                _isReady = true;
+                IsReady = true;
                 timeUntilReady = 0;
             }
             else
             {
-                _isReady = false;
+                IsReady = false;
                 timeUntilReady -= Time.deltaTime;
             }
         }
@@ -40,27 +41,24 @@ namespace Gameplay.Combat.Offensive.Base
         public void Tick()
         {
             CheckCooldown();
+            OnTick();
         }
+
+        protected abstract void OnTick();
 
 
         public void TryCast()
         {
-            if(!_isReady) return;
-            timeUntilReady = _cooldownTime;
-            CastAction();
+            if(!IsReady) return;
+            
+            if (CastAction())
+            {
+                timeUntilReady = _cooldownTime;
+            }
+
+            
         }
 
-        protected abstract void CastAction();
-    }
-
-    public enum SkillType
-    {   
-        Melee,
-        Fireball,
-        Punch,
-        Heavy,
-        Meteor,
-        Scanner,
-        BranchSwitch
+        protected abstract bool CastAction();
     }
 }

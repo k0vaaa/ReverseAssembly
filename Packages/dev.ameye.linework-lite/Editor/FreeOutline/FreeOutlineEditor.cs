@@ -1,10 +1,10 @@
 using System.Linq;
-using LineworkLite.Editor.Common.Utils;
+using LineworkLite.Editor.Editor.Common.Utils;
 using LineworkLite.FreeOutline;
 using UnityEditor;
 using UnityEngine;
 
-namespace LineworkLite.Editor.FreeOutline
+namespace LineworkLite.Editor.Editor.FreeOutline
 {
     [CustomEditor(typeof(LineworkLite.FreeOutline.FreeOutline))]
     public class FreeOutlineEditor : UnityEditor.Editor

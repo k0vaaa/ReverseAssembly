@@ -6,7 +6,6 @@ TagManager:
   tags:
   - Wizard
   - HP UI
-  - PhysicsBox
   layers:
   - Default
   - TransparentFX
@@ -15,8 +14,8 @@ TagManager:
   - Water
   - UI
   - Interactables
-  - 
-  - 
+  - Player
+  - Enemy
   - 
   - 
   - 

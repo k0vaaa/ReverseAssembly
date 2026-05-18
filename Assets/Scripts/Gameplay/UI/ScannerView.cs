@@ -1,7 +1,6 @@
 using Core.UI;
 using DG.Tweening;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Gameplay.UI
 {
