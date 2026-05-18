@@ -3,6 +3,7 @@ using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.ScriptableObjects;
 using Gameplay.Controllers.Player;
 using Gameplay.Core;
+using Gameplay.UI;
 using Reflex.Attributes;
 
 namespace Gameplay.Combat.Offensive.Skills.Abilities
@@ -25,6 +26,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         protected override bool CastAction()
         {
             _branchManager.ToggleBranch();
+            HudSwitcher.Instance?.ToggleTheme();
             return true;
         }
 

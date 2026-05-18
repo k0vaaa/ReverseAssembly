@@ -174,11 +174,11 @@ PrefabInstance:
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: hinttext
       value: 
-      objectReference: {fileID: 1095460980}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintGroup
       value: 
-      objectReference: {fileID: 1095460982}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintMessage
       value: A pressure plate and an object to be placed on it - what could be simpler?
@@ -1467,7 +1467,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2331919533245474412, guid: 4eeac0b5a738f8e468830d9f50593a47, type: 3}
       propertyPath: _viewsList.Array.size
-      value: 8
+      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: 2331919533245474412, guid: 4eeac0b5a738f8e468830d9f50593a47, type: 3}
       propertyPath: '_viewsList.Array.data[0]'
@@ -4207,11 +4207,11 @@ PrefabInstance:
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: hinttext
       value: 
-      objectReference: {fileID: 1095460980}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintGroup
       value: 
-      objectReference: {fileID: 1095460982}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintMessage
       value: A pressure plate and an object to be placed on it - what could be simpler?
@@ -5421,11 +5421,11 @@ PrefabInstance:
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: hinttext
       value: 
-      objectReference: {fileID: 1095460980}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintGroup
       value: 
-      objectReference: {fileID: 1095460982}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintMessage
       value: Maybe we should change the version of the world again?
@@ -6667,11 +6667,6 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 835119231}
   m_SourcePrefab: {fileID: 100100000, guid: 2f0cd57630949cb4bae5921fee2fe99c, type: 3}
---- !u!1 &768533572 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 5681586034132029256, guid: 09fb773b6fc61c1478777f3803110aa8, type: 3}
-  m_PrefabInstance: {fileID: 8044866637913576599}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &780192539
 GameObject:
   m_ObjectHideFlags: 0
@@ -7372,10 +7367,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d240ec79ecab4f6497ce3ea8b3d38da8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Gameplay.Interactables.BuggablePhysicsBox
-  _puzzleView: {fileID: 623403417}
+  _puzzleView: {fileID: 0}
   _requiredBranch: 1
-  _objectToActivate: {fileID: 768533572}
-  _enablePhysicsOnFix: 0
 --- !u!54 &835119232
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -9088,22 +9081,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 613136836}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1095460980 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1910968217979892097, guid: 31989a408a3bc59438c5e6186617d788, type: 3}
-  m_PrefabInstance: {fileID: 2041799354}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
---- !u!225 &1095460982 stripped
-CanvasGroup:
-  m_CorrespondingSourceObject: {fileID: 8968619993162435164, guid: 31989a408a3bc59438c5e6186617d788, type: 3}
-  m_PrefabInstance: {fileID: 2041799354}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1101351975 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 4d71a8c48f2b18c45ab10eac61b8642d, type: 3}
@@ -10152,17 +10129,6 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
---- !u!114 &1156597889 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7171421439246445739, guid: 31989a408a3bc59438c5e6186617d788, type: 3}
-  m_PrefabInstance: {fileID: 2041799354}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
 --- !u!1 &1161158814
 GameObject:
   m_ObjectHideFlags: 0
@@ -13568,11 +13534,11 @@ PrefabInstance:
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: hinttext
       value: 
-      objectReference: {fileID: 1095460980}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintGroup
       value: 
-      objectReference: {fileID: 1095460982}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintMessage
       value: This beam shouldn't be here, right?
@@ -19328,6 +19294,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70ca6f1747dd4080abf5d00505993de2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Gameplay.Enemies.EnemyAnimator
+  _visualModel: {fileID: 0}
 --- !u!114 &1841283870
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -19345,6 +19312,7 @@ MonoBehaviour:
   _searchRadius: 16.8
   _attackRange: 2
   DeadEnemies: 0
+  _animHandler: {fileID: 0}
   _codeBlockPrefab: {fileID: 456963275737696379, guid: 0951893ca3fe7704586dcf546a20940c, type: 3}
 --- !u!195 &1841283871
 NavMeshAgent:
@@ -19380,10 +19348,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 98dc05aa98f041c6a1a7ba6e26decf3e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Gameplay.Controllers.Player.SkillsController
-  _skillsArray: {fileID: 11400000, guid: f9ed819b59c97914c90fed6d3cd489f0, type: 2}
-  _castPoint: {fileID: 0}
-  _caster: {fileID: 0}
-  _sword: {fileID: 1124095245}
+  _abilitiesSet: {fileID: 0}
 --- !u!1 &1847690699
 GameObject:
   m_ObjectHideFlags: 0
@@ -20241,11 +20206,11 @@ PrefabInstance:
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: hinttext
       value: 
-      objectReference: {fileID: 1095460980}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintGroup
       value: 
-      objectReference: {fileID: 1095460982}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintMessage
       value: There should be a bridge here, I think.
@@ -21991,7 +21956,7 @@ PrefabInstance:
     - target: {fileID: 862442046204431273, guid: 31989a408a3bc59438c5e6186617d788, type: 3}
       propertyPath: _blocksText
       value: 
-      objectReference: {fileID: 1156597889}
+      objectReference: {fileID: 0}
     - target: {fileID: 862442046204431273, guid: 31989a408a3bc59438c5e6186617d788, type: 3}
       propertyPath: _mainMaterial
       value: 
@@ -22047,11 +22012,11 @@ PrefabInstance:
     - target: {fileID: 862442046204431273, guid: 31989a408a3bc59438c5e6186617d788, type: 3}
       propertyPath: '_texts.Array.data[3]'
       value: 
-      objectReference: {fileID: 1156597889}
+      objectReference: {fileID: 0}
     - target: {fileID: 862442046204431273, guid: 31989a408a3bc59438c5e6186617d788, type: 3}
       propertyPath: '_texts.Array.data[4]'
       value: 
-      objectReference: {fileID: 1095460980}
+      objectReference: {fileID: 0}
     - target: {fileID: 862442046204431273, guid: 31989a408a3bc59438c5e6186617d788, type: 3}
       propertyPath: _scannerAbilityCorrupt
       value: 
@@ -22760,11 +22725,11 @@ PrefabInstance:
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: hinttext
       value: 
-      objectReference: {fileID: 1095460980}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintGroup
       value: 
-      objectReference: {fileID: 1095460982}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintMessage
       value: The demo is complete, thank you.
@@ -23517,11 +23482,11 @@ PrefabInstance:
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: hinttext
       value: 
-      objectReference: {fileID: 1095460980}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _hintGroup
       value: 
-      objectReference: {fileID: 1095460982}
+      objectReference: {fileID: 0}
     - target: {fileID: 6662647988356166769, guid: 7892760c31362cd47b54c6228e4cc7b5, type: 3}
       propertyPath: _postProcessVolume
       value: 

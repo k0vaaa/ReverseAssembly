@@ -4,7 +4,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Core.DI;
+
 using Core.Events;
 using Core.Pause;
 using UnityEngine;
@@ -13,7 +13,7 @@ using UnityEngine.Pool;
 
 namespace Core.Audio
 {
-    public class AudioManager : MonoBehaviour, IInjectable
+    public class AudioManager : MonoBehaviour
     {
         public VolumeSettings Settings { get; private set; }
         
@@ -267,7 +267,7 @@ namespace Core.Audio
 === Scripts\Core\Bootstrap\GameEntryPoint.cs ===
 using System.Collections.Generic;
 using System.Reflection;
-using Core.DI;
+
 using UnityEngine;
 
 namespace Core.Bootstrap
@@ -735,14 +735,14 @@ namespace Core.Extensions
 }
 
 === Scripts\Core\Gameplay\LevelManager.cs ===
-﻿using Core.DI;
+﻿
 using Core.Input;
 using Core.Pause;
 using UnityEngine;
 
 namespace Core.Gameplay
 {
-    public class LevelManager : MonoBehaviour, IInjectable
+    public class LevelManager : MonoBehaviour
     {
         [Inject] private InputManager _inputManager;
         
@@ -859,7 +859,7 @@ namespace Core.Input
 
 === Scripts\Core\Inventory\InventoryManager.cs ===
 using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Core.Extensions;
 using Core.SaveLoad.PlayerSaves;
@@ -870,7 +870,7 @@ using UnityEngine;
 
 namespace Core.Inventory
 {
-    public class InventoryManager : MonoBehaviour, IInjectable, IInitializable
+    public class InventoryManager : MonoBehaviour, IInitializable
     {
         [Inject] private PlayerDataInteractor _playerData;
         [Inject] private ViewManager _viewManager;
@@ -1421,12 +1421,12 @@ namespace Core.SaveLoad.Saveables
 
 === Scripts\Core\Scenes\LoadingSceneTrigger.cs ===
 ﻿using Core.Bootstrap;
-using Core.DI;
+
 using UnityEngine;
 
 namespace Core.Scenes
 {
-    public class LoadingSceneTrigger : MonoBehaviour, IInjectable, IInitializable
+    public class LoadingSceneTrigger : MonoBehaviour, IInitializable
     {
         [Inject] private SceneLoader _sceneLoader;
 
@@ -1560,13 +1560,13 @@ namespace Core.UI
 === Scripts\Core\UI\Views\SettingsView.cs ===
 ﻿using System;
 using Core.Audio;
-using Core.DI;
+
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Core.UI.Views
 {
-    public class SettingsView : MonoBehaviour, IInjectable
+    public class SettingsView : MonoBehaviour
     {
         [SerializeField] private Slider _musicSlider;
         [SerializeField] private Slider _sfxSlider;
@@ -1821,13 +1821,13 @@ namespace Gameplay.Anims
 
 
 === Scripts\Gameplay\Anims\PlayerAnimator.cs ===
-﻿using Core.DI;
+﻿
 using Core.Input;
 using UnityEngine;
 
 namespace Gameplay.Anims
 {
-    public class PlayerAnimator : MonoBehaviour, IInjectable, IPlayerAnimator
+    public class PlayerAnimator : MonoBehaviour, IPlayerAnimator
     {
         [Inject] public InputManager InputManager;
         private static readonly int Attack = Animator.StringToHash("Attack");
@@ -2071,7 +2071,7 @@ namespace Gameplay.Anims
 }
 
 === Scripts\Gameplay\Bootstrap\EnemyBootstrap.cs ===
-﻿using Core.DI;
+﻿
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Gameplay.Enemies;
@@ -2136,7 +2136,7 @@ namespace Gameplay.Bootstrap
 
 === Scripts\Gameplay\Bootstrap\GameplayBootstrap.cs ===
 ﻿using Core.Bootstrap;
-using Core.DI;
+
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.UI;
@@ -2147,7 +2147,7 @@ using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class GameplayBootstrap : MonoBehaviour, IInjectable
+    public class GameplayBootstrap : MonoBehaviour
     {
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SettingsInteractor _settingsInteractor;
@@ -2235,7 +2235,7 @@ namespace Gameplay.Bootstrap
 
 === Scripts\Gameplay\Bootstrap\MainMenuBootstrap.cs ===
 ﻿using Core.Bootstrap;
-using Core.DI;
+
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.SaveLoad.Saveables;
@@ -2246,7 +2246,7 @@ using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class MainMenuBootstrap : MonoBehaviour, IInjectable, IInitializable
+    public class MainMenuBootstrap : MonoBehaviour, IInitializable
     {
         [Inject] private ViewManager _viewManager;
         [Inject] private SettingsInteractor _settingsInteractor;
@@ -2313,7 +2313,7 @@ namespace Gameplay.Bootstrap
 }
 
 === Scripts\Gameplay\Bootstrap\PlayerBootstrap.cs ===
-﻿using Core.DI;
+﻿
 using Core.Events;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
@@ -3107,7 +3107,7 @@ namespace Gameplay.Combat.Offensive.Skills
 }
 
 === Scripts\Gameplay\Controllers\Player\FightController.cs ===
-﻿using Core.DI;
+﻿
 using Core.Input;
 using Gameplay.Anims;
 using Gameplay.Combat.Interfaces;
@@ -3119,7 +3119,7 @@ using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class FightController : MonoBehaviour, IInjectable
+    public class FightController : MonoBehaviour
     {
         private StateMachine _fightStateMachine;
         private IPlayerAnimator _playerAnimator;
@@ -3231,7 +3231,7 @@ namespace Gameplay.Controllers.Player
 
 === Scripts\Gameplay\Controllers\Player\MovementController.cs ===
 using System;
-using Core.DI;
+
 using Core.Input;
 using Gameplay.Anims;
 using Gameplay.Combat.Interfaces;
@@ -3242,7 +3242,7 @@ using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class MovementController : MonoBehaviour, IInjectable
+    public class MovementController : MonoBehaviour
     {
         [Inject] private InputManager _inputManager;
         private StateMachine _moveStateMachine;
@@ -3476,7 +3476,7 @@ namespace Gameplay.Controllers.Player
 === Scripts\Gameplay\Controllers\Player\PlayerGlitchController.cs ===
 using System;
 using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Core.Extensions;
 using Gameplay.Events;
@@ -3484,7 +3484,7 @@ using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class PlayerGlitchController : MonoBehaviour, IInjectable, IInitializable
+    public class PlayerGlitchController : MonoBehaviour, IInitializable
     {
         [Header("Visuals")]
         [SerializeField] private SkinnedMeshRenderer _playerRenderer;
@@ -3520,7 +3520,7 @@ namespace Gameplay.Controllers.Player
 
 === Scripts\Gameplay\Controllers\Player\PlayerTerminalController.cs ===
 using Core.Bootstrap;
-using Core.DI;
+
 using Core.Input;
 using Core.UI;
 using Gameplay.Core;
@@ -3529,7 +3529,7 @@ using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class PlayerTerminalController : MonoBehaviour, IInjectable, IInitializable
+    public class PlayerTerminalController : MonoBehaviour, IInitializable
     {
         [Inject] private InputManager _inputManager;
         [Inject] private ViewManager _viewManager;
@@ -3596,7 +3596,7 @@ namespace Gameplay.Controllers.Player
 === Scripts\Gameplay\Controllers\Player\ScannerController.cs ===
 using System;
 using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Core.Extensions;
 using Gameplay.Interactables;
@@ -3610,7 +3610,7 @@ using Gameplay.Events;
 
 namespace Gameplay.Controllers.Player
 {
-    public class ScannerController : MonoBehaviour, IInjectable, IInitializable, IDisposable
+    public class ScannerController : MonoBehaviour, IInitializable, IDisposable
     {
         [Inject] private BranchManager _branchManager;
 
@@ -3724,7 +3724,7 @@ namespace Gameplay.Controllers.Player
 
 === Scripts\Gameplay\Controllers\Player\ScreenGlitchController.cs ===
 using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Core.Extensions;
 using Gameplay.Events;
@@ -3733,7 +3733,7 @@ using UnityEngine.Rendering;
 
 namespace Gameplay.Controllers.Player
 {
-    public class ScreenGlitchController : MonoBehaviour, IInjectable, IInitializable
+    public class ScreenGlitchController : MonoBehaviour, IInitializable
     {
         [Inject] private Volume _postProcessVolume;
         
@@ -3797,7 +3797,7 @@ namespace Gameplay.Controllers.Player
 === Scripts\Gameplay\Controllers\Player\SkillsController.cs ===
 ﻿using System;
 using System.Collections.Generic;
-using Core.DI;
+
 using Gameplay.Abilities;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
@@ -3808,7 +3808,7 @@ using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class SkillsController : MonoBehaviour, IInjectable
+    public class SkillsController : MonoBehaviour
     {
         [SerializeField] private SkillsArray _skillsArray;
         [SerializeField] private Transform _castPoint;
@@ -3900,14 +3900,14 @@ namespace Gameplay.Controllers.Player
 === Scripts\Gameplay\Controllers\Player\WristTerminalController.cs ===
 ﻿using System;
 using Core.Bootstrap;
-using Core.DI;
+
 using Gameplay.Core;
 using UnityEngine;
 using InputManager = Core.Input.InputManager;
 
 namespace Gameplay.Controllers.Player
 {
-    public class WristTerminalController : MonoBehaviour, IInjectable, IInitializable, IDisposable
+    public class WristTerminalController : MonoBehaviour, IInitializable, IDisposable
     {
         [Inject] private InputManager _inputManager;
         [Inject] private BranchManager _branchManager;
@@ -3942,7 +3942,7 @@ namespace Gameplay.Controllers.Player
 
 === Scripts\Gameplay\Core\BranchManager.cs ===
 ﻿using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using DG.Tweening;
 using Gameplay.Events;
@@ -4021,7 +4021,7 @@ namespace Gameplay.Core
 
 === Scripts\Gameplay\Core\SyncEnergyManager.cs ===
 ﻿using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Gameplay.Events;
 
@@ -4595,7 +4595,7 @@ namespace Gameplay.Enemies
 === Scripts\Gameplay\Enemies\EnemyController.cs ===
 ﻿using System;
 using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Core.Extensions;
 using Gameplay.Combat.Health;
@@ -4611,7 +4611,7 @@ using AttackState = Gameplay.Enemies.States.AttackState;
 
 namespace Gameplay.Enemies
 {
-    public class EnemyController : MonoBehaviour, ICharacterController, IGlitchable, IInitializable, IInjectable
+    public class EnemyController : MonoBehaviour, ICharacterController, IGlitchable, IInitializable
     {
         [Inject] private DIContainer _diContainer;
         public bool isDead { get; set; }
@@ -5788,7 +5788,7 @@ namespace Gameplay.Interactables
 === Scripts\Gameplay\Interactables\BuggablePhysicsBox.cs ===
 using System;
 using UnityEngine;
-using Core.DI;
+
 using Core.UI;
 using Core.Input;
 using Gameplay.UI;
@@ -5796,7 +5796,7 @@ using Gameplay.UI;
 namespace Gameplay.Interactables
 {
     [RequireComponent(typeof(Rigidbody))]
-    public class BuggablePhysicsBox : BuggableBase, IInjectable
+    public class BuggablePhysicsBox : BuggableBase
     {
         [Inject] private ViewManager _viewManager;
         [Inject] private InputManager _inputManager;
@@ -5937,13 +5937,13 @@ namespace Gameplay.Interactables
 
 === Scripts\Gameplay\Interactables\SyncEnergyFragment.cs ===
 ﻿using Core.Audio;
-using Core.DI;
+
 using Gameplay.Core;
 using UnityEngine;
 
 namespace Gameplay.Interactables
 {
-    public class SyncEnergyFragment : MonoBehaviour, IInjectable
+    public class SyncEnergyFragment : MonoBehaviour
     {
         [Inject] private SyncEnergyManager _syncEnergyManager;
         [Inject] private AudioManager _audioManager;
@@ -5970,7 +5970,7 @@ namespace Gameplay.Interactables
 
 === Scripts\Gameplay\Pause\PauseMenuController.cs ===
 ﻿using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Core.Extensions;
 using Core.Pause;
@@ -5983,7 +5983,7 @@ using UnityEngine;
 
 namespace Gameplay.Pause
 {
-    public class PauseMenuController : MonoBehaviour, IInjectable, IInitializable
+    public class PauseMenuController : MonoBehaviour, IInitializable
     {
         [Inject] private ViewManager _viewManager;
         [Inject] private SceneLoader _sceneLoader;
@@ -7155,13 +7155,13 @@ namespace Gameplay.UI
 === Scripts\Gameplay\UI\PuzzleViewBase.cs ===
 using Core.UI;
 using Core.Input;
-using Core.DI;
+
 using Gameplay.Interactables;
 using UnityEngine;
 
 namespace Gameplay.UI
 {
-    public abstract class PuzzleViewBase : View, IInjectable
+    public abstract class PuzzleViewBase : View
     {
         [Inject] protected InputManager _inputManager;
         protected IBuggable _currentTarget;

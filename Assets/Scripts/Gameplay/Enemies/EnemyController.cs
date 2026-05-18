@@ -311,8 +311,7 @@ namespace Gameplay.Enemies
                 // Логика обычного мира
                 _agent.enabled = true;
                 if (_hpCanvas != null) _hpCanvas.enabled = true;
-                _enemyAnimator.IdleEvent(); // Сбрасываем ходьбу
-                _enemyStateMachine.SetState(new IdleState(this, _enemyAnimator, _agent));
+                ForceRequestState<IdleState>();
             }
             else
             {

@@ -1,9 +1,10 @@
-﻿using Core.DI;
+﻿
 using Core.Inventory;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using Gameplay.Interactables;
+using Reflex.Attributes;
 
 namespace Gameplay.UI
 {

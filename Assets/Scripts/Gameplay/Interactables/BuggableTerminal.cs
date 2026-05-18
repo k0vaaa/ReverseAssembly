@@ -1,12 +1,13 @@
-﻿using Core.DI;
+﻿
 using Core.Input;
 using Core.UI;
 using Gameplay.UI;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Gameplay.Interactables
 {
-    public class BuggableTerminal: BuggableBase, IInjectable
+    public class BuggableTerminal: BuggableBase
     {
         [Inject] private ViewManager _viewManager;
         [Inject] private InputManager _inputManager;
