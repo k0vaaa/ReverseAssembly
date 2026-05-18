@@ -117,5 +117,12 @@ namespace Gameplay.StateMachines
 
             return null;
         }
+        
+        public void ForceState(IState newState)
+        {
+            _currentState?.Exit();
+            _currentState = newState;
+            _currentState?.Enter();
+        }
     }
 }

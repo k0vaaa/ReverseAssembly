@@ -7,9 +7,13 @@ namespace Gameplay.Interactables
     public class BuggableBase : MonoBehaviour, IBuggable
     {
         [SerializeField] protected PuzzleViewBase _puzzleView;
-        
-        public bool IsBugged { get; protected set; } = true;
+        [SerializeField] protected Gameplay.Events.WorldBranch _requiredBranch = Gameplay.Events.WorldBranch.Alpha;
 
+        public bool IsBugged { get; protected set; } = true;
+        public virtual bool IsInteractableInCurrentBranch(Gameplay.Events.WorldBranch branch)
+        {
+            return branch == _requiredBranch;
+        }
         public virtual void OnScanned(bool isScanning)
         {
             

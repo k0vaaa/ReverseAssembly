@@ -9,9 +9,10 @@ namespace Gameplay.Enemies.States
 
         public override void Enter()
         {
-            if (NavMeshAgent != null && NavMeshAgent.isOnNavMesh)
+           
+            if (NavMeshAgent.isActiveAndEnabled && NavMeshAgent.isOnNavMesh && NavMeshAgent != null)
             {
-                NavMeshAgent.isStopped = true;
+                NavMeshAgent.isStopped = true; 
             }
             if (EnemyAnimator != null && EnemyAnimator._animator != null)
             {

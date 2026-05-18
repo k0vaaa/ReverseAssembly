@@ -563,7 +563,7 @@ GameObject:
   - component: {fileID: 831941145086694865}
   m_Layer: 0
   m_Name: First Person Controller
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -633,7 +633,7 @@ MonoBehaviour:
   RunSpeed: 10
   <IsGrounded>k__BackingField: 0
   _velocityVertical: 0
-  _jumpForce: 10
+  _jumpForce: 5
   _rotationSpeed: 0
   _groundCheckLayerMask:
     serializedVersion: 2
@@ -1953,6 +1953,10 @@ PrefabInstance:
     - target: {fileID: 3832703582600972128, guid: bceefb2a39f6db74d9bc9d006687b7f1, type: 3}
       propertyPath: m_Name
       value: Gun
+      objectReference: {fileID: 0}
+    - target: {fileID: 3832703582600972128, guid: bceefb2a39f6db74d9bc9d006687b7f1, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

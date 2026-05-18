@@ -13,7 +13,10 @@ namespace Gameplay.Enemies.States
         {
             Debug.Log("Entering ENEMY WALK");
             EnemyAnimator.WalkEvent();
-            NavMeshAgent.isStopped = false;
+            if (NavMeshAgent.isActiveAndEnabled && NavMeshAgent.isOnNavMesh)
+            {
+                NavMeshAgent.isStopped = false;
+            }
         }
 
         public override void Execute()

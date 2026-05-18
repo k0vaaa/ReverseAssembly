@@ -20,7 +20,10 @@ namespace Gameplay.Enemies.States
             EnemyAnimator.StartCoroutine(SwordColliderSwitch());
             Debug.Log("Entering ENEMY ATTACK");
             EnemyAnimator.DoAttack();
-            NavMeshAgent.isStopped = true;
+            if (NavMeshAgent.isActiveAndEnabled && NavMeshAgent.isOnNavMesh)
+            {
+                NavMeshAgent.isStopped = true;
+            }
         }
 
         public override void Execute()

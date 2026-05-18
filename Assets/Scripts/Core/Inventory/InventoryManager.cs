@@ -16,7 +16,7 @@ namespace Core.Inventory
         [Inject] private ViewManager _viewManager;
 
         private PlayerHUDView _hudView;
-        private int _codeBlocks;
+        public int _codeBlocks;
 
         public void Init()
         {

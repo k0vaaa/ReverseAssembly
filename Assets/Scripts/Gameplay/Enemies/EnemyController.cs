@@ -10,6 +10,7 @@ using Gameplay.Controllers.Player;
 using Gameplay.Enemies.States;
 using Gameplay.Events;
 using Gameplay.StateMachines;
+using Gameplay.UI.Views.Gameplay;
 using UnityEngine;
 using UnityEngine.AI;
 using AttackState = Gameplay.Enemies.States.AttackState;
@@ -63,6 +64,7 @@ namespace Gameplay.Enemies
 
         private float _stunEndTime;
 
+
         [Header("Loot")] [SerializeField] private GameObject _codeBlockPrefab;
 
         private void GetComponents()
@@ -80,10 +82,12 @@ namespace Gameplay.Enemies
         public void Init()
         {
             EventBus.Subscribe<PlayerSpawnEvent>(HandlePlayerSpawn).AddTo(gameObject);
+            EventBus.Subscribe<BranchSwitchedEvent>(OnBranchSwitched).AddTo(gameObject);
             _isPeaceful = false;
             GetComponents();
             InjectAndInit();
             EnemyStatesInit();
+            UpdateUIReference();
         }
 
         private void InjectAndInit()
@@ -91,6 +95,7 @@ namespace Gameplay.Enemies
             _diContainer.Inject(_skillsController);
             _enemyAnimator.Init();
             _skillsController.Init(null);
+            UpdateUIReference();
 
         }
 
@@ -106,6 +111,7 @@ namespace Gameplay.Enemies
         private void Update()
         {
             if (!_playerTransform) return;
+            if (_isPeaceful) return; 
 
             if (IsStunned && Time.time >= _stunEndTime)
             {
@@ -232,11 +238,66 @@ namespace Gameplay.Enemies
                 IsChasing = false;
             }
         }
+        
+        
 
         private void OnDrawGizmos()
         {
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireSphere(transform.position, _searchRadius);
         }
+        
+        
+        public void SetAggressiveMode(bool isAggressive)
+        {
+            if (isDead) return;
+
+            _isPeaceful = !isAggressive;
+
+            if (isAggressive)
+            {
+                // Логика обычного мира
+                _agent.enabled = true;
+                if (_hpCanvas != null) _hpCanvas.enabled = true;
+                _enemyAnimator.IdleEvent(); // Сбрасываем ходьбу
+                _enemyStateMachine.SetState(new IdleState(this, _enemyAnimator, _agent));
+            }
+            else
+            {
+                // Логика альтернативного мира (застывание)
+                if (_agent.isActiveAndEnabled) _agent.ResetPath();
+                _agent.enabled = false;
+        
+                if (_hpCanvas != null) _hpCanvas.enabled = false; // Отключаем полоску здоровья
+        
+                _enemyAnimator.IdleEvent(); // Принудительно ставим Idle
+            }
+        }
+        
+        private void OnBranchSwitched(BranchSwitchedEvent e)
+        {
+            bool isMain = e.NewBranch == Gameplay.Events.WorldBranch.Main;
+            SetAggressiveMode(isMain);
+        }
+        
+        private void UpdateUIReference()
+        {
+            // 1. Ищем полоску здоровья внутри этого объекта (на самом враге или его детях)
+            var healthBarView = GetComponentInChildren<StabilityBarView>();
+    
+            // 2. Если полоска найдена, привязываем её к системе стабильности
+            if (healthBarView != null)
+            {
+                // Удаляем все старые подписки (чтобы не было дублей)
+                _stabilitySystem.onStabilityChanged.RemoveAllListeners();
+        
+                // Подписываем полоску на событие изменения стабильности
+                _stabilitySystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
+        
+                // Обновляем значение полоски сразу, чтобы она не была пустой
+                healthBarView.ChangeHp(_stabilitySystem.Stability, _stabilitySystem.MaxStability);
+            }
+        }
+        
     }
 }

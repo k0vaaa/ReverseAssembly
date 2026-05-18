@@ -3,21 +3,29 @@ using UnityEngine;
 using Core.DI;
 using Core.UI;
 using Core.Input;
+using Gameplay.Core;
+using Gameplay.Events;
 using Gameplay.UI;
+using Unity.VisualScripting;
 
 namespace Gameplay.Interactables
 {
     [RequireComponent(typeof(Rigidbody))]
     public class BuggablePhysicsBox : BuggableBase, IInjectable
     {
+        [Inject] private BranchManager _branchManager;
         [Inject] private ViewManager _viewManager;
         [Inject] private InputManager _inputManager;
+        [SerializeField] private GameObject _objectToActivate;
+        [SerializeField] private bool _enablePhysicsOnFix = true; 
         private Rigidbody _rb;
         private Outline _outline; // Опционально: компонент обводки
         private BugView _bugView;
+        
 
         private void Awake()
         {
+            if (_objectToActivate != null) _objectToActivate.SetActive(false);
             _rb = GetComponent<Rigidbody>();
             _outline = GetComponent<Outline>();
 
@@ -92,8 +100,15 @@ namespace Gameplay.Interactables
         {
             IsBugged = false;
 
-            _rb.isKinematic = false;
-            _rb.mass = 10f; // Нормальная масса
+            if (_enablePhysicsOnFix) // Проверяем флаг
+            {
+                _rb.isKinematic = false;
+                _rb.mass = 10f;
+            }
+            if (_objectToActivate != null)
+            {
+                _objectToActivate.SetActive(true);
+            }
 
             if (_outline)
             {

@@ -9,12 +9,15 @@ using InputManager = Core.Input.InputManager;
 
 using Gameplay.UI;
 using Core.UI;
+using Gameplay.Core;
 using Gameplay.Events;
 
 namespace Gameplay.Controllers.Player
 {
     public class ScannerController : MonoBehaviour, IInjectable, IInitializable, IDisposable
     {
+        [Inject] private BranchManager _branchManager;
+
         [Inject] private InputManager _inputManager;
         [Inject] private ViewManager _viewManager;
 
@@ -68,43 +71,57 @@ namespace Gameplay.Controllers.Player
         {
             if (!IsScannerActive) return;
 
-            // Рейкаст из центра экрана
             if (Physics.Raycast(_cameraTransform.position, _cameraTransform.forward, out RaycastHit hit, _scanDistance, _interactableLayer))
             {
                 var buggable = hit.collider.GetComponent<IBuggable>();
-                
-                if (buggable != null && buggable.IsBugged)
+        
+                // ПРОВЕРКА: если объект багнут И находится в нужной ветке
+                if (buggable != null && buggable.IsBugged && buggable.IsInteractableInCurrentBranch(_branchManager.CurrentBranch))
                 {
                     if (_currentTarget != buggable)
                     {
                         _currentTarget?.OnScanned(false);
                         _currentTarget = buggable;
-                        _currentTarget.OnScanned(true); // Подсвечиваем красным
+                        _currentTarget.OnScanned(true); 
                     }
+                }
+                else
+                {
+                    ResetTarget();
                 }
             }
             else
             {
-                if (_currentTarget != null)
-                {
-                    _currentTarget.OnScanned(false);
-                    _currentTarget = null;
-                }
+                ResetTarget();
             }
         }
+
 
         private void TryInteract()
         {
             if (IsScannerActive && _currentTarget != null)
-            {
-                _currentTarget.OnInteract(); // Запускаем мини-игру!
-            }
+                if (_currentTarget.IsInteractableInCurrentBranch(_branchManager.CurrentBranch))
+                {
+                    _currentTarget.OnInteract();
+                }
+                else
+                {
+                    Debug.Log("Объект недоступен в этой реальности!");
+                }
         }
 
         public void Dispose()
         {
             //_inputManager.OnScannerPressed -= ToggleScanner;
             _inputManager.OnInteractPressed -= TryInteract;
+        }
+        private void ResetTarget()
+        {
+            if (_currentTarget != null)
+            {
+                _currentTarget.OnScanned(false);
+                _currentTarget = null;
+            }
         }
     }
 }

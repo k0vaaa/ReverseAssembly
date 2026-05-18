@@ -3,6 +3,8 @@ using Core.DI;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.UI;
+using Gameplay.Controllers.Player;
+using Gameplay.UI;
 using Gameplay.UI.Views.Gameplay;
 using UnityEngine;
 
@@ -32,21 +34,29 @@ namespace Gameplay.Bootstrap
         [Header("Boss")]
         [SerializeField] private GameObject _boss;
         [SerializeField] private Vector3 _bossSpawnPoint;
-
+        
+        
         public void Start()
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
-
+            var hudView = _viewManager.GetView<PlayerHUDView>();
+            new Gameplay.UI.HudSwitcher(hudView);
             // 1. Setup Player
             var player = SetupPlayer();
 
             // 2. Setup Enemies
             //SetupEnemy(player);
+            
+            
         }
+        
+        
+        
 
         private GameObject SetupPlayer()
-        {
+        {   
+            
             if (_camera == null)
             {
                 _camera = Camera.main;
@@ -62,7 +72,9 @@ namespace Gameplay.Bootstrap
             );
             var player = playerBootstrap.SetupPlayer();
             return player;
+            
         }
+        
 
         private void SetupEnemy(GameObject player)
         {

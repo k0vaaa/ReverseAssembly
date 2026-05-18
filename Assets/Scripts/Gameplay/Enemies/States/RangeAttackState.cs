@@ -20,7 +20,10 @@ namespace Gameplay.Enemies.States
         {
             Debug.Log("Entering ENEMY RANGE ATTACK");
             EnemyAnimator.DoAttack();
-            NavMeshAgent.isStopped = true;
+            if (NavMeshAgent.isActiveAndEnabled && NavMeshAgent.isOnNavMesh)
+            {
+                NavMeshAgent.isStopped = true;
+            }
             EnemyAnimator.StartCoroutine(SpellCast());
         }
 

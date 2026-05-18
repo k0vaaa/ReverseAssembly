@@ -1695,12 +1695,15 @@ namespace Gameplay.Abilities
 using Gameplay.Combat.Offensive.ScriptableObjects;
 using Gameplay.Controllers.Player;
 using Gameplay.Core;
+using Gameplay.UI;
+using Unity.AppUI.UI;
 
 namespace Gameplay.Abilities
 {
     public class SwitchBranchAbility : Skill
     {
         private readonly PlayerTerminalController _playerTerminalController;
+        
 
         public SwitchBranchAbility(SkillData skillData, PlayerTerminalController playerTerminalController) :
             base(skillData)
@@ -1713,6 +1716,7 @@ namespace Gameplay.Abilities
             if (_playerTerminalController.TryJump())
             {
                 base.Cast();
+                Gameplay.UI.HudSwitcher.Instance?.ToggleTheme();
             }
         }
     }
@@ -2136,6 +2140,8 @@ using Core.DI;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.UI;
+using Gameplay.Controllers.Player;
+using Gameplay.UI;
 using Gameplay.UI.Views.Gameplay;
 using UnityEngine;
 
@@ -2165,21 +2171,29 @@ namespace Gameplay.Bootstrap
         [Header("Boss")]
         [SerializeField] private GameObject _boss;
         [SerializeField] private Vector3 _bossSpawnPoint;
-
+        
+        
         public void Start()
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
-
+            var hudView = _viewManager.GetView<PlayerHUDView>();
+            new Gameplay.UI.HudSwitcher(hudView);
             // 1. Setup Player
             var player = SetupPlayer();
 
             // 2. Setup Enemies
             //SetupEnemy(player);
+            
+            
         }
+        
+        
+        
 
         private GameObject SetupPlayer()
-        {
+        {   
+            
             if (_camera == null)
             {
                 _camera = Camera.main;
@@ -2195,7 +2209,9 @@ namespace Gameplay.Bootstrap
             );
             var player = playerBootstrap.SetupPlayer();
             return player;
+            
         }
+        
 
         private void SetupEnemy(GameObject player)
         {
@@ -3212,6 +3228,7 @@ namespace Gameplay.Controllers.Player
     }
 }
 
+
 === Scripts\Gameplay\Controllers\Player\MovementController.cs ===
 using System;
 using Core.DI;
@@ -3249,11 +3266,13 @@ namespace Gameplay.Controllers.Player
 
         [SerializeField] private float _rotationSpeed = 1f;
 
+        [SerializeField] private LayerMask _groundCheckLayerMask;
         private float _groundCheckDistance;
 
         private bool _death;
 
         private Vector3 _inertialMoveDirection;
+
 
         [Header("Controller")]
 
@@ -3416,7 +3435,7 @@ namespace Gameplay.Controllers.Player
         {
             Ray ray = new Ray(transform.TransformPoint(_controller.center), Vector3.down);
             IsGrounded = Physics.SphereCast(ray, _controller.radius*transform.lossyScale.x, _groundCheckDistance,
-                LayerMask.GetMask("Ground"));
+                _groundCheckLayerMask);
         }
 
         private void OnDestroy()
@@ -3586,12 +3605,15 @@ using InputManager = Core.Input.InputManager;
 
 using Gameplay.UI;
 using Core.UI;
+using Gameplay.Core;
 using Gameplay.Events;
 
 namespace Gameplay.Controllers.Player
 {
     public class ScannerController : MonoBehaviour, IInjectable, IInitializable, IDisposable
     {
+        [Inject] private BranchManager _branchManager;
+
         [Inject] private InputManager _inputManager;
         [Inject] private ViewManager _viewManager;
 
@@ -3645,43 +3667,57 @@ namespace Gameplay.Controllers.Player
         {
             if (!IsScannerActive) return;
 
-            // Рейкаст из центра экрана
             if (Physics.Raycast(_cameraTransform.position, _cameraTransform.forward, out RaycastHit hit, _scanDistance, _interactableLayer))
             {
                 var buggable = hit.collider.GetComponent<IBuggable>();
-                
-                if (buggable != null && buggable.IsBugged)
+        
+                // ПРОВЕРКА: если объект багнут И находится в нужной ветке
+                if (buggable != null && buggable.IsBugged && buggable.IsInteractableInCurrentBranch(_branchManager.CurrentBranch))
                 {
                     if (_currentTarget != buggable)
                     {
                         _currentTarget?.OnScanned(false);
                         _currentTarget = buggable;
-                        _currentTarget.OnScanned(true); // Подсвечиваем красным
+                        _currentTarget.OnScanned(true); 
                     }
+                }
+                else
+                {
+                    ResetTarget();
                 }
             }
             else
             {
-                if (_currentTarget != null)
-                {
-                    _currentTarget.OnScanned(false);
-                    _currentTarget = null;
-                }
+                ResetTarget();
             }
         }
+
 
         private void TryInteract()
         {
             if (IsScannerActive && _currentTarget != null)
-            {
-                _currentTarget.OnInteract(); // Запускаем мини-игру!
-            }
+                if (_currentTarget.IsInteractableInCurrentBranch(_branchManager.CurrentBranch))
+                {
+                    _currentTarget.OnInteract();
+                }
+                else
+                {
+                    Debug.Log("Объект недоступен в этой реальности!");
+                }
         }
 
         public void Dispose()
         {
             //_inputManager.OnScannerPressed -= ToggleScanner;
             _inputManager.OnInteractPressed -= TryInteract;
+        }
+        private void ResetTarget()
+        {
+            if (_currentTarget != null)
+            {
+                _currentTarget.OnScanned(false);
+                _currentTarget = null;
+            }
         }
     }
 }
@@ -4621,6 +4657,7 @@ namespace Gameplay.Enemies
         public bool IsStunned { get; private set; }
 
         private float _stunEndTime;
+
 
         [Header("Loot")] [SerializeField] private GameObject _codeBlockPrefab;
 
@@ -5688,6 +5725,19 @@ namespace Gameplay.Events
     }
 }
 
+=== Scripts\Gameplay\Events\SkillCooldownChangedEvent.cs ===
+﻿using Core.Events;
+using Gameplay.Combat.Offensive.Base;
+
+namespace Gameplay.Events
+{
+    public struct SkillCooldownChangedEvent : IEvent
+    {
+        public SkillType SkillType;
+        public float ReadyPercent;
+    }
+}
+
 === Scripts\Gameplay\Events\SyncEnergyChangedEvent.cs ===
 ﻿using Core.Events;
 
@@ -5711,9 +5761,13 @@ namespace Gameplay.Interactables
     public class BuggableBase : MonoBehaviour, IBuggable
     {
         [SerializeField] protected PuzzleViewBase _puzzleView;
-        
-        public bool IsBugged { get; protected set; } = true;
+        [SerializeField] protected Gameplay.Events.WorldBranch _requiredBranch = Gameplay.Events.WorldBranch.Alpha;
 
+        public bool IsBugged { get; protected set; } = true;
+        public virtual bool IsInteractableInCurrentBranch(Gameplay.Events.WorldBranch branch)
+        {
+            return branch == _requiredBranch;
+        }
         public virtual void OnScanned(bool isScanning)
         {
             
@@ -5873,6 +5927,8 @@ namespace Gameplay.Interactables
     public interface IBuggable
     {
         bool IsBugged { get; }
+        bool IsInteractableInCurrentBranch(Gameplay.Events.WorldBranch branch);
+
         void OnScanned(bool isScanning); // Вызывается, когда сканер включен/выключен
         void OnInteract();               // Вызывается при нажатии [E] на объект
         void FixBug();                   // Вызывается после прохождения мини-игры
@@ -5982,6 +6038,40 @@ namespace Gameplay.Pause
         }
     }
 }
+
+=== Scripts\Gameplay\Plot\TriggerZone.cs ===
+using TMPro;
+using UnityEngine;
+using DG.Tweening;
+public class TriggerZone : MonoBehaviour
+{   
+    [SerializeField] private CanvasGroup _hintGroup;
+    [SerializeField] private TextMeshProUGUI hinttext;
+    [SerializeField] private string _hintMessage;
+    [SerializeField] private float _fadeDuration = 0.5f;
+    private void Awake()
+    {
+        if (_hintGroup != null) _hintGroup.alpha = 0f;
+    }
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            if (hinttext != null) hinttext.text = _hintMessage;
+            
+            _hintGroup?.DOFade(1f, _fadeDuration);
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            _hintGroup?.DOFade(0f, _fadeDuration);
+        }
+    }
+}
+
 
 === Scripts\Gameplay\StateMachines\GlobalState.cs ===
 ﻿using Core.Gameplay;
@@ -6670,6 +6760,13 @@ namespace Gameplay.StateMachines
 
             return null;
         }
+        
+        public void ForceState(IState newState)
+        {
+            _currentState?.Exit();
+            _currentState = newState;
+            _currentState?.Enter();
+        }
     }
 }
 
@@ -6882,6 +6979,36 @@ namespace Gameplay.UI
 }
 
 
+=== Scripts\Gameplay\UI\HudSwitcher.cs ===
+﻿using UnityEngine;
+
+namespace Gameplay.UI
+{
+    public class HudSwitcher
+    {
+        public static HudSwitcher Instance { get; private set; }
+        
+        private readonly PlayerHUDView _hudView; 
+        private bool _isCorrupt;
+
+        public HudSwitcher(PlayerHUDView hudView)
+        {
+            _hudView = hudView;
+            Instance = this;
+        }
+
+        public void SetCorruptMode(bool isCorrupt)
+        {
+            _hudView.ApplyTheme(isCorrupt);
+        }
+        public void ToggleTheme()
+        {
+            _isCorrupt = !_isCorrupt;
+            _hudView.ApplyTheme(_isCorrupt);
+        }
+    }
+}
+
 === Scripts\Gameplay\UI\PhysicsPuzzleView.cs ===
 using UnityEngine;
 using UnityEngine.UI;
@@ -6971,23 +7098,59 @@ namespace Gameplay.UI
 using Core.UI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Gameplay.UI
 {
     public class PlayerHUDView : View
     {
         [SerializeField] private TextMeshProUGUI _blocksText;
+        
+        [Header("Images Resources")]
 
+        [SerializeField] private Material _mainMaterial;
+        [SerializeField] private Material _corruptMaterial;
+        [SerializeField] private Sprite _mainStablitityImage;
+        [SerializeField] private Sprite _corruptStablitityImage;
+        [SerializeField] private Sprite _corruptCrosshair;
+        [SerializeField] private Sprite _mainCrosshair;
+        [SerializeField] private Sprite _scannerAbilityMain;
+        [SerializeField] private Sprite _scannerAbilityCorrupt;
+        [SerializeField] private TextMeshProUGUI[] _texts;
+        
+        [Header("Images References")]
+        [SerializeField] private Image _stabilityImage;
+        [SerializeField] private Image _crosshairImage;
+        [SerializeField] private Image _scannerImage;
         public void UpdateBlocksCount(int count)
         {
             if (_blocksText != null)
             {
-                _blocksText.text = $"Blocks: {count}";
+                _blocksText.text = $"{count}";
             }
+        }
+
+        public void ApplyTheme(bool isCorrupt)
+        {
+            Material targetMat = isCorrupt ? _corruptMaterial : _mainMaterial;
+            foreach (var text in _texts)
+            {
+                if (text != null) 
+                {
+                    text.fontSharedMaterial = targetMat; 
+                }
+            }
+            if (_stabilityImage != null)
+                _stabilityImage.sprite = isCorrupt ? _corruptStablitityImage : _mainStablitityImage;
+
+            if (_crosshairImage != null)
+                _crosshairImage.sprite = isCorrupt ? _corruptCrosshair : _mainCrosshair;
+
+            if (_scannerImage != null)
+                _scannerImage.sprite = isCorrupt ? _scannerAbilityCorrupt : _scannerAbilityMain;
         }
     }
 }
-
 
 === Scripts\Gameplay\UI\PuzzleViewBase.cs ===
 using Core.UI;
@@ -7087,10 +7250,14 @@ namespace Gameplay.UI
 
 === Scripts\Gameplay\UI\Views\Gameplay\CooldownView.cs ===
 ﻿using Core.UI;
+using Gameplay.Combat.Offensive.Base;
+using Gameplay.Controllers.Player;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
-
+using Core.Events;
+using Core.Extensions;
+using Gameplay.Events; 
 namespace Gameplay.UI.Views.Gameplay
 {
     public class CooldownView : View
@@ -7099,7 +7266,26 @@ namespace Gameplay.UI.Views.Gameplay
         [SerializeField] private Image Slot1Status;
         [SerializeField] private Image Slot2Mask;
         [SerializeField] private Image Slot2Status;
-
+        
+        // private SkillsController _skillsController;
+        // public void Init(SkillsController controller)
+        // {
+        //     _skillsController = controller;
+        // }
+        
+        // private void OnEnable()
+        // {
+        //     EventBus.Subscribe<SkillCooldownChangedEvent>(OnCooldownChanged).AddTo(gameObject);
+        // }
+        // private void OnCooldownChanged(SkillCooldownChangedEvent e)
+        // {
+        //     if (e.SkillType == SkillType.BranchSwitch) 
+        //         Slot1Status.fillAmount = e.ReadyPercent;
+        //     
+        //     if (e.SkillType == SkillType.Scanner) 
+        //         Slot2Status.fillAmount = e.ReadyPercent;
+        // }
+        
         private readonly UnityEvent _updateSlot1 = new();
         private readonly UnityEvent _updateSlot2 = new();
 
@@ -7110,6 +7296,15 @@ namespace Gameplay.UI.Views.Gameplay
      
             Slot1Mask.enabled = Slot1Status.fillAmount > 0;
             Slot2Mask.enabled = Slot2Status.fillAmount > 0;
+            
+            // if (_skillsController == null) return;
+            //
+            // // Обновляем оба слота, если они есть
+            // if (Slot1Status != null)
+            //     Slot1Status.fillAmount = _skillsController.GetSkillReadyPercent(SkillType.BranchSwitch);
+            //
+            // if (Slot2Status != null)
+            //     Slot2Status.fillAmount = _skillsController.GetSkillReadyPercent(SkillType.Scanner);
         }
 
         public void SetSlot1Listener(UnityAction callback)
@@ -7206,6 +7401,9 @@ namespace Gameplay.UI.Views.Gameplay
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
+using Core.Events;
+using Core.Extensions;
+using Gameplay.Events;
 
 namespace Gameplay.UI.Views.Gameplay
 {
@@ -7224,13 +7422,24 @@ namespace Gameplay.UI.Views.Gameplay
         {
             // if(_healthSystem) _healthSystem.onHealthChanged.AddListener(ChangeHp);
         }
-
+        //     private void OnEnable()
+        //     {
+        //         EventBus.Subscribe<PlayerStabilityChangedEvent>(OnStabilityChanged).AddTo(gameObject);
+        //     }
+        //     
+        //     private void OnStabilityChanged(PlayerStabilityChangedEvent e)
+        //     {
+        //         float percent = e.StabilityPercent; 
+        //         _hpFront.fillAmount = percent;
+        //         _hpMiddle.DOFillAmount(percent, .9f);
+        //     }
         public void ChangeHp(float hp, float maxHp)
         {
             float percent = Mathf.Clamp(hp / maxHp, 0f, 1f);
             _hpFront.fillAmount = percent;
             _hpMiddle.DOFillAmount(percent, .9f);
         }
+        // }
     }
 }
 
