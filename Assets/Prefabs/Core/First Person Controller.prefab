@@ -595,10 +595,9 @@ GameObject:
   - component: {fileID: 7507392460708472898}
   - component: {fileID: 8044572779993643565}
   - component: {fileID: 3860708822119463255}
-  - component: {fileID: 7603349175488127156}
   m_Layer: 7
   m_Name: First Person Controller
-  m_TagString: Player
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -655,7 +654,7 @@ MonoBehaviour:
   RunSpeed: 10
   <IsGrounded>k__BackingField: 0
   _velocityVertical: 0
-  _jumpForce: 5
+  _jumpForce: 10
   _rotationSpeed: 0
   _groundCheckLayerMask:
     serializedVersion: 2
@@ -783,18 +782,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680f5d774470456587e034a2acbf0fa9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Gameplay.Controllers.Player.WristTerminalController
---- !u!114 &7603349175488127156
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3221956718841132354}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae65763bcf266ff459185823f03ee738, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Core.Inventory.InventoryManager
 --- !u!1 &3402739490483166628
 GameObject:
   m_ObjectHideFlags: 0

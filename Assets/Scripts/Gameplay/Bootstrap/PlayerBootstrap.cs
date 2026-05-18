@@ -10,6 +10,7 @@ using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Combat.Offensive.Skills.Abilities;
 using Gameplay.Controllers.Player;
 using Gameplay.Events;
+using Gameplay.UI;
 using Gameplay.UI.Views.Gameplay;
 using Reflex.Attributes;
 using Reflex.Core;
@@ -45,12 +46,12 @@ namespace Gameplay.Bootstrap
         private void SetupPlayer()
         {
             Player = Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
+            new HudSwitcher(_viewManager.GetView<PlayerHUDView>());
             _playerStabilitySystem = Player.GetComponent<StabilitySystem>();
             var abilitiesController = Player.GetComponent<AbilitiesController>();
             var movementController = Player.GetComponent<MovementController>();
             var fightController = Player.GetComponent<FightController>();
             var brain = Player.GetComponent<PlayerBrain>();
-            var inventory = Player.GetComponent<InventoryManager>();
             _camera = Player.GetComponentInChildren<Camera>();
             _playerContainer = _container.Scope(builder =>
             {
@@ -59,7 +60,6 @@ namespace Gameplay.Bootstrap
                 builder.RegisterValue(abilitiesController);
                 builder.RegisterValue(_camera);
                 builder.RegisterValue(brain);
-                builder.RegisterValue(inventory);
             });
             GameObjectInjector.InjectRecursive(Player,_playerContainer);
             brain.Init();

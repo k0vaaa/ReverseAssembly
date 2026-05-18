@@ -20,7 +20,6 @@ namespace Gameplay.Controllers.Player
         private IPlayerAnimator _playerAnimator;
         private AbilitiesController _abilitiesController;
         [Inject] private InputManager _input;
-        [Inject] private InventoryManager _inventory;
 
         [SerializeField] private AnimationEventsHandler _crowbarAnimHandler;
         [SerializeField] private AnimationEventsHandler _gunAnimHandler;
