@@ -2,7 +2,7 @@
 {
     public interface ISkill
     {
-        public bool _isReady { get;}
+        public bool IsReady { get;}
         float GetReadyPercent();
         void TryCast();
         void Tick();

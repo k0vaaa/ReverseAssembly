@@ -19,6 +19,7 @@ namespace Core.UI
                     Debug.LogError($"Error adding view {view.GetType()} to dictionary");
                 }
             }
+            print("ViewManager Ready");
         }
 
         public T GetView<T>() where T : class

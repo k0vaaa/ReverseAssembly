@@ -1,10 +1,9 @@
-﻿using System.Threading.Tasks;
+﻿using Core.StateMachines;
 using Gameplay.Combat.Health;
 using Gameplay.Combat.Interfaces;
-using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Controllers.Player;
 using Gameplay.Enemies.BossStates;
-using Gameplay.StateMachines;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -47,7 +46,7 @@ namespace Gameplay.Enemies
         private StabilitySystem healthSystem;
         private NavMeshAgent _agent;
         private Transform _playerTransform;
-        private SkillsController _skillsController;
+        private AbilitiesController _abilitiesController;
         [SerializeField] private float _rotationSpeed;
         [SerializeField] private float searchRadius;
         [SerializeField] private float attackRange;
@@ -61,7 +60,7 @@ namespace Gameplay.Enemies
         private void Awake()
         {
             enemyStateMachine = new StateMachine();
-            _skillsController = GetComponent<SkillsController>();
+            _abilitiesController = GetComponent<AbilitiesController>();
             bossAnimator = GetComponent<BossAnimator>();
             healthSystem = GetComponent<StabilitySystem>();
             gameObject.GetComponent<IHittable>().onHit.AddListener(bossAnimator.DoHitEvent);
@@ -102,12 +101,12 @@ namespace Gameplay.Enemies
         private void BossStatesInit()
         {
             
-            var attackState = new BossAttackState(this, bossAnimator, _agent, _skillsController);
-            bool AttackReady() => _skillsController.Skills[SkillType.Punch]._isReady;
-            bool HeavyAttackReady() => _skillsController.Skills[SkillType.Heavy]._isReady;
+            var attackState = new BossAttackState(this, bossAnimator, _agent, _abilitiesController);
+            bool AttackReady() => _abilitiesController.TryGetSkill<PunchSkill>().IsReady;
+            bool HeavyAttackReady() => _abilitiesController.TryGetSkill<HeavyAttack>().IsReady;
 
             
-            var superAttackState = new BossSuperAttackState(this, bossAnimator, _agent, _skillsController);
+            var superAttackState = new BossSuperAttackState(this, bossAnimator, _agent, _abilitiesController);
             
             var idleState = new BossIdleState(this,bossAnimator, _agent);
             var walkState =  new BossWalkState(this,bossAnimator,_agent);
@@ -154,7 +153,7 @@ namespace Gameplay.Enemies
                 () => !IsInAttackRange && HeavyAttackAnimationEnded());
 
 
-            enemyStateMachine.SetState(idleState);
+            enemyStateMachine.TrySetState(idleState);
 
             
         }

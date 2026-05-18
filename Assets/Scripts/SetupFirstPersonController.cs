@@ -51,8 +51,7 @@ public class SetupFirstPersonController : MonoBehaviour
 
             if (prefab.GetComponent<FightController>() == null) prefab.AddComponent<FightController>();
             if (prefab.GetComponent<PlayerGlitchController>() == null) prefab.AddComponent<PlayerGlitchController>();
-            if (prefab.GetComponent<ScannerController>() == null) prefab.AddComponent<ScannerController>();
-            if (prefab.GetComponent<SkillsController>() == null) prefab.AddComponent<SkillsController>();
+            if (prefab.GetComponent<AbilitiesController>() == null) prefab.AddComponent<AbilitiesController>();
             if (prefab.GetComponent<WristTerminalController>() == null) prefab.AddComponent<WristTerminalController>();
 
             // Try to assign references for MovementController

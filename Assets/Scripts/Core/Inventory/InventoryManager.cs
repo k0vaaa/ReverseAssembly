@@ -1,7 +1,7 @@
-using Core.Bootstrap;
-
+using System;
 using Core.Events;
 using Core.Extensions;
+using Core.Input;
 using Core.SaveLoad.PlayerSaves;
 using Core.UI;
 using Gameplay.Events;
@@ -15,7 +15,10 @@ namespace Core.Inventory
     {
         [Inject] private PlayerDataInteractor _playerData;
         [Inject] private ViewManager _viewManager;
-
+        [Inject] private InputManager _input;
+        
+        
+        
         private PlayerHUDView _hudView;
         private int _codeBlocks;
 
@@ -33,6 +36,8 @@ namespace Core.Inventory
             }
         }
 
+       
+
         private void OnBlockCollected(CodeBlockCollectedEvent data)
         {
             _codeBlocks++;
@@ -49,5 +54,7 @@ namespace Core.Inventory
                 _hudView.UpdateBlocksCount(_codeBlocks);
             }
         }
+
+        
     }
 }

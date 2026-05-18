@@ -1,10 +1,13 @@
 ﻿
+using System;
 using Core.Events;
+using Core.Inventory;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.UI;
 using Gameplay.Combat.Health;
-using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.Skills;
+using Gameplay.Combat.Offensive.Skills.Abilities;
 using Gameplay.Controllers.Player;
 using Gameplay.Events;
 using Gameplay.UI.Views.Gameplay;
@@ -32,6 +35,7 @@ namespace Gameplay.Bootstrap
         private StabilityBarView _stabilityBarView;
 
         private StabilitySystem _playerStabilitySystem;
+        private Container _playerContainer;
 
         public void Boot()
         {
@@ -41,19 +45,28 @@ namespace Gameplay.Bootstrap
         private void SetupPlayer()
         {
             Player = Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
-            GameObjectInjector.InjectRecursive(Player,_container);
-            _camera = Player.GetComponentInChildren<Camera>();
             _playerStabilitySystem = Player.GetComponent<StabilitySystem>();
+            var abilitiesController = Player.GetComponent<AbilitiesController>();
             var movementController = Player.GetComponent<MovementController>();
-            var skillsController = Player.GetComponent<SkillsController>();
-            var scannerController = Player.GetComponent<ScannerController>();
-            var terminalController = Player.GetComponent<PlayerTerminalController>();
+            var fightController = Player.GetComponent<FightController>();
+            var brain = Player.GetComponent<PlayerBrain>();
+            var inventory = Player.GetComponent<InventoryManager>();
+            _camera = Player.GetComponentInChildren<Camera>();
+            _playerContainer = _container.Scope(builder =>
+            {
+                builder.RegisterValue(movementController);
+                builder.RegisterValue(fightController);
+                builder.RegisterValue(abilitiesController);
+                builder.RegisterValue(_camera);
+                builder.RegisterValue(brain);
+                builder.RegisterValue(inventory);
+            });
+            GameObjectInjector.InjectRecursive(Player,_playerContainer);
+            brain.Init();
+            abilitiesController.Init();
 
             _stabilityBarView = _viewManager.GetView<StabilityBarView>();
             _cooldownView = _viewManager.GetView<CooldownView>();
-            
-            scannerController.Init();
-            terminalController.Init();
             
             _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeHp);
             
@@ -63,8 +76,8 @@ namespace Gameplay.Bootstrap
 
 
             
-            skillsController.Init(_camera);
-            SetupCooldownListeners(skillsController);
+            //skillsController.Init(_camera);
+            SetupCooldownListeners(abilitiesController);
             // TODO настроить сейвы
             var currentSave = _playerDataInteractor.CurrentSave;
             if (currentSave != null && currentSave.Position != default)
@@ -74,6 +87,7 @@ namespace Gameplay.Bootstrap
                 var monoBehaviour = Player.GetComponent<MonoBehaviour>();
                 monoBehaviour.Invoke(nameof(SetPos), 0.05f);
             }
+            Player.SetActive(true);
             EventBus.Raise(new PlayerSpawnEvent()
             {
                 PlayerTransform = Player.transform,
@@ -82,12 +96,16 @@ namespace Gameplay.Bootstrap
             
         }
 
-        private void SetupCooldownListeners(SkillsController skillsController)
+        private void SetupCooldownListeners(AbilitiesController abilitiesController)
         {
             _cooldownView.SetSlot1Listener(() =>
-                _cooldownView.SetSlot1FillAmount(skillsController.Skills[SkillType.BranchSwitch].GetReadyPercent()));
+                _cooldownView.SetSlot1FillAmount(abilitiesController.TryGetSkill<ScannerSkill>().GetReadyPercent()));
             _cooldownView.SetSlot2Listener(() =>
-                _cooldownView.SetSlot2FillAmount(skillsController.Skills[SkillType.Scanner].GetReadyPercent()));
+                _cooldownView.SetSlot2FillAmount(abilitiesController.TryGetSkill<SwitchBranchSkill>().GetReadyPercent()));
+            _cooldownView.SetSlot3Listener(() =>
+                _cooldownView.SetSlot3FillAmount(abilitiesController.TryGetSkill<MeleeSkill>().GetReadyPercent()));
+            _cooldownView.SetSlot4Listener(() =>
+                _cooldownView.SetSlot4FillAmount(abilitiesController.TryGetSkill<ProjectileSkill>().GetReadyPercent()));
         }
 
         private void SetPos()
@@ -96,6 +114,11 @@ namespace Gameplay.Bootstrap
             {
                 Player.transform.position = _playerDataInteractor.CurrentSave.Position;
             }
+        }
+
+        private void OnDestroy()
+        {
+            _playerContainer?.Dispose();
         }
     }
 }

@@ -1,5 +1,4 @@
 using Core.UI;
-using Gameplay.Core;
 using Gameplay.Events;
 using TMPro;
 using UnityEngine;

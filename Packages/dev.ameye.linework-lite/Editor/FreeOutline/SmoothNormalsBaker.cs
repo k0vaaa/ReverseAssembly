@@ -3,7 +3,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using UnityEngine;
 
-namespace LineworkLite.Editor.FreeOutline
+namespace LineworkLite.Editor.Editor.FreeOutline
 {
     public static class SmoothNormalsBaker
     {

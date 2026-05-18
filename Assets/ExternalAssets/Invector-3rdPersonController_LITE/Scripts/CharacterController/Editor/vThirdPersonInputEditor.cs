@@ -1,7 +1,7 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-namespace Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor
+namespace ExternalAssets.Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor
 {
     [CanEditMultipleObjects]
     [CustomEditor(typeof(vThirdPersonInput), true)]

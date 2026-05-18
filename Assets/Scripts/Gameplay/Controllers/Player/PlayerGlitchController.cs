@@ -1,4 +1,3 @@
-using System;
 using Core.Bootstrap;
 
 using Core.Events;

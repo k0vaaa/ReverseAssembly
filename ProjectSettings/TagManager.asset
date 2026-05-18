@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 3
   tags:
   - Wizard
+  - HP UI
   layers:
   - Default
   - TransparentFX
@@ -13,8 +14,8 @@ TagManager:
   - Water
   - UI
   - Interactables
-  - 
-  - 
+  - Player
+  - Enemy
   - 
   - 
   - 

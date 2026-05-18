@@ -1,5 +1,4 @@
-﻿using Gameplay.Combat.Offensive;
-using Gameplay.Combat.Offensive.Base;
+﻿using Gameplay.Combat.Offensive.Base;
 
 namespace Gameplay.Combat.Interfaces
 {

@@ -7,17 +7,17 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class IdleAttackState : FightPlayerState
     {
-        public IdleAttackState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
+        public IdleAttackState(FightController fight, AbilitiesController abilities, IPlayerAnimator animator) : base(fight, abilities, animator)
         {
         }
 
         public override void Enter()
         {
-            Debug.Log("Entering IdleAttack");
-            if(!FightController.IsSheathed) return;
-            PlayerAnimator.DoWithdraw();
-            FightController.IsSheathed = false;
-            FightController.StartCoroutine(Withdraw());
+            base.Enter();
+            if(!Fight.IsSheathed) return;
+            Animator.DoWithdraw();
+            Fight.IsSheathed = false;
+
         }
 
         public override void Execute()
@@ -26,14 +26,9 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 
         public override void Exit()
         {
-            Debug.Log("Exiting IdleAttack");
+            base.Exit();
         }
         
-        private IEnumerator Withdraw()
-        {
-            yield return new WaitUntil(()=>PlayerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.374f, "Withdraw"));
-            FightController.swordGameObject.SetActive(true);
-            FightController.hipSwordGameObject.SetActive(false);
-        }
+
     }
 }

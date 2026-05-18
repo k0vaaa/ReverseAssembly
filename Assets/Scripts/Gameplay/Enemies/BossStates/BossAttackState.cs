@@ -1,4 +1,4 @@
-﻿using Gameplay.Combat.Offensive.Base;
+﻿using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Controllers.Player;
 using UnityEngine;
 using UnityEngine.AI;
@@ -7,15 +7,15 @@ namespace Gameplay.Enemies.BossStates
 {
     public class BossAttackState : StatesBossConst
     {
-        private SkillsController _skillsController;
-        public BossAttackState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent, SkillsController skillsController) : base(bossController, animator, navMeshAgent)
+        private AbilitiesController _abilitiesController;
+        public BossAttackState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent, AbilitiesController abilitiesController) : base(bossController, animator, navMeshAgent)
         {
-            _skillsController = skillsController;
+            _abilitiesController = abilitiesController;
         }
 
         public override void Enter()
         {
-            _skillsController.Skills[SkillType.Punch].TryCast();
+            _abilitiesController.TryGetSkill<PunchSkill>().TryCast();
             // EnemyAnimator.StartCoroutine(SwordColliderSwitch());
             Debug.Log("Entering BOSS ATTACK");
             BossAnimator.DoAttack();

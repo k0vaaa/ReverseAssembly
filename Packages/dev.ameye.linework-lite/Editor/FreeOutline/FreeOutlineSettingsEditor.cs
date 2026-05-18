@@ -1,10 +1,10 @@
-using LineworkLite.Editor.Common.Utils;
+using LineworkLite.Editor.Editor.Common.Utils;
 using LineworkLite.FreeOutline;
 using UnityEditor;
 using UnityEditor.Rendering;
 using UnityEngine;
 
-namespace LineworkLite.Editor.FreeOutline
+namespace LineworkLite.Editor.Editor.FreeOutline
 {
     [CustomEditor(typeof(FreeOutlineSettings))]
     public class FreeOutlineSettingsEditor : UnityEditor.Editor

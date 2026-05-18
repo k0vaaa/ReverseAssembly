@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEditor.Rendering;
 using UnityEngine;
 
-namespace LineworkLite.Editor.Common.Utils
+namespace LineworkLite.Editor.Editor.Common.Utils
 {
     public class EditorList<T> where T : ScriptableObject
     {

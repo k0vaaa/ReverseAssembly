@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-namespace PBS_Materials_Variety_Pack.zzz
+namespace ExternalAssets.PBS_Materials_Variety_Pack.zzz
 {
     public class MaterialRandomizerScript : MonoBehaviour
     {

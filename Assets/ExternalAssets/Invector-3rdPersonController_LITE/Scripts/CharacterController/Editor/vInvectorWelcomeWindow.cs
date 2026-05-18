@@ -1,8 +1,8 @@
-﻿using Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor.Resources;
+﻿using ExternalAssets.Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor.Resources;
 using UnityEditor;
 using UnityEngine;
 
-namespace Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor
+namespace ExternalAssets.Invector_3rdPersonController_LITE.Scripts.CharacterController.Editor
 {
     [InitializeOnLoad]
     public class vInvectorWelcomeWindow : EditorWindow

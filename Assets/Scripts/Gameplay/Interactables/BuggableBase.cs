@@ -1,5 +1,4 @@
-﻿using Core.UI;
-using Gameplay.UI;
+﻿using Gameplay.UI;
 using UnityEngine;
 
 namespace Gameplay.Interactables

@@ -1,4 +1,3 @@
-using System;
 using System.Reflection;
 using System.Threading.Tasks;
 using UnityEditor;
@@ -7,7 +6,7 @@ using Object = UnityEngine.Object;
 
 namespace Shortcuts
 {
-    public class FifineShortcuts : MonoBehaviour
+    public class FifineShortcuts
     {
         // Атрибут MenuItem создает кнопку в верхнем меню Unity.
         // Символы в конце: % = Ctrl, # = Shift, & = Alt. 
@@ -51,11 +50,22 @@ namespace Shortcuts
             Object folder = AssetDatabase.LoadAssetAtPath<Object>(path);
             if (folder != null)
             {
-                var selection = Selection.activeObject;
+                GameObject hierarchySelection = null;
+        
+                if (Selection.activeGameObject != null && !EditorUtility.IsPersistent(Selection.activeGameObject))
+                {
+                    hierarchySelection = Selection.activeGameObject;
+                }
+
                 Selection.activeObject = folder;
                 EditorUtility.FocusProjectWindow();
+        
                 await Task.Delay(100);
-                Selection.activeObject = selection;
+        
+                if (hierarchySelection != null)
+                {
+                    Selection.activeObject = hierarchySelection;
+                }
             }
             else
             {

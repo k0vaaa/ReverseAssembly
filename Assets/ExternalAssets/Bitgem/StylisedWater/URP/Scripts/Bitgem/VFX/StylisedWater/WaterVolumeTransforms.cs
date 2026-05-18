@@ -4,7 +4,7 @@ using UnityEngine;
 
 #endregion
 
-namespace Bitgem.StylisedWater.URP.Scripts.Bitgem.VFX.StylisedWater
+namespace ExternalAssets.Bitgem.StylisedWater.URP.Scripts.Bitgem.VFX.StylisedWater
 {
     [AddComponentMenu("Bitgem/Water  Volume (Transforms)")]
     public class WaterVolumeTransforms : WaterVolumeBase

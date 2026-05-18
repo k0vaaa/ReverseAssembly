@@ -1,13 +1,11 @@
-using System;
 using System.Collections.Generic;
 using LineworkLite.Common.Attributes;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
-using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
-namespace LineworkLite.Editor.Common.Drawers
+namespace LineworkLite.Editor.Editor.Common.Drawers
 {
     [CustomPropertyDrawer(typeof(RenderingLayerMaskAttribute))]
     public sealed class RenderingLayerMaskDrawer : PropertyDrawer
