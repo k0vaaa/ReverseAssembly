@@ -11,7 +11,7 @@ using Reflex.Enums;
 using UnityEngine;
 using Resolution = Reflex.Enums.Resolution;
 
-namespace Core.Installers
+namespace Gameplay.Installers
 {
     public class ProjectInstaller : MonoBehaviour, IInstaller
     {

@@ -6,6 +6,7 @@ using Reflex.Attributes;
 using Reflex.Core;
 using Reflex.Injectors;
 using UnityEngine;
+using Logger = Core.Utilities.Logger;
 
 namespace Gameplay.Controllers.Player
 {
@@ -38,19 +39,48 @@ namespace Gameplay.Controllers.Player
         {
             var defaultState = new DefaultState(this,_movement, _fight);
             var terminalState = new TerminalState(this,_movement, _fight);
+            var pauseState =  new PauseState(this,_movement, _fight);
+            AttributeInjector.Inject(pauseState, _container);
             AttributeInjector.Inject(defaultState, _container);
             AttributeInjector.Inject(terminalState, _container);
             terminalState.Init();
             _states[typeof(DefaultState)] = defaultState;
             _states[typeof(TerminalState)] = terminalState;
+            _states[typeof(PauseState)] = pauseState;
 
             _stateMachine.AddManualTransition(defaultState, terminalState);
-            _stateMachine.AddManualTransition(terminalState, defaultState);
+            _stateMachine.AddManualTransition(terminalState, defaultState); 
+            _stateMachine.AddManualTransition(pauseState, defaultState); 
             
             _stateMachine.TrySetState(defaultState);
             Debug.Log($"{GetType().Name} States Initialized");
+            
+        }
+
+        private void OnEnable()
+        {
+            _input.OnEscapePressed += HandlePause;
+            Logger.Trace();
+            
+        }
+        private void OnDisable()
+        {
+            _input.OnEscapePressed -= HandlePause;
+            Logger.Trace();
+            
         }
 
 
+        private void HandlePause()
+        {
+            if(_stateMachine.CurrentState != typeof(PauseState)) ForceRequestState<PauseState>();
+            else ForcePreviousState();
+            Logger.Trace();
+        }
+
+        private void OnDestroy()
+        {
+            ForceRequestState<DefaultState>();
+        }
     }
 }

@@ -1,13 +1,9 @@
-﻿using Core.Events;
-using Core.Input;
-using Core.UI;
+﻿using Core.UI;
 
 using Gameplay.Core;
 
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.Skills.Definitions;
-
-using Gameplay.Events;
 using Gameplay.Interactables;
 using Gameplay.StateMachines.PlayerStates.FightStates;
 using Gameplay.UI;
@@ -24,7 +20,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         private readonly ScannerAbilityDefinition _def;
         private readonly SkillContext _ctx;
 
-        [Inject] private ViewManager _viewManager;
+        [Inject] private Window _window;
 
 
         private IBuggable _currentTarget;
@@ -43,7 +39,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         public override void Init()
         {
             _cameraTransform = _cam.transform;
-            _scannerView = _viewManager.GetView<ScannerView>();
+            _scannerView = _window.GetView<ScannerView>();
         }
 
         protected override void OnTick()

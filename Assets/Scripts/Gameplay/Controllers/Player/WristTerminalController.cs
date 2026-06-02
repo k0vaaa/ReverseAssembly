@@ -1,9 +1,5 @@
-﻿using System;
-using Core.UI;
-using Gameplay.Combat.Offensive.Skills.Abilities;
-using Gameplay.Core;
+﻿using Gameplay.Core;
 using Gameplay.StateMachines.PlayerStates.PlayerBrainStates;
-using Gameplay.UI;
 using Reflex.Attributes;
 using UnityEngine;
 using InputManager = Core.Input.InputManager;

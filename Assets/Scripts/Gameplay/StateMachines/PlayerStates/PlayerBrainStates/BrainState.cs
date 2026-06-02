@@ -18,6 +18,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 
         public virtual void Enter()
         {
+            
         }
 
         public virtual void Execute()

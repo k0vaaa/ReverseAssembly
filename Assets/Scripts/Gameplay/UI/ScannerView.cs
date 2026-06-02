@@ -1,5 +1,6 @@
 using Core.UI;
 using DG.Tweening;
+using Plugins.Demigiant.DOTween.Modules;
 using UnityEngine;
 
 namespace Gameplay.UI

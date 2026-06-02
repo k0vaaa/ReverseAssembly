@@ -11,18 +11,25 @@ using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class MainMenuBootstrap : MonoBehaviour, IInitializable
+    public class MainMenuBootstrap : MonoBehaviour, IBootstrapComponent
     {
-        [Inject] private ViewManager _viewManager;
+        [Inject] private Window _menuWindow;
         [Inject] private SettingsInteractor _settingsInteractor;
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SceneLoader _sceneLoader;
        
 
-        public void Init()
+        public void Boot()
         {
-            InitializeSettings();
-            BindMenuButtons();
+            _menuWindow.GetView<MainMenuView>().SetResumeAction(LoadGameScene);
+            //InitializeSettings();
+            //BindMenuButtons();
+        }
+
+        private void LoadGameScene()
+        {
+            print(1);
+            _ = _sceneLoader.LoadScene(SceneConstants.GameScene);
         }
 
         private void InitializeSettings()
@@ -35,9 +42,9 @@ namespace Gameplay.Bootstrap
 
         private void BindMenuButtons()
         {
-            var mainMenuView = _viewManager.GetView<MainMenuView>();
-            var settingsView = _viewManager.GetView<SettingsView>();
-            var loadView = _viewManager.GetView<LoadGameView>();
+            var mainMenuView = _menuWindow.GetView<MainMenuView>();
+            var settingsView = _menuWindow.GetView<SettingsView>();
+            var loadView = _menuWindow.GetView<LoadGameView>();
 
             // Кнопки главного меню
             mainMenuView.SetNewGameAction(() =>
@@ -60,11 +67,11 @@ namespace Gameplay.Bootstrap
                 }
             });
 
-            mainMenuView.SetSettingsAction(() => _viewManager.SwitchViews(mainMenuView, settingsView));
+            mainMenuView.SetSettingsAction(() => _menuWindow.SwitchViews(mainMenuView, settingsView));
         
             mainMenuView.SetLoadAction(() =>
             {
-                _viewManager.SwitchViews(mainMenuView, loadView);
+                _menuWindow.SwitchViews(mainMenuView, loadView);
                 loadView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), (timestamp) =>
                 {
                     _playerDataInteractor.LoadByTimestamp(timestamp);
@@ -73,7 +80,7 @@ namespace Gameplay.Bootstrap
             });
 
             // Кнопка возврата из меню загрузки
-            loadView.SetBackButtonListener(() => _viewManager.SwitchViews(loadView, mainMenuView));
+            loadView.SetBackButtonListener(() => _menuWindow.SwitchViews(loadView, mainMenuView));
         }
     }
 }

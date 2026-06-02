@@ -1,10 +1,10 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace ExternalAssets.PBS_Materials_Variety_Pack.zzz
+namespace ExternalAssets.PBS_Materials_Variety_Pack.zzz.Editor
 {
     [CustomEditor(typeof(MaterialRandomizerScript))]
-    public class MaterialRandomizer : Editor 
+    public class MaterialRandomizer : UnityEditor.Editor 
     {
         public override void OnInspectorGUI()
         {

@@ -1,7 +1,4 @@
-﻿
-using System;
-using Core.Events;
-using Core.Inventory;
+﻿using Core.Events;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.UI;
@@ -30,7 +27,7 @@ namespace Gameplay.Bootstrap
         [SerializeField] private Transform _playerSpawnPoint;
         [SerializeField] private GameObject _playerPrefab;
         [SerializeField] private Camera _camera;
-        [Inject] private ViewManager _viewManager;
+        [Inject] private Window _window;
         
         private CooldownView _cooldownView;
         private StabilityBarView _stabilityBarView;
@@ -46,7 +43,7 @@ namespace Gameplay.Bootstrap
         private void SetupPlayer()
         {
             Player = Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
-            new HudSwitcher(_viewManager.GetView<PlayerHUDView>());
+            new HudSwitcher(_window.GetView<PlayerHUDView>());
             _playerStabilitySystem = Player.GetComponent<StabilitySystem>();
             var abilitiesController = Player.GetComponent<AbilitiesController>();
             var movementController = Player.GetComponent<MovementController>();
@@ -65,8 +62,8 @@ namespace Gameplay.Bootstrap
             brain.Init();
             abilitiesController.Init();
 
-            _stabilityBarView = _viewManager.GetView<StabilityBarView>();
-            _cooldownView = _viewManager.GetView<CooldownView>();
+            _stabilityBarView = _window.GetView<StabilityBarView>();
+            _cooldownView = _window.GetView<CooldownView>();
             
             _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeHp);
             

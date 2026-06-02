@@ -1,5 +1,4 @@
-﻿using System;
-using Gameplay.Combat.Health;
+﻿using Gameplay.Combat.Health;
 using Gameplay.UI.Views.Gameplay;
 using UnityEngine;
 

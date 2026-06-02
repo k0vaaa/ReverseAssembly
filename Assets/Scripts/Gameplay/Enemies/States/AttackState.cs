@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using Gameplay.Combat.Offensive.Skills;
-using Gameplay.Controllers.Player;
+﻿using Gameplay.Combat.Offensive.Skills;
 using UnityEngine;
 using UnityEngine.AI;
 

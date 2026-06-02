@@ -1,12 +1,8 @@
 ﻿using Core.UI;
-using Gameplay.Combat.Offensive.Base;
-using Gameplay.Controllers.Player;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
-using Core.Events;
-using Core.Extensions;
-using Gameplay.Events; 
+
 namespace Gameplay.UI.Views.Gameplay
 {
     public class CooldownView : View

@@ -21,6 +21,7 @@ namespace Gameplay.Combat.Health
         }
 
         [field:SerializeField] public float MaxStability { get; private set; } = 100f;
+        [field:SerializeField] public bool IsInvincible { get; set; }
         
         public UnityEvent<float, float> onStabilityChanged { get; } = new();
 
@@ -60,6 +61,7 @@ namespace Gameplay.Combat.Health
 
         public void TakeDamage(Damage damage)
         {
+            if (IsInvincible) return;
             if (Stability - damage.Value <= 0)
             {
                 if (_controller != null)

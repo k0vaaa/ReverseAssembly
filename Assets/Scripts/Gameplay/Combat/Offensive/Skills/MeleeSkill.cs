@@ -2,7 +2,6 @@
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.Collision;
 using Gameplay.Combat.Offensive.Helpers;
-using Gameplay.Combat.Offensive.ScriptableObjects;
 using Gameplay.Combat.Offensive.Skills.Definitions;
 using Gameplay.Controllers.Player;
 using Gameplay.StateMachines.PlayerStates.FightStates;
@@ -47,6 +46,7 @@ namespace Gameplay.Combat.Offensive.Skills
         public void ClearCollider()
         {
             _collisionDamageDealer.ClearEnemiesList();
+            _collisionDamageDealer.GetComponent<Collider>().enabled = false;
         }
     }
 }

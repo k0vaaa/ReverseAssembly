@@ -3,6 +3,7 @@
 using Core.Events;
 using DG.Tweening;
 using Gameplay.Events;
+using Plugins.Demigiant.DOTween.Modules;
 using UnityEngine;
 
 namespace Gameplay.Core

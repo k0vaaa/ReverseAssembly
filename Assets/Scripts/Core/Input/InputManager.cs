@@ -6,11 +6,12 @@ using static UnityEngine.InputSystem.InputAction;
 
 namespace Core.Input
 {
-    public class InputManager : IInitializable, IDisposable
+    public class InputManager : IInitializable
     {
         private InputSystemActions _inputSystemActions;
         private PlayerActions _playerActions;
         private UIActions _uiActions;
+        private bool _isInitialized;
 
         public event Action OnEscapePressed;
         public event Action OnJumpPressed;
@@ -35,6 +36,7 @@ namespace Core.Input
 
         public void Init()
         {
+            if (_isInitialized) return;
             _inputSystemActions = new InputSystemActions();
             _playerActions = _inputSystemActions.Player;
             _uiActions = _inputSystemActions.UI;
@@ -43,6 +45,7 @@ namespace Core.Input
             _uiActions.Enable();
             Subscribe();
             SubscribePlayerActions();
+            _isInitialized = true;
         }
 
         private void Subscribe()
@@ -99,9 +102,5 @@ namespace Core.Input
             _playerActions.Enable();
         }
         
-        public void Dispose()
-        {
-            _inputSystemActions.Dispose();
-        }
     }
 }

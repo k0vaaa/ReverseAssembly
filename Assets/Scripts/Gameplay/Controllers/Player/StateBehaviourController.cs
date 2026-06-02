@@ -25,10 +25,23 @@ namespace Gameplay.Controllers.Player
             if (_states.TryGetValue(typeof(T), out var state))
             { 
                 _stateMachine.ForceSetState(state);
-                
+                return;
             }
         
             Debug.LogError($"Стейт {typeof(T).Name} не найден в {GetType().Name}!");
         }
+
+        public void ForceRequestState(Type type)
+        {
+            if (_states.TryGetValue(type, out var state))
+            {
+                _stateMachine.ForceSetState(state);
+                return;
+            }
+
+            Debug.LogError($"Стейт {type.Name} не найден в {GetType().Name}!");
+        }
+
+        public void ForcePreviousState() => _stateMachine.ForcePreviousState();
     }
 }

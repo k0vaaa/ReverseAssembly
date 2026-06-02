@@ -1,6 +1,5 @@
-﻿using System;
+﻿using Core.Extensions;
 using Core.Input;
-using Core.Inventory;
 using Core.StateMachines;
 using Gameplay.Anims;
 using Gameplay.Combat.Interfaces;
@@ -122,6 +121,11 @@ namespace Gameplay.Controllers.Player
 
         private void EquipCrowbar()
         {
+            if (!_abilitiesController.TryGetSkill<ScannerSkill>().IsScannerActive)
+            {
+                TryRequestState<IdleAttackState>();
+            }
+            _crowbar.transform.GetChild(0).LocalResetAll();
             _crowbar.SetActive(true);
             _pistol.SetActive(false);
             _currentAttackSkill = _abilitiesController.TryGetSkill<MeleeSkill>();
@@ -129,6 +133,11 @@ namespace Gameplay.Controllers.Player
 
         private void EquipPistol()
         {
+            if (!_abilitiesController.TryGetSkill<ScannerSkill>().IsScannerActive)
+            {
+                TryRequestState<IdleAttackState>();
+            }
+            _pistol.transform.GetChild(0).LocalResetAll();
             _crowbar.SetActive(false);
             _pistol.SetActive(true);
             _currentAttackSkill = _abilitiesController.TryGetSkill<ProjectileSkill>();

@@ -15,7 +15,7 @@ namespace Gameplay.Pause
 {
     public class PauseMenuController : MonoBehaviour, IInitializable
     {
-        [Inject] private ViewManager _viewManager;
+        [Inject] private Window _window;
         [Inject] private SceneLoader _sceneLoader;
         [Inject] private PlayerDataInteractor _playerDataInteractor;
     
@@ -26,11 +26,11 @@ namespace Gameplay.Pause
         {
             EventBus.Subscribe<GamePauseEvent>(OnPauseStateChanged).AddTo(gameObject);
         
-            _pauseView = _viewManager.GetView<PauseView>();
-            _loadGameView = _viewManager.GetView<LoadGameView>();
+            _pauseView = _window.GetView<PauseView>();
+            _loadGameView = _window.GetView<LoadGameView>();
 
             // Привязка кнопок
-            _pauseView.SetMainMenuButtonListener(() => 
+            /*_pauseView.SetMainMenuButtonListener(() => 
             {
                 PauseManager.SetPause(false); // Снимаем паузу перед выходом
                 _sceneLoader.LoadScene("MainMenu");
@@ -45,11 +45,11 @@ namespace Gameplay.Pause
 
             _pauseView.SetToLoadChooseButtonListener(() => 
             {
-                _viewManager.SwitchViews(_pauseView, _loadGameView);
+                _window.SwitchViews(_pauseView, _loadGameView);
                 _loadGameView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), LoadSelected);
-            });
+            });*/
 
-            _loadGameView.SetBackButtonListener(() => _viewManager.SwitchViews(_loadGameView, _pauseView));
+            _loadGameView.SetBackButtonListener(() => _window.SwitchViews(_loadGameView, _pauseView));
         }
 
         private void LoadSelected(string timestamp)

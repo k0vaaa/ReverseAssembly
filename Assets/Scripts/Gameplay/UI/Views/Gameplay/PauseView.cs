@@ -7,29 +7,29 @@ namespace Gameplay.UI.Views.Gameplay
 {
     public class PauseView : View
     {
-        [SerializeField] private Button saveButton;
-        [SerializeField] private Button mainMenuButton;
-        [SerializeField] private Button loadLastButton;
-        [SerializeField] private Button toLoadChooseButton;
+        [SerializeField] private Button _saveButton;
+        [SerializeField] private Button _mainMenuButton;
+        [SerializeField] private Button _loadLastButton;
+        [SerializeField] private Button _toLoadChooseButton;
+        [SerializeField] private Button _exitButton;
+        [SerializeField] private Button _resumeButton;
 
-        public void SetSaveButtonListener(Action callback)
+        public event Action SaveClick;
+        public event Action MainMenuClick;
+        public event Action LoadLastClick;
+        public event Action ToLoadChooseClick;
+        public event Action ExitClick;
+        public event Action ResumeClick;
+
+
+        private  void Awake()
         {
-            saveButton.onClick.AddListener(callback.Invoke);
-        }
-        
-        public void SetMainMenuButtonListener(Action callback)
-        {
-            mainMenuButton.onClick.AddListener(callback.Invoke);
-        }
-        
-        public void SetLoadLastButtonListener(Action callback)
-        {
-            loadLastButton.onClick.AddListener(callback.Invoke);
-        }
-        
-        public void SetToLoadChooseButtonListener(Action callback)
-        {
-            toLoadChooseButton.onClick.AddListener(callback.Invoke);
+            _saveButton?.onClick.AddListener(() => SaveClick?.Invoke());
+            _mainMenuButton?.onClick.AddListener(() => MainMenuClick?.Invoke());
+            _loadLastButton?.onClick.AddListener(() => LoadLastClick?.Invoke());
+            _toLoadChooseButton?.onClick.AddListener(() => ToLoadChooseClick?.Invoke());
+            _exitButton?.onClick.AddListener(() => ExitClick?.Invoke());
+            _resumeButton?.onClick.AddListener(() => ResumeClick?.Invoke());
         }
     }
 }

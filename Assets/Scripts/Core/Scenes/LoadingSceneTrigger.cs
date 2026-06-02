@@ -11,7 +11,7 @@ namespace Core.Scenes
 
         public void Init()
         {
-            _sceneLoader.LoadNextSceneAsync();
+            
         }
     }
 }

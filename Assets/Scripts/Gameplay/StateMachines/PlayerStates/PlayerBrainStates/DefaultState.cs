@@ -1,9 +1,13 @@
-﻿using Gameplay.Controllers.Player;
+﻿using Core.Input;
+using Gameplay.Controllers.Player;
+using Reflex.Attributes;
+using UnityEngine;
 
 namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 {
     public class DefaultState : BrainState
     {
+        [Inject] private InputManager _input;
         public DefaultState(PlayerBrain brain, MovementController movement, FightController fight) : base(brain, movement, fight)
         {
         }
@@ -12,6 +16,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         {
             Movement.enabled = true;
             Fight.enabled = true;
+            _input.EnablePlayerInput();
         }
     }
 }

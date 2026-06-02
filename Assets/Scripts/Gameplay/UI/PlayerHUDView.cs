@@ -19,12 +19,21 @@ namespace Gameplay.UI
         [SerializeField] private Sprite _mainCrosshair;
         [SerializeField] private Sprite _scannerAbilityMain;
         [SerializeField] private Sprite _scannerAbilityCorrupt;
+        [SerializeField] private Sprite _branchAbilityMain;
+        [SerializeField] private Sprite _branchAbilityCorrupt;
+        [SerializeField] private Sprite _gunAbilityMain;
+        [SerializeField] private Sprite _gunAbilityCorrupt;
+        [SerializeField] private Sprite _meleeAbilityMain;
+        [SerializeField] private Sprite _meleeAbilityCorrupt;
         [SerializeField] private TextMeshProUGUI[] _texts;
         
         [Header("Images References")]
         [SerializeField] private Image _stabilityImage;
         [SerializeField] private Image _crosshairImage;
         [SerializeField] private Image _scannerImage;
+        [SerializeField] private Image _branchImage;
+        [SerializeField] private Image _gunImage;
+        [SerializeField] private Image _meleeImage;
         public void UpdateBlocksCount(int count)
         {
             if (_blocksText != null)
@@ -51,6 +60,12 @@ namespace Gameplay.UI
 
             if (_scannerImage != null)
                 _scannerImage.sprite = isCorrupt ? _scannerAbilityCorrupt : _scannerAbilityMain;
+            if (_branchImage != null)
+                _branchImage.sprite = isCorrupt ? _branchAbilityCorrupt : _branchAbilityMain;
+            if (_gunImage != null)
+                _gunImage.sprite = isCorrupt ? _gunAbilityCorrupt : _gunAbilityMain;
+            if (_meleeImage != null)
+                _meleeImage.sprite = isCorrupt ? _meleeAbilityCorrupt : _meleeAbilityMain;
         }
     }
 }

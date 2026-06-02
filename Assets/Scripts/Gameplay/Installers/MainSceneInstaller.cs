@@ -7,20 +7,21 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Resolution = Reflex.Enums.Resolution;
 
-namespace Core.Installers
+namespace Gameplay.Installers
 {
     public class MainSceneInstaller : MonoBehaviour, IInstaller
     {
-        [SerializeField] private ViewManager _viewManager;
+        [SerializeField] private Window _mainWindow;
+        [SerializeField] private WindowManager _windowManager;
         [SerializeField] private BranchManager _branchManager;
         [SerializeField] private Volume _postProcessVolume;
         [SerializeField] private InventoryManager _inventoryManager;
-        private SyncEnergyManager _syncEnergyManager;
         private AnimationClip _clip;
         
         public void InstallBindings(ContainerBuilder builder)
         {
-            builder.RegisterValue(_viewManager);
+            builder.RegisterValue(_mainWindow, new []{typeof(Window)});
+            builder.RegisterValue(_windowManager);
             builder.RegisterValue(_branchManager);
             builder.RegisterValue(_postProcessVolume);
             builder.RegisterValue(_inventoryManager);

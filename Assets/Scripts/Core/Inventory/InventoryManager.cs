@@ -1,4 +1,3 @@
-using System;
 using Core.Events;
 using Core.Extensions;
 using Core.Input;
@@ -14,7 +13,7 @@ namespace Core.Inventory
     public class InventoryManager : MonoBehaviour
     {
         [Inject] private PlayerDataInteractor _playerData;
-        [Inject] private ViewManager _viewManager;
+        [Inject] private Window _window;
         [Inject] private InputManager _input;
         
         
@@ -27,7 +26,7 @@ namespace Core.Inventory
             EventBus.Subscribe<CodeBlockCollectedEvent>(OnBlockCollected).AddTo(gameObject);
             
             // Получаем HUD и обновляем сразу
-            _hudView = _viewManager.GetView<PlayerHUDView>();
+            _hudView = _window.GetView<PlayerHUDView>();
             if (_hudView != null)
             {
                 // Показываем HUD если он скрыт

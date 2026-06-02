@@ -43,7 +43,7 @@ namespace Gameplay.Controllers.Player
                     Debug.LogWarning($"Error adding {skill.GetType().Name} to SkillsController on {gameObject.name}");
                 }
             }
-            print(String.Join(", ", _skills.Values.GetType().Name));
+            print(String.Join(", ", _skills.Values));
         }
 
         public T TryGetSkill<T>() where T : Skill

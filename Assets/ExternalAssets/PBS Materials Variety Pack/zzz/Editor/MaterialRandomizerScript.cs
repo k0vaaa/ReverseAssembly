@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-namespace ExternalAssets.PBS_Materials_Variety_Pack.zzz
+namespace ExternalAssets.PBS_Materials_Variety_Pack.zzz.Editor
 {
     public class MaterialRandomizerScript : MonoBehaviour
     {
@@ -41,7 +41,7 @@ namespace ExternalAssets.PBS_Materials_Variety_Pack.zzz
         public void findMaterialSpheres()
         {
             gameObjects.Clear();
-            foreach (var gameObj in FindObjectsOfType(typeof(GameObject)) as GameObject[])
+            foreach (var gameObj in FindObjectsByType<GameObject>(FindObjectsSortMode.None))
             {
                 if (gameObj.name == "Material Sphere")
                 {

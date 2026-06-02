@@ -6,6 +6,11 @@ namespace Core.StateMachines
     public class StateMachine
     {
         private IState _currentState;
+        private IState _previousState;
+
+        public Type CurrentState => _currentState.GetType();
+        public Type PreviousState => _previousState.GetType();
+
 
         private Dictionary<Type, HashSet<Transition>> _states = new Dictionary<Type, HashSet<Transition>>();
 
@@ -92,6 +97,7 @@ namespace Core.StateMachines
 
             _currentState?.Exit();
 
+            _previousState = _currentState;
             _currentState = nextState;
 
             _states.TryGetValue(_currentState.GetType(), out _currentStates);
@@ -163,12 +169,10 @@ namespace Core.StateMachines
 
             return null;
         }
-        
-        public void ForceState(IState newState)
+
+        public void ForcePreviousState()
         {
-            _currentState?.Exit();
-            _currentState = newState;
-            _currentState?.Enter();
+            ForceSetState(_previousState);
         }
     }
 }

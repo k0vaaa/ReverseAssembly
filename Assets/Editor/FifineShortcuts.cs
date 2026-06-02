@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace Shortcuts
+namespace Editor
 {
     public class FifineShortcuts
     {

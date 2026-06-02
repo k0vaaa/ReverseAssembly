@@ -13,7 +13,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         [Inject] private readonly AbilitiesController _abilities;
         [Inject] private readonly InputManager _input;
         [Inject] private BranchManager _branchManager;
-        [Inject] private ViewManager _viewManager;
+        [Inject] private Window _window;
         private  TerminalView _terminalView;
 
         public TerminalState(PlayerBrain brain, MovementController movement, FightController fight) : base(brain, movement, fight)
@@ -23,12 +23,12 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 
         public void Init()
         {
-            _terminalView = _viewManager.GetView<TerminalView>();
+            _terminalView = _window.GetView<TerminalView>();
         }
 
         public override void Enter()
         {
-            Movement.enabled = false;
+            Movement.enabled = true;
             Fight.enabled = false;
             _input.OnInteractPressed += HandleInteract;
             _terminalView.UpdateInfo(_branchManager.CurrentBranch);

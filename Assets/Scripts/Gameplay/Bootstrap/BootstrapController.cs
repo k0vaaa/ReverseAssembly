@@ -16,11 +16,5 @@ namespace Gameplay.Bootstrap
                 Debug.Log($"{bootstrap.Value.GetType().Name} booted");
             }
         }
-
-        public void Start()
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
     }
 }

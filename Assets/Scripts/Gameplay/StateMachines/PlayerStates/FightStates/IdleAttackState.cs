@@ -1,7 +1,5 @@
-﻿using System.Collections;
-using Gameplay.Anims;
+﻿using Gameplay.Anims;
 using Gameplay.Controllers.Player;
-using UnityEngine;
 
 namespace Gameplay.StateMachines.PlayerStates.FightStates
 {

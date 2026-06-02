@@ -1,15 +1,18 @@
-﻿using Gameplay.Combat.Interfaces;
+﻿using Core.Extensions;
+using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.Collision;
 using Gameplay.Combat.Offensive.Helpers;
 using Gameplay.Combat.Offensive.Skills.Definitions;
 using Gameplay.StateMachines.PlayerStates.FightStates;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Gameplay.Combat.Offensive.Skills
 {
     public class ProjectileSkill : Skill
     {
+        [Inject] private Camera _camera;
         private readonly ProjectileAbilityDefinition _def;
         private readonly SkillContext _ctx;
         private Transform _castPoint;
@@ -46,7 +49,9 @@ namespace Gameplay.Combat.Offensive.Skills
             }
             else
             {
-                castDir = _castPoint.forward;
+                Ray ray = new Ray( _caster.position.WithY(_castPoint.position.y), _camera.transform.forward);
+                
+                castDir = ray.GetPoint(300) - _castPoint.position;
             }
             
             rb.AddForce(castDir.normalized * _def.Velocity, ForceMode.VelocityChange);

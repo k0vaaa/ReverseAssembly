@@ -11,7 +11,7 @@ namespace Gameplay.Interactables
     [RequireComponent(typeof(Rigidbody))]
     public class BuggablePhysicsBox : BuggableBase
     {
-        [Inject] private ViewManager _viewManager;
+        [Inject] private Window _window;
         [Inject] private InputManager _inputManager;
         private Rigidbody _rb;
         private Outline _outline; // Опционально: компонент обводки
@@ -23,7 +23,7 @@ namespace Gameplay.Interactables
             _outline = GetComponent<Outline>();
 
             if (_outline) _outline.enabled = false;
-            _bugView = _viewManager.GetView<BugView>();
+            _bugView = _window.GetView<BugView>();
             
             if (IsBugged)
             {
@@ -54,7 +54,7 @@ namespace Gameplay.Interactables
 
             Debug.Log("Открытие мини-игры Синхронизации Физики...");
 
-            if (_viewManager == null)
+            if (_window == null)
             {
                 Debug.LogError("ViewManager не внедрен (NULL)! Проверьте DI контейнер.");
                 return;
@@ -67,7 +67,7 @@ namespace Gameplay.Interactables
             }
             else
             {
-                var puzzleView = _viewManager.GetView<PhysicsPuzzleView>();
+                var puzzleView = _window.GetView<PhysicsPuzzleView>();
                 if (puzzleView == null)
                 {
                     Debug.LogError("PhysicsPuzzleView не найден! Вы добавили его в список ViewManager?");

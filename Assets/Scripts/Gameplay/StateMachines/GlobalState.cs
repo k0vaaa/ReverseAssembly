@@ -7,12 +7,12 @@ namespace Gameplay.StateMachines
     public abstract class GlobalState : IState
     {
         private GameplayManager _gameplayManager;
-        private ViewManager _viewManager;
+        private Window _window;
 
-        protected GlobalState(GameplayManager gameplayManager, ViewManager viewManager)
+        protected GlobalState(GameplayManager gameplayManager, Window window)
         {
             _gameplayManager = gameplayManager;
-            _viewManager = viewManager;
+            _window = window;
         }
 
         public virtual void Enter()

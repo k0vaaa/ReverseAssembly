@@ -1,8 +1,5 @@
-﻿using System.Collections;
-using Gameplay.Anims;
-using Gameplay.Combat.Offensive.Skills;
+﻿using Gameplay.Anims;
 using Gameplay.Controllers.Player;
-using UnityEngine;
 
 namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
@@ -17,7 +14,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
         
         public override void Enter()
         {
-            Debug.Log("Entering Spell");
+            base.Enter();
             _gunAnimator.DoAction();
 
         }
@@ -29,7 +26,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 
         public override void Exit()
         {
-            Debug.Log("Exiting Spell");
+            base.Exit();
         }
 
        

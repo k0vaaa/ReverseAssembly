@@ -11,17 +11,13 @@ using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Controllers.Player;
 using Gameplay.Enemies.States;
 using Gameplay.Events;
-
-using Gameplay.StateMachines;
 using Gameplay.UI.Views.Gameplay;
 
 using Reflex.Attributes;
 using Reflex.Core;
-using Reflex.Extensions;
 using Reflex.Injectors;
 using UnityEngine;
 using UnityEngine.AI;
-using UnityEngine.SceneManagement;
 using AttackState = Gameplay.Enemies.States.AttackState;
 
 namespace Gameplay.Enemies
@@ -309,6 +305,7 @@ namespace Gameplay.Enemies
             if (isAggressive)
             {
                 // Логика обычного мира
+                _stabilitySystem.IsInvincible = false;
                 _agent.enabled = true;
                 if (_hpCanvas != null) _hpCanvas.enabled = true;
                 ForceRequestState<IdleState>();
@@ -318,7 +315,7 @@ namespace Gameplay.Enemies
                 // Логика альтернативного мира (застывание)
                 if (_agent.isActiveAndEnabled) _agent.ResetPath();
                 _agent.enabled = false;
-        
+                _stabilitySystem.IsInvincible = true;
                 if (_hpCanvas != null) _hpCanvas.enabled = false; // Отключаем полоску здоровья
         
                 _enemyAnimator.IdleEvent(); // Принудительно ставим Idle

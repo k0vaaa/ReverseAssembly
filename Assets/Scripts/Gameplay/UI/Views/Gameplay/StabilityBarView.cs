@@ -1,10 +1,8 @@
 ﻿using Core.UI;
 using DG.Tweening;
+using Plugins.Demigiant.DOTween.Modules;
 using UnityEngine;
 using UnityEngine.UI;
-using Core.Events;
-using Core.Extensions;
-using Gameplay.Events;
 
 namespace Gameplay.UI.Views.Gameplay
 {

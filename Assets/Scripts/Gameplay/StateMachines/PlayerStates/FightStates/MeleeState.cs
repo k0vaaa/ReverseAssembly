@@ -20,6 +20,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
             
             Animator.DoAttack();
             _crowbarAnimator.DoAction();
+            
 
         }
 

@@ -2,10 +2,7 @@
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.Collision;
 using Gameplay.Combat.Offensive.Helpers;
-using Gameplay.Combat.Offensive.ScriptableObjects;
 using Gameplay.Combat.Offensive.Skills.Definitions;
-using Gameplay.Enemies.States;
-using Gameplay.StateMachines.PlayerStates.FightStates;
 using UnityEngine;
 
 namespace Gameplay.Combat.Offensive.Skills

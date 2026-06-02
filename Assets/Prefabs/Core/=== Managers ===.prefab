@@ -383,7 +383,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1496854377579447608}
-  - component: {fileID: 2331919533245474412}
   m_Layer: 0
   m_Name: ViewManager
   m_TagString: Untagged
@@ -406,24 +405,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1029255865136503978}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2331919533245474412
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6749135771171117523}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6044b8a9c5e9444a91202902ec326c4b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Core.UI.ViewManager
-  _viewsList:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 1504957620125414847}
 --- !u!1 &6833705619014489953
 GameObject:
   m_ObjectHideFlags: 0
@@ -481,9 +462,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 12a5b584bceb4d9cbb6a5965a9af6b39, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Core.Installers.MainSceneInstaller
-  _viewManager: {fileID: 2331919533245474412}
+  _mainWindow: {fileID: 0}
+  _windowManager: {fileID: 0}
   _branchManager: {fileID: 6584881443071591713}
   _postProcessVolume: {fileID: 0}
+  _inventoryManager: {fileID: 0}
 --- !u!1 &6965598247511354142
 GameObject:
   m_ObjectHideFlags: 0
