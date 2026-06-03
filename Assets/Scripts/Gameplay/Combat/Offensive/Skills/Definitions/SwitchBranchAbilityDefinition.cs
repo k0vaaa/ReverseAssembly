@@ -14,6 +14,7 @@ namespace Gameplay.Combat.Offensive.Skills.Definitions
         {
             var skill = new SwitchBranchSkill(this, context);
             AttributeInjector.Inject(skill, container);
+            skill.Init();
             return skill;
         
         }

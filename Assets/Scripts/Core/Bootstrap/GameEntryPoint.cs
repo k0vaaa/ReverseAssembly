@@ -5,6 +5,7 @@ using Gameplay.Bootstrap;
 using Gameplay.Events;
 using Reflex.Attributes;
 using UnityEngine;
+using Logger = Core.Utilities.Logger;
 
 namespace Core.Bootstrap
 {
@@ -49,6 +50,7 @@ namespace Core.Bootstrap
             foreach (var initializable in _initializables)
             {
                 initializable.Init();
+                Logger.LogTyped(initializable.GetType(),"Initialized");
             }
         }
         

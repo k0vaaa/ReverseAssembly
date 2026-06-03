@@ -8,5 +8,6 @@
         void OnScanned(bool isScanning); // Вызывается, когда сканер включен/выключен
         void OnInteract();               // Вызывается при нажатии [E] на объект
         void FixBug();                   // Вызывается после прохождения мини-игры
+        public void Visualize();
     }
 }

@@ -13,7 +13,6 @@ namespace Gameplay.Interactables
         [Inject] private Window _window;
         [Inject] private InputManager _inputManager;
         [SerializeField] private GameObject bridgeObj;
-        private Outline _outline;
         
         private void Awake()
         {

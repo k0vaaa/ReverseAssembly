@@ -10,7 +10,7 @@ namespace Gameplay.Core
 {
     public class BranchManager : MonoBehaviour, IInitializable
     {
-        public WorldBranch CurrentBranch { get; private set; }
+        public static WorldBranch CurrentBranch { get; private set; }
 
         [Header("Environments")]
         [SerializeField] private GameObject _mainBranchEnv;

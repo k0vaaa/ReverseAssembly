@@ -37,6 +37,11 @@ namespace Core.UI.Types
             return null;
         }
 
+        public bool TryAdd(T value)
+        {
+            return _tDictionary.TryAdd(value.GetType(), value);
+        }
+
         public bool TryGetValue<TValue>(out TValue value) where TValue : class, T
         {
             if (_tDictionary.TryGetValue(typeof(TValue), out var v))

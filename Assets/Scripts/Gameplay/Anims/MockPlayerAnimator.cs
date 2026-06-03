@@ -1,13 +1,23 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace Gameplay.Anims
 {
     public class MockPlayerAnimator : MonoBehaviour, IPlayerAnimator
     {
+        private static readonly int Terminal = Animator.StringToHash("Terminal");
+        [SerializeField] private Animator _animator;
         public bool CheckAnimationState(int layerIndex, float time, string stateName)
         {
             Debug.LogWarning($"Mock: Checking animation state {stateName} on layer {layerIndex}");
             return false;
+        }
+
+
+
+        public void DoTerminal(bool on)
+        {
+            _animator.SetBool(Terminal, on);
         }
 
         public void DoAttack()

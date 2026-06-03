@@ -340,10 +340,10 @@ namespace Gameplay.Enemies
                 _stabilitySystem.onStabilityChanged.RemoveAllListeners();
         
                 // Подписываем полоску на событие изменения стабильности
-                _stabilitySystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
+                _stabilitySystem.onStabilityChanged.AddListener(healthBarView.ChangeValue);
         
                 // Обновляем значение полоски сразу, чтобы она не была пустой
-                healthBarView.ChangeHp(_stabilitySystem.Stability, _stabilitySystem.MaxStability);
+                healthBarView.ChangeValue(_stabilitySystem.Stability, _stabilitySystem.MaxStability);
             }
         }
         

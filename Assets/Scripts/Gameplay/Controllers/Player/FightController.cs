@@ -1,4 +1,5 @@
-﻿using Core.Extensions;
+using Core.Bootstrap;
+using Core.Extensions;
 using Core.Input;
 using Core.StateMachines;
 using Gameplay.Anims;
@@ -14,7 +15,7 @@ using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class FightController : StateBehaviourController
+    public class FightController : StateBehaviourController, IInitializable
     {
         private IPlayerAnimator _playerAnimator;
         private AbilitiesController _abilitiesController;
@@ -40,15 +41,10 @@ namespace Gameplay.Controllers.Player
             GetComponent<IHittable>().onHit.AddListener(_playerAnimator.DoHit);
         }
 
-
-        private void Start()
+        public void Init()
         {
             AttackStatesInit();
             EquipCrowbar();
-        }
-
-        private void OnEnable()
-        {
             BindInput();
             _crowbarAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
             _gunAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
@@ -143,12 +139,11 @@ namespace Gameplay.Controllers.Player
             _currentAttackSkill = _abilitiesController.TryGetSkill<ProjectileSkill>();
         }
 
-
-        private void OnDisable()
+        private void OnDestroy()
         {
-            UnbindInput();
-            _crowbarAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
-            _gunAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
+            if (_input != null) UnbindInput();
+            if (_crowbarAnimHandler != null) _crowbarAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
+            if (_gunAnimHandler != null) _gunAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
         }
     }
 }

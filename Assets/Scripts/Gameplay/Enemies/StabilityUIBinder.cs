@@ -11,12 +11,12 @@ namespace Gameplay.Enemies
 
         private void Awake()
         {
-            _stabilitySystem.onStabilityChanged.AddListener(_view.ChangeHp);
+            _stabilitySystem.onStabilityChanged.AddListener(_view.ChangeValue);
         }
 
         private void OnDestroy()
         {
-            _stabilitySystem.onStabilityChanged.RemoveListener(_view.ChangeHp);
+            _stabilitySystem.onStabilityChanged.RemoveListener(_view.ChangeValue);
         }
     }
 }

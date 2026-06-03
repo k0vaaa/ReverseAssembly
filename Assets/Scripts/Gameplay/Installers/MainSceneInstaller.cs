@@ -1,6 +1,7 @@
 ﻿using Core.Inventory;
 using Core.UI;
 using Gameplay.Core;
+using Gameplay.UI.Windows;
 using Reflex.Core;
 using Reflex.Enums;
 using UnityEngine;
@@ -20,7 +21,7 @@ namespace Gameplay.Installers
         
         public void InstallBindings(ContainerBuilder builder)
         {
-            builder.RegisterValue(_mainWindow, new []{typeof(Window)});
+            builder.RegisterValue(_mainWindow, new []{typeof(Window), typeof(GameplayWindow)});
             builder.RegisterValue(_windowManager);
             builder.RegisterValue(_branchManager);
             builder.RegisterValue(_postProcessVolume);

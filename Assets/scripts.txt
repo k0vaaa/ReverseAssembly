@@ -350,6 +350,67 @@ namespace Core.Bootstrap
     }
 }
 
+=== Scripts\Core\Editor\InterfaceReferenceDrawer.cs ===
+﻿using Core.Utilities;
+using UnityEditor;
+using UnityEngine;
+
+// Замените на namespace, где лежит ваш InterfaceReference
+
+// Говорим Unity, что этот скрипт отвечает за отрисовку InterfaceReference
+namespace Core.Editor
+{
+    [CustomPropertyDrawer(typeof(InterfaceReference<>))]
+    public class InterfaceReferenceDrawer : PropertyDrawer
+    {
+        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        {
+            // Находим то самое внутреннее поле _value
+            SerializedProperty valueProp = property.FindPropertyRelative("_value");
+
+            // Рисуем поле _value, но даем ему имя самого элемента списка (label)
+            EditorGUI.PropertyField(position, valueProp, label);
+        }
+
+        // Сообщаем Unity правильную высоту поля (чтобы списки не наезжали друг на друга)
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            SerializedProperty valueProp = property.FindPropertyRelative("_value");
+            return EditorGUI.GetPropertyHeight(valueProp, label);
+        }
+    }
+}
+
+=== Scripts\Core\Editor\SerializableDictionaryDrawer.cs ===
+﻿using Core.UI.Types;
+using UnityEditor;
+using UnityEngine;
+
+
+namespace Core.Editor
+{
+    [CustomPropertyDrawer(typeof(SerializableDictionary<>))]
+    public class SerializableDictionaryDrawer : PropertyDrawer
+    {
+        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        {
+            // Находим внутренний список _values
+            SerializedProperty valuesProp = property.FindPropertyRelative("_values");
+
+            // Рисуем список, передавая true (чтобы нарисовались все вложенные элементы списка),
+            // и передаем label (чтобы список назывался "Views", а не "Values")
+            EditorGUI.PropertyField(position, valuesProp, label, true);
+        }
+
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            SerializedProperty valuesProp = property.FindPropertyRelative("_values");
+            // Возвращаем высоту всего списка вместе с его элементами
+            return EditorGUI.GetPropertyHeight(valuesProp, label, true);
+        }
+    }
+}
+
 === Scripts\Core\Events\DisposableTracker.cs ===
 ﻿using System;
 using System.Collections.Generic;
@@ -634,11 +695,12 @@ using static UnityEngine.InputSystem.InputAction;
 
 namespace Core.Input
 {
-    public class InputManager : IInitializable, IDisposable
+    public class InputManager : IInitializable
     {
         private InputSystemActions _inputSystemActions;
         private PlayerActions _playerActions;
         private UIActions _uiActions;
+        private bool _isInitialized;
 
         public event Action OnEscapePressed;
         public event Action OnJumpPressed;
@@ -663,6 +725,7 @@ namespace Core.Input
 
         public void Init()
         {
+            if (_isInitialized) return;
             _inputSystemActions = new InputSystemActions();
             _playerActions = _inputSystemActions.Player;
             _uiActions = _inputSystemActions.UI;
@@ -671,6 +734,7 @@ namespace Core.Input
             _uiActions.Enable();
             Subscribe();
             SubscribePlayerActions();
+            _isInitialized = true;
         }
 
         private void Subscribe()
@@ -727,88 +791,6 @@ namespace Core.Input
             _playerActions.Enable();
         }
         
-        public void Dispose()
-        {
-            _inputSystemActions.Dispose();
-        }
-    }
-}
-
-=== Scripts\Core\Installers\MainSceneInstaller.cs ===
-﻿using Core.Inventory;
-using Core.UI;
-using Gameplay.Core;
-using Reflex.Core;
-using Reflex.Enums;
-using UnityEngine;
-using UnityEngine.Rendering;
-using Resolution = Reflex.Enums.Resolution;
-
-namespace Core.Installers
-{
-    public class MainSceneInstaller : MonoBehaviour, IInstaller
-    {
-        [SerializeField] private Window _window;
-        [SerializeField] private BranchManager _branchManager;
-        [SerializeField] private Volume _postProcessVolume;
-        [SerializeField] private InventoryManager _inventoryManager;
-        private SyncEnergyManager _syncEnergyManager;
-        private AnimationClip _clip;
-        
-        public void InstallBindings(ContainerBuilder builder)
-        {
-            builder.RegisterValue(_window);
-            builder.RegisterValue(_branchManager);
-            builder.RegisterValue(_postProcessVolume);
-            builder.RegisterValue(_inventoryManager);
-            builder.RegisterType(typeof(SyncEnergyManager), Lifetime.Singleton, Resolution.Eager);
-        }
-    }
-}
-
-=== Scripts\Core\Installers\ProjectInstaller.cs ===
-﻿using Core.Audio;
-using Core.Bootstrap;
-using Core.Input;
-using Core.SaveLoad.Interactors;
-using Core.SaveLoad.PlayerSaves;
-using Core.SaveLoad.Repos;
-using Core.Scenes;
-using Core.Static;
-using Reflex.Core;
-using Reflex.Enums;
-using UnityEngine;
-using Resolution = Reflex.Enums.Resolution;
-
-namespace Core.Installers
-{
-    public class ProjectInstaller : MonoBehaviour, IInstaller
-    {
-        [SerializeField] private AudioManager _audioManagerPrefab;
-        private IPlayerDataRepository _playerJsonRepository;
-        private IDataRepository _playerPrefsRepository;
-        private PlayerDataInteractor _playerDataInteractor;
-        private SettingsInteractor _settingsInteractor;
-        private SceneLoader _sceneLoader;
-        private InputManager _inputManager;
-
-
-        public void InstallBindings(ContainerBuilder builder)
-        {
-            AudioManager audioManager = Instantiate(_audioManagerPrefab);
-            DontDestroyOnLoad(audioManager);
-            builder.RegisterValue(audioManager);
-            
-            builder.RegisterValue(new JsonRepository(Constants.SAVE_FILE_NAME), new []{typeof(IPlayerDataRepository)});
-            builder.RegisterType(typeof(PlayerPrefsRepository),new []{typeof(IDataRepository)}, Lifetime.Singleton, Resolution.Eager);
-
-            builder.RegisterType(typeof(SettingsInteractor), Lifetime.Singleton, Resolution.Eager);
-            builder.RegisterType(typeof(PlayerDataInteractor), Lifetime.Singleton, Resolution.Eager);
-            builder.RegisterType(typeof(SceneLoader), Lifetime.Singleton, Resolution.Eager);
-            builder.RegisterType(typeof(InputManager), new []{typeof(InputManager), typeof(IInitializable)}, Lifetime.Singleton, Resolution.Eager);
-
-            
-        }
     }
 }
 
@@ -1395,39 +1377,46 @@ namespace Core.Scenes
 
         public void Init()
         {
-            _sceneLoader.LoadNextSceneAsync();
+            
         }
     }
 }
 
 === Scripts\Core\Scenes\SceneLoader.cs ===
-﻿using UnityEngine;
+﻿using System.Threading.Tasks;
+using Core.Pause;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace Core.Scenes
 {
     public class SceneLoader
     {
-        public static string NextSceneName;
-
-        // Метод для вызова из других скриптов
-        public void LoadScene(string sceneName)
-        {
-            NextSceneName = sceneName;
-            SceneManager.LoadScene("LoadingScene");
-        }
-
-        // Этот метод будет вызываться самим LoadingSceneManager на сцене загрузки
-        public async void LoadNextSceneAsync()
-        {
-            if (string.IsNullOrEmpty(NextSceneName)) return;
+        private Scene _currentScene = SceneManager.GetActiveScene();
         
-            AsyncOperation operation = SceneManager.LoadSceneAsync(NextSceneName);
-            while (!operation.isDone)
-            {
-                await System.Threading.Tasks.Task.Yield();
-            }
+        
+
+        public async Awaitable LoadScene(string nextScene)
+        {
+            PauseManager.SetPause(true);
+            var loadingScene = SceneManager.LoadSceneAsync(SceneConstants.LoadingScene, LoadSceneMode.Additive);
+            await loadingScene;
+            await SceneManager.UnloadSceneAsync(_currentScene);
+            await SceneManager.LoadSceneAsync(nextScene, LoadSceneMode.Additive);
+            _currentScene = SceneManager.GetSceneByName(nextScene);
+            SceneManager.SetActiveScene(_currentScene);
+            SceneManager.UnloadSceneAsync(SceneConstants.LoadingScene);
+            PauseManager.SetPause(false);
         }
+        
+    }
+
+    public static class SceneConstants
+    {
+        public static string LoadingScene = "LoadingScene";
+        public static string GameScene = "ProjectAssembly123";
+        public static string MainMenu = "MainMenu";
+    
     }
 }
 
@@ -1451,6 +1440,11 @@ namespace Core.StateMachines
     public class StateMachine
     {
         private IState _currentState;
+        private IState _previousState;
+
+        public Type CurrentState => _currentState.GetType();
+        public Type PreviousState => _previousState.GetType();
+
 
         private Dictionary<Type, HashSet<Transition>> _states = new Dictionary<Type, HashSet<Transition>>();
 
@@ -1537,6 +1531,7 @@ namespace Core.StateMachines
 
             _currentState?.Exit();
 
+            _previousState = _currentState;
             _currentState = nextState;
 
             _states.TryGetValue(_currentState.GetType(), out _currentStates);
@@ -1608,12 +1603,10 @@ namespace Core.StateMachines
 
             return null;
         }
-        
-        public void ForceState(IState newState)
+
+        public void ForcePreviousState()
         {
-            _currentState?.Exit();
-            _currentState = newState;
-            _currentState?.Enter();
+            ForceSetState(_previousState);
         }
     }
 }
@@ -1730,12 +1723,23 @@ namespace Core.UI
         {
             gameObject.SetActive(true);
             onShow?.Invoke();
+            OnShow();
+        }
+
+        protected virtual void OnShow()
+        {
+            
         }
 
         public void Hide()
         {
             gameObject.SetActive(false);
             onHide?.Invoke();
+            OnHide();
+        }
+        protected virtual void OnHide()
+        {
+            
         }
 
         public void SetVisible(bool isVisible)
@@ -1825,14 +1829,13 @@ using UnityEngine;
 
 namespace Core.UI
 {
-    public class Window : MonoBehaviour, IInitializable
+    public class Window : View, IInitializable
     {
         [SerializeField] private SerializableDictionary<View> _views = new();
         private Stack<View> _stack = new();
 
         public void Init()
         {
-            
         }
 
         public T GetView<T>() where T : View
@@ -1841,6 +1844,7 @@ namespace Core.UI
             {
                 return view;
             }
+
             Debug.LogError($"View of type {view.TypeName()} not found");
             return null;
         }
@@ -1857,17 +1861,27 @@ namespace Core.UI
             {
                 view.Hide();
             }
+
             GetView<TView>().Show();
         }
-        
+
         public void Back()
         {
             if (_stack.Count <= 0) return;
-            
+
             if (_stack.TryPop(out var view))
             {
                 view.Hide();
             }
+        }
+
+        public void Next<TView>() where TView : View
+        {
+            var view = GetView<TView>();
+            view.Show();
+            _stack.TryPeek(out var top);
+            top.Hide();
+            _stack.Push(view);
         }
     }
 }
@@ -1875,14 +1889,42 @@ namespace Core.UI
 === Scripts\Core\UI\WindowManager.cs ===
 ﻿using System;
 using System.Collections.Generic;
+using Core.Extensions;
+using Core.UI.Types;
 using UnityEngine;
 
 namespace Core.UI
 {
     public class WindowManager : MonoBehaviour
     {
-        [SerializeField] List<View> _viewsList;
-        private Dictionary<Type, View> _views = new();
+        [SerializeField] private SerializableDictionary<Window> _windows;
+        
+        public T GetWindow<T>() where T : Window
+        {
+            if (_windows.TryGetValue(out T window))
+            {
+                return window;
+            }
+
+            Debug.LogError($"Window of type {window.TypeName()} not found");
+            return null;
+        }
+
+        public void SwitchWindows<T, T1>(T from, T1 to) where T : Window where T1 : Window
+        {
+            from.Hide();
+            to.Show();
+        }
+
+        public void ShowOnly<TWindow>() where TWindow : Window
+        {
+            foreach (var window in _windows)
+            {
+                window.Hide();
+            }
+
+            GetWindow<TWindow>().Show();
+        }
     }
 }
 
@@ -1966,6 +2008,7 @@ namespace Core.Utilities
 
 === Scripts\Core\Utilities\Logger.cs ===
 ﻿using System;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace Core.Utilities
@@ -1975,6 +2018,11 @@ namespace Core.Utilities
         public static void LogTyped(Type type, string message)
         {
             Debug.Log($"{type.Name}: {message}");
+        }
+        
+        public static void Trace([CallerMemberName] string methodName = "")
+        {
+            Debug.Log($"{methodName} выполнен");
         }
     }
 }
@@ -2456,12 +2504,6 @@ namespace Gameplay.Bootstrap
                 Debug.Log($"{bootstrap.Value.GetType().Name} booted");
             }
         }
-
-        public void Start()
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
     }
 }
 
@@ -2563,18 +2605,25 @@ using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class MainMenuBootstrap : MonoBehaviour, IInitializable
+    public class MainMenuBootstrap : MonoBehaviour, IBootstrapComponent
     {
-        [Inject] private Window _window;
+        [Inject] private Window _menuWindow;
         [Inject] private SettingsInteractor _settingsInteractor;
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SceneLoader _sceneLoader;
        
 
-        public void Init()
+        public void Boot()
         {
-            InitializeSettings();
-            BindMenuButtons();
+            _menuWindow.GetView<MainMenuView>().SetResumeAction(LoadGameScene);
+            //InitializeSettings();
+            //BindMenuButtons();
+        }
+
+        private void LoadGameScene()
+        {
+            print(1);
+            _ = _sceneLoader.LoadScene(SceneConstants.GameScene);
         }
 
         private void InitializeSettings()
@@ -2587,9 +2636,9 @@ namespace Gameplay.Bootstrap
 
         private void BindMenuButtons()
         {
-            var mainMenuView = _window.GetView<MainMenuView>();
-            var settingsView = _window.GetView<SettingsView>();
-            var loadView = _window.GetView<LoadGameView>();
+            var mainMenuView = _menuWindow.GetView<MainMenuView>();
+            var settingsView = _menuWindow.GetView<SettingsView>();
+            var loadView = _menuWindow.GetView<LoadGameView>();
 
             // Кнопки главного меню
             mainMenuView.SetNewGameAction(() =>
@@ -2612,11 +2661,11 @@ namespace Gameplay.Bootstrap
                 }
             });
 
-            mainMenuView.SetSettingsAction(() => _window.SwitchViews(mainMenuView, settingsView));
+            mainMenuView.SetSettingsAction(() => _menuWindow.SwitchViews(mainMenuView, settingsView));
         
             mainMenuView.SetLoadAction(() =>
             {
-                _window.SwitchViews(mainMenuView, loadView);
+                _menuWindow.SwitchViews(mainMenuView, loadView);
                 loadView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), (timestamp) =>
                 {
                     _playerDataInteractor.LoadByTimestamp(timestamp);
@@ -2625,7 +2674,7 @@ namespace Gameplay.Bootstrap
             });
 
             // Кнопка возврата из меню загрузки
-            loadView.SetBackButtonListener(() => _window.SwitchViews(loadView, mainMenuView));
+            loadView.SetBackButtonListener(() => _menuWindow.SwitchViews(loadView, mainMenuView));
         }
     }
 }
@@ -2951,7 +3000,7 @@ namespace Gameplay.Combat.Offensive.Base
     {
         public bool IsReady { get;}
         float GetReadyPercent();
-        void TryCast();
+        bool TryCast();
         void Tick();
     }
 }
@@ -3006,16 +3055,19 @@ namespace Gameplay.Combat.Offensive.Base
         protected abstract void OnTick();
 
 
-        public void TryCast()
+        public bool TryCast()
         {
-            if(!IsReady) return;
+            if(!IsReady) return false;
             
             if (CastAction())
             {
                 timeUntilReady = _cooldownTime;
+                return true;
             }
 
-            
+            return false;
+
+
         }
 
         protected abstract bool CastAction();
@@ -3395,6 +3447,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
 using Gameplay.Combat.Offensive.ScriptableObjects;
 using Gameplay.Core;
 using Gameplay.UI;
+using Gameplay.UI.Windows;
 using Reflex.Attributes;
 
 namespace Gameplay.Combat.Offensive.Skills.Abilities
@@ -3408,7 +3461,11 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         {
             _ctx = ctx;
         }
-        
+
+        public override void Init()
+        {
+        }
+
 
         protected override void OnTick()
         {
@@ -3417,7 +3474,6 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         protected override bool CastAction()
         {
             _branchManager.ToggleBranch();
-            HudSwitcher.Instance?.ToggleTheme();
             return true;
         }
 
@@ -3537,6 +3593,7 @@ namespace Gameplay.Combat.Offensive.Skills.Definitions
         {
             var skill = new SwitchBranchSkill(this, context);
             AttributeInjector.Inject(skill, container);
+            skill.Init();
             return skill;
         
         }
@@ -4303,13 +4360,15 @@ namespace Gameplay.Controllers.Player
 }
 
 === Scripts\Gameplay\Controllers\Player\PlayerBrain.cs ===
-﻿using Core.Input;
+﻿using System;
+using Core.Input;
 using Core.StateMachines;
 using Gameplay.StateMachines.PlayerStates.PlayerBrainStates;
 using Reflex.Attributes;
 using Reflex.Core;
 using Reflex.Injectors;
 using UnityEngine;
+using Logger = Core.Utilities.Logger;
 
 namespace Gameplay.Controllers.Player
 {
@@ -4342,20 +4401,49 @@ namespace Gameplay.Controllers.Player
         {
             var defaultState = new DefaultState(this,_movement, _fight);
             var terminalState = new TerminalState(this,_movement, _fight);
+            var pauseState =  new PauseState(this,_movement, _fight);
+            AttributeInjector.Inject(pauseState, _container);
             AttributeInjector.Inject(defaultState, _container);
             AttributeInjector.Inject(terminalState, _container);
             terminalState.Init();
             _states[typeof(DefaultState)] = defaultState;
             _states[typeof(TerminalState)] = terminalState;
+            _states[typeof(PauseState)] = pauseState;
 
             _stateMachine.AddManualTransition(defaultState, terminalState);
-            _stateMachine.AddManualTransition(terminalState, defaultState);
+            _stateMachine.AddManualTransition(terminalState, defaultState); 
+            _stateMachine.AddManualTransition(pauseState, defaultState); 
             
             _stateMachine.TrySetState(defaultState);
             Debug.Log($"{GetType().Name} States Initialized");
+            
+        }
+
+        private void OnEnable()
+        {
+            _input.OnEscapePressed += HandlePause;
+            Logger.Trace();
+            
+        }
+        private void OnDisable()
+        {
+            _input.OnEscapePressed -= HandlePause;
+            Logger.Trace();
+            
         }
 
 
+        private void HandlePause()
+        {
+            if(_stateMachine.CurrentState != typeof(PauseState)) ForceRequestState<PauseState>();
+            else ForcePreviousState();
+            Logger.Trace();
+        }
+
+        private void OnDestroy()
+        {
+            ForceRequestState<DefaultState>();
+        }
     }
 }
 
@@ -4537,11 +4625,24 @@ namespace Gameplay.Controllers.Player
             if (_states.TryGetValue(typeof(T), out var state))
             { 
                 _stateMachine.ForceSetState(state);
-                
+                return;
             }
         
             Debug.LogError($"Стейт {typeof(T).Name} не найден в {GetType().Name}!");
         }
+
+        public void ForceRequestState(Type type)
+        {
+            if (_states.TryGetValue(type, out var state))
+            {
+                _stateMachine.ForceSetState(state);
+                return;
+            }
+
+            Debug.LogError($"Стейт {type.Name} не найден в {GetType().Name}!");
+        }
+
+        public void ForcePreviousState() => _stateMachine.ForcePreviousState();
     }
 }
 
@@ -4620,6 +4721,7 @@ namespace Gameplay.Controllers.Player
 using Core.Events;
 using DG.Tweening;
 using Gameplay.Events;
+using Plugins.Demigiant.DOTween.Modules;
 using UnityEngine;
 
 namespace Gameplay.Core
@@ -6479,6 +6581,105 @@ namespace Gameplay.Events
 }
 
 
+=== Scripts\Gameplay\Installers\MainSceneInstaller.cs ===
+﻿using Core.Inventory;
+using Core.UI;
+using Gameplay.Core;
+using Gameplay.UI.Windows;
+using Reflex.Core;
+using Reflex.Enums;
+using UnityEngine;
+using UnityEngine.Rendering;
+using Resolution = Reflex.Enums.Resolution;
+
+namespace Gameplay.Installers
+{
+    public class MainSceneInstaller : MonoBehaviour, IInstaller
+    {
+        [SerializeField] private Window _mainWindow;
+        [SerializeField] private WindowManager _windowManager;
+        [SerializeField] private BranchManager _branchManager;
+        [SerializeField] private Volume _postProcessVolume;
+        [SerializeField] private InventoryManager _inventoryManager;
+        private AnimationClip _clip;
+        
+        public void InstallBindings(ContainerBuilder builder)
+        {
+            builder.RegisterValue(_mainWindow, new []{typeof(Window), typeof(GameplayWindow)});
+            builder.RegisterValue(_windowManager);
+            builder.RegisterValue(_branchManager);
+            builder.RegisterValue(_postProcessVolume);
+            builder.RegisterValue(_inventoryManager);
+            builder.RegisterType(typeof(SyncEnergyManager), Lifetime.Singleton, Resolution.Eager);
+        }
+    }
+}
+
+=== Scripts\Gameplay\Installers\MenuInstaller.cs ===
+﻿using Core.UI;
+using Reflex.Core;
+using UnityEngine;
+
+namespace Gameplay.Installers
+{
+    public class MenuInstaller : MonoBehaviour, IInstaller
+    {
+        [SerializeField] private Window _window;
+
+
+        public void InstallBindings(ContainerBuilder builder)
+        {
+            builder.RegisterValue(_window);
+        }
+    }
+}
+
+=== Scripts\Gameplay\Installers\ProjectInstaller.cs ===
+﻿using Core.Audio;
+using Core.Bootstrap;
+using Core.Input;
+using Core.SaveLoad.Interactors;
+using Core.SaveLoad.PlayerSaves;
+using Core.SaveLoad.Repos;
+using Core.Scenes;
+using Core.Static;
+using Reflex.Core;
+using Reflex.Enums;
+using UnityEngine;
+using Resolution = Reflex.Enums.Resolution;
+
+namespace Gameplay.Installers
+{
+    public class ProjectInstaller : MonoBehaviour, IInstaller
+    {
+        [SerializeField] private AudioManager _audioManagerPrefab;
+        private IPlayerDataRepository _playerJsonRepository;
+        private IDataRepository _playerPrefsRepository;
+        private PlayerDataInteractor _playerDataInteractor;
+        private SettingsInteractor _settingsInteractor;
+        private SceneLoader _sceneLoader;
+        private InputManager _inputManager;
+
+
+        public void InstallBindings(ContainerBuilder builder)
+        {
+            AudioManager audioManager = Instantiate(_audioManagerPrefab);
+            DontDestroyOnLoad(audioManager);
+            builder.RegisterValue(audioManager);
+            
+            builder.RegisterValue(new JsonRepository(Constants.SAVE_FILE_NAME), new []{typeof(IPlayerDataRepository)});
+            builder.RegisterType(typeof(PlayerPrefsRepository),new []{typeof(IDataRepository)}, Lifetime.Singleton, Resolution.Eager);
+
+            builder.RegisterType(typeof(SettingsInteractor), Lifetime.Singleton, Resolution.Eager);
+            builder.RegisterType(typeof(PlayerDataInteractor), Lifetime.Singleton, Resolution.Eager);
+            builder.RegisterType(typeof(SceneLoader), Lifetime.Singleton, Resolution.Eager);
+            builder.RegisterType(typeof(InputManager), new []{typeof(InputManager), typeof(IInitializable)}, Lifetime.Singleton, Resolution.Eager);
+
+            
+        }
+    }
+}
+
 === Scripts\Gameplay\Interactables\BuggableBase.cs ===
 ﻿using Gameplay.UI;
 using UnityEngine;
@@ -6883,7 +7084,7 @@ namespace Gameplay.Pause
             _loadGameView = _window.GetView<LoadGameView>();
 
             // Привязка кнопок
-            _pauseView.SetMainMenuButtonListener(() => 
+            /*_pauseView.SetMainMenuButtonListener(() => 
             {
                 PauseManager.SetPause(false); // Снимаем паузу перед выходом
                 _sceneLoader.LoadScene("MainMenu");
@@ -6900,7 +7101,7 @@ namespace Gameplay.Pause
             {
                 _window.SwitchViews(_pauseView, _loadGameView);
                 _loadGameView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), LoadSelected);
-            });
+            });*/
 
             _loadGameView.SetBackButtonListener(() => _window.SwitchViews(_loadGameView, _pauseView));
         }
@@ -6923,80 +7124,97 @@ namespace Gameplay.Pause
 }
 
 === Scripts\Gameplay\Plot\TriggerZone.cs ===
-using TMPro;
-using UnityEngine;
-using DG.Tweening;
+using System;
 using System.Collections;
 using Core.Events;
 using Core.Input;
-using UnityEngine.Rendering; // Обязательно для корутин
-using UnityEngine.Rendering.Universal;
+using DG.Tweening;
 using Gameplay.Events;
+using Plugins.Demigiant.DOTween.Modules;
 using Reflex.Attributes;
+using TMPro;
+using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
+// Обязательно для корутин
 
-public class TriggerZone : MonoBehaviour
+namespace Gameplay.Plot
 {
-    [SerializeField] private Volume _postProcessVolume;
-    private ColorAdjustments _colorAdjustments;
-    [SerializeField] private CanvasGroup _hud;
-
-    [SerializeField] private CanvasGroup _hintGroup;
-    [SerializeField] private TextMeshProUGUI _hintText;
-    [SerializeField] private string _hintMessage;
-    [SerializeField] private float _fadeDuration = 0.5f;
-    [SerializeField] private float _displayDuration = 3f; // Сколько секунд висит подсказка
-
-    [Header("Final Trigger Settings")] [SerializeField]
-    private bool _isFinalTrigger = false;
-
-    [SerializeField] private float _finalFadeDuration = 3.0f;
-
-    private Coroutine _fadeCoroutine;
-    [Inject] private InputManager _input;
-    private void Start()
+    public class TriggerZone : MonoBehaviour
     {
-        if (_postProcessVolume.profile.TryGet(out _colorAdjustments))
+        [SerializeField] private Volume _postProcessVolume;
+        private ColorAdjustments _colorAdjustments;
+        [SerializeField] private CanvasGroup _hud;
+
+        [SerializeField] private CanvasGroup _hintGroup;
+        [SerializeField] private TextMeshProUGUI _hintText;
+        [SerializeField] private string _hintMessage;
+        [SerializeField] private float _fadeDuration = 0.5f;
+        [SerializeField] private float _displayDuration = 3f; // Сколько секунд висит подсказка
+
+        [Header("Final Trigger Settings")] [SerializeField]
+        private bool _isFinalTrigger = false;
+
+        [SerializeField] private float _finalFadeDuration = 3.0f;
+
+        private Coroutine _fadeCoroutine;
+        [Inject] private InputManager _input;
+        private void Start()
         {
-            _colorAdjustments.postExposure.value = 0f;
+            if (_postProcessVolume.profile.TryGet(out _colorAdjustments))
+            {
+                _colorAdjustments.postExposure.value = 0f;
+            }
         }
-    }
 
-    private void Awake()
-    {
-        if (_hintGroup != null) _hintGroup.alpha = 0f;
-    }
-
-    private void OnTriggerEnter(Collider other)
-    {
-        if (other.CompareTag("Player"))
+        private void Awake()
         {
-            if (_hintText != null) _hintText.text = _hintMessage;
-
-            if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
-
-            _fadeCoroutine = StartCoroutine(HandleTrigger());
+            if (_hintGroup != null) _hintGroup.alpha = 0f;
+            EventBus.Subscribe<BranchSwitchedEvent>(HandleBranchSwitch);
         }
-    }
 
-    private IEnumerator HandleTrigger()
-    {
-        _hintGroup?.DOFade(1f, _fadeDuration);
+        private void HandleBranchSwitch(BranchSwitchedEvent e)
+        {
+            if (e.NewBranch == WorldBranch.Alpha)
+            {
+                _hintGroup?.DOFade(0f, _fadeDuration);
+            }
+        }
 
-        yield return new WaitForSeconds(_displayDuration);
+        private void OnTriggerEnter(Collider other)
+        {
+            if (other.CompareTag("Player"))
+            {
+                if (_hintText != null) _hintText.text = _hintMessage;
 
-        _hintGroup?.DOFade(0f, _fadeDuration);
+                if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
+
+                _fadeCoroutine = StartCoroutine(HandleTrigger());
+            }
+        }
+
         
 
-        if (_isFinalTrigger)
+        private IEnumerator HandleTrigger()
         {
-            _hud?.DOFade(0f, 2);
-            _input.DisablePlayerInput();
-            yield return new WaitForSeconds(_fadeDuration); // Ждем пока подсказка скроется
-            DOTween.To(() => _colorAdjustments.postExposure.value,
-                x => _colorAdjustments.postExposure.value = x,
-                -10f,
-                _finalFadeDuration).OnComplete(() => EventBus.Raise(new GameEndedEvent()));
+            _hintGroup?.DOFade(1f, _fadeDuration);
 
+            yield return new WaitForSeconds(_displayDuration);
+
+            _hintGroup?.DOFade(0f, _fadeDuration);
+        
+
+            if (_isFinalTrigger)
+            {
+                _hud?.DOFade(0f, 2);
+                _input.DisablePlayerInput();
+                yield return new WaitForSeconds(_fadeDuration); // Ждем пока подсказка скроется
+                DOTween.To(() => _colorAdjustments.postExposure.value,
+                    x => _colorAdjustments.postExposure.value = x,
+                    -10f,
+                    _finalFadeDuration).OnComplete(() => EventBus.Raise(new GameEndedEvent()));
+
+            }
         }
     }
 }
@@ -7562,6 +7780,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 
         public virtual void Enter()
         {
+            
         }
 
         public virtual void Execute()
@@ -7575,12 +7794,16 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 }
 
 === Scripts\Gameplay\StateMachines\PlayerStates\PlayerBrainStates\DefaultState.cs ===
-﻿using Gameplay.Controllers.Player;
+﻿using Core.Input;
+using Gameplay.Controllers.Player;
+using Reflex.Attributes;
+using UnityEngine;
 
 namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 {
     public class DefaultState : BrainState
     {
+        [Inject] private InputManager _input;
         public DefaultState(PlayerBrain brain, MovementController movement, FightController fight) : base(brain, movement, fight)
         {
         }
@@ -7589,7 +7812,78 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         {
             Movement.enabled = true;
             Fight.enabled = true;
+            _input.EnablePlayerInput();
         }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\PlayerBrainStates\PauseState.cs ===
+﻿using Core.Input;
+using Core.Pause;
+using Core.Scenes;
+using Core.UI;
+using Gameplay.Controllers.Player;
+using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Windows;
+using Reflex.Attributes;
+using UnityEngine;
+
+namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
+{
+    public class PauseState : BrainState
+    {
+        [Inject] private InputManager _input;
+        [Inject] private WindowManager _windowManager;
+        [Inject] private SceneLoader _sceneLoader;
+        private PauseView _pauseView;
+
+        public PauseState(PlayerBrain brain, MovementController movement, FightController fight) : base(brain, movement, fight)
+        {
+        }
+
+        public override void Enter()
+        {
+            PauseManager.SetPause(true);
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            Movement.enabled = false;
+            Fight.enabled = false;
+            _input.DisablePlayerInput();
+            _windowManager.ShowOnly<MenuWindow>();
+            _pauseView = _windowManager.GetWindow<MenuWindow>().GetView<PauseView>();
+            Sub();
+            
+        }
+
+        public override void Exit()
+        {
+            Unsub();
+            _windowManager.ShowOnly<GameplayWindow>();
+            Movement.enabled = true;
+            Fight.enabled = true;
+            _input.EnablePlayerInput();
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+            PauseManager.SetPause(false);
+        }
+
+        private void Sub()
+        {
+            _pauseView.ExitClick += HandleExit;
+            _pauseView.ResumeClick += HandleResume;
+            _pauseView.MainMenuClick += HandleMenu;
+        }
+        private void Unsub()
+        {
+            _pauseView.ExitClick -= HandleExit;
+            _pauseView.ResumeClick -= HandleResume;
+            _pauseView.MainMenuClick -= HandleMenu;
+        }
+
+
+        private void HandleExit() => Application.Quit();
+        private void HandleResume() => Brain.ForcePreviousState();
+        private void HandleMenu() => _sceneLoader.LoadScene(SceneConstants.MainMenu);
     }
 }
 
@@ -7624,9 +7918,11 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 
         public override void Enter()
         {
-            Movement.enabled = false;
+            Movement.enabled = true;
             Fight.enabled = false;
+            
             _input.OnInteractPressed += HandleInteract;
+            
             _terminalView.UpdateInfo(_branchManager.CurrentBranch);
             _terminalView.Show();
         }
@@ -7639,7 +7935,26 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 
         private void HandleInteract()
         {
-            _abilities.TryGetSkill<SwitchBranchSkill>().TryCast();
+            if (!_abilities.TryGetSkill<SwitchBranchSkill>().TryCast()) return;
+            HudSwitcher.Instance?.ToggleTheme();
+            _terminalView.Hide();
+        }
+    }
+}
+
+=== Scripts\Gameplay\Test\Test.cs ===
+﻿using Gameplay.Bootstrap;
+using UnityEngine;
+
+namespace Gameplay.Test
+{
+    public class Test : MonoBehaviour
+    {
+        [SerializeField] private BootstrapController _controller;
+
+        private void Awake()
+        {
+            _controller.Boot();
         }
     }
 }
@@ -8081,6 +8396,7 @@ namespace Gameplay.UI
 === Scripts\Gameplay\UI\ScannerView.cs ===
 using Core.UI;
 using DG.Tweening;
+using Plugins.Demigiant.DOTween.Modules;
 using UnityEngine;
 
 namespace Gameplay.UI
@@ -8282,29 +8598,29 @@ namespace Gameplay.UI.Views.Gameplay
 {
     public class PauseView : View
     {
-        [SerializeField] private Button saveButton;
-        [SerializeField] private Button mainMenuButton;
-        [SerializeField] private Button loadLastButton;
-        [SerializeField] private Button toLoadChooseButton;
+        [SerializeField] private Button _saveButton;
+        [SerializeField] private Button _mainMenuButton;
+        [SerializeField] private Button _loadLastButton;
+        [SerializeField] private Button _toLoadChooseButton;
+        [SerializeField] private Button _exitButton;
+        [SerializeField] private Button _resumeButton;
 
-        public void SetSaveButtonListener(Action callback)
+        public event Action SaveClick;
+        public event Action MainMenuClick;
+        public event Action LoadLastClick;
+        public event Action ToLoadChooseClick;
+        public event Action ExitClick;
+        public event Action ResumeClick;
+
+
+        private  void Awake()
         {
-            saveButton.onClick.AddListener(callback.Invoke);
-        }
-        
-        public void SetMainMenuButtonListener(Action callback)
-        {
-            mainMenuButton.onClick.AddListener(callback.Invoke);
-        }
-        
-        public void SetLoadLastButtonListener(Action callback)
-        {
-            loadLastButton.onClick.AddListener(callback.Invoke);
-        }
-        
-        public void SetToLoadChooseButtonListener(Action callback)
-        {
-            toLoadChooseButton.onClick.AddListener(callback.Invoke);
+            _saveButton?.onClick.AddListener(() => SaveClick?.Invoke());
+            _mainMenuButton?.onClick.AddListener(() => MainMenuClick?.Invoke());
+            _loadLastButton?.onClick.AddListener(() => LoadLastClick?.Invoke());
+            _toLoadChooseButton?.onClick.AddListener(() => ToLoadChooseClick?.Invoke());
+            _exitButton?.onClick.AddListener(() => ExitClick?.Invoke());
+            _resumeButton?.onClick.AddListener(() => ResumeClick?.Invoke());
         }
     }
 }
@@ -8323,6 +8639,7 @@ namespace Gameplay.UI.Views.Gameplay
 === Scripts\Gameplay\UI\Views\Gameplay\StabilityBarView.cs ===
 ﻿using Core.UI;
 using DG.Tweening;
+using Plugins.Demigiant.DOTween.Modules;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8406,26 +8723,31 @@ namespace Gameplay.UI.Views.MainMenu
 
         private void Awake()
         {
+            _exitButton.onClick.RemoveAllListeners();
             _exitButton.onClick.AddListener(Application.Quit);
         }
 
         public void SetResumeAction(Action callback)
         {
+            _resumeButton.onClick.RemoveAllListeners();
             _resumeButton.onClick.AddListener(callback.Invoke);
         }
         
         public void SetNewGameAction(Action callback)
         {
+            _newGameButton.onClick.RemoveAllListeners();
             _newGameButton.onClick.AddListener(callback.Invoke);
         }
 
         public void SetLoadAction(Action callback)
         {
+            _loadButton.onClick.RemoveAllListeners();
             _loadButton.onClick.AddListener(callback.Invoke);
         }
 
         public void SetSettingsAction(Action callback)
         {
+            _settingsButton.onClick.RemoveAllListeners();
             _settingsButton.onClick.AddListener(callback.Invoke);
         }
     }
@@ -8468,5 +8790,28 @@ namespace Gameplay.UI.Views.MainMenu
         {
             _goBackButton.onClick.AddListener(callback.Invoke);
         }
+    }
+}
+
+=== Scripts\Gameplay\UI\Windows\GameplayWindow.cs ===
+﻿using Core.UI;
+
+namespace Gameplay.UI.Windows
+{
+    public class GameplayWindow : Window
+    {
+        
+    }
+}
+
+=== Scripts\Gameplay\UI\Windows\MenuWindow.cs ===
+﻿using Core.UI;
+using Gameplay.UI.Views.Gameplay;
+
+namespace Gameplay.UI.Windows
+{
+    public class MenuWindow : Window
+    {
+        
     }
 }

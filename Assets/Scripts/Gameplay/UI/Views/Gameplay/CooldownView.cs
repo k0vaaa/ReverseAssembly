@@ -7,69 +7,30 @@ namespace Gameplay.UI.Views.Gameplay
 {
     public class CooldownView : View
     {
-        [SerializeField] private Image Slot1Mask;
-        [SerializeField] private Image Slot1Status;
-        [SerializeField] private Image Slot2Mask;
-        [SerializeField] private Image Slot2Status;
-        [SerializeField] private Image Slot3Mask;
-        [SerializeField] private Image Slot3Status;
-        [SerializeField] private Image Slot4Mask;
-        [SerializeField] private Image Slot4Status;
+        [SerializeField] private SkillView _slot1;
+        [SerializeField] private SkillView _slot2;
+        [SerializeField] private SkillView _slot3;
+        [SerializeField] private SkillView _slot4;
+
+
+        public void SetSlot1(SkillView view) => _slot1 = view;
+        public void SetSlot2(SkillView view) => _slot2 = view;
+        public void SetSlot3(SkillView view) => _slot3 = view;
+        public void SetSlot4(SkillView view) => _slot4 = view;
         
-        private readonly UnityEvent _updateSlot1 = new();
-        private readonly UnityEvent _updateSlot2 = new();
-        private readonly UnityEvent _updateSlot3 = new();
-        private readonly UnityEvent _updateSlot4 = new();
-        
+        public void SetSlot1FillAmount(float value) => _slot1.SetFill(value);
+        public void SetSlot2FillAmount(float value) => _slot2.SetFill(value);
+        public void SetSlot3FillAmount(float value) => _slot3.SetFill(value);
+        public void SetSlot4FillAmount(float value) => _slot4.SetFill(value);
 
-        private void Update()
+        public void ResetAll()
         {
-            _updateSlot1.Invoke();
-            _updateSlot2.Invoke();
-            _updateSlot3.Invoke();
-            _updateSlot4.Invoke();
-     
-            Slot1Mask.enabled = Slot1Status.fillAmount > 0;
-            Slot2Mask.enabled = Slot2Status.fillAmount > 0;
-            Slot3Mask.enabled = Slot3Status.fillAmount > 0;
-            Slot4Mask.enabled = Slot4Status.fillAmount > 0;
+            _slot1.SetFill(0);
+            _slot2.SetFill(0);
+            _slot3.SetFill(0);
+            _slot4.SetFill(0);
         }
 
-        public void SetSlot1Listener(UnityAction callback)
-        {
-            _updateSlot1.AddListener(callback);
-        }
 
-        public void SetSlot2Listener(UnityAction callback)
-        {
-            _updateSlot2.AddListener(callback);
-        }
-        public void SetSlot3Listener(UnityAction callback)
-        {
-            _updateSlot3.AddListener(callback);
-        }
-        public void SetSlot4Listener(UnityAction callback)
-        {
-            _updateSlot4.AddListener(callback);
-        }
-
-        public void SetSlot1FillAmount(float value)
-        {
-            Slot1Status.fillAmount = value;
-        }
-
-        public void SetSlot2FillAmount(float value)
-        {
-            Slot2Status.fillAmount = value;
-        }
-        public void SetSlot3FillAmount(float value)
-        {
-            Slot3Status.fillAmount = value;
-        }
-
-        public void SetSlot4FillAmount(float value)
-        {
-            Slot4Status.fillAmount = value;
-        }
     }
 }

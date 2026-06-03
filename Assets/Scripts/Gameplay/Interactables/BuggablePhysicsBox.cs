@@ -14,7 +14,7 @@ namespace Gameplay.Interactables
         [Inject] private Window _window;
         [Inject] private InputManager _inputManager;
         private Rigidbody _rb;
-        private Outline _outline; // Опционально: компонент обводки
+         // Опционально: компонент обводки
         private BugView _bugView;
 
         private void Awake()

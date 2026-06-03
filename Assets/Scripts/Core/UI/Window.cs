@@ -29,6 +29,11 @@ namespace Core.UI
             return null;
         }
 
+        public bool TryAddView(View view)
+        {
+            return _views.TryAdd(view);
+        }
+
         public void SwitchViews<T, T1>(T from, T1 to) where T : View where T1 : View
         {
             from.Hide();

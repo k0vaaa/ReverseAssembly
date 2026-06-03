@@ -1,10 +1,6 @@
-﻿using Core.Audio;
-using Core.Events;
+﻿using Core.Events;
 using Core.Extensions;
-using Core.Input;
-using Core.SaveLoad.Interactors;
-using Core.SaveLoad.PlayerSaves;
-using Core.SaveLoad.Repos;
+using Core.Scenes;
 using Core.UI;
 using Gameplay.Events;
 using Gameplay.UI;
@@ -16,8 +12,10 @@ namespace Gameplay.Bootstrap
     public class MainBootstrap : MonoBehaviour, IBootstrapComponent
     {
         [Inject] private Window _window;
+        [Inject] private SceneLoader _sceneLoader;
         public void Boot()
         {
+            _window.GetView<EndGameView>().MenuClicked += () => _ = _sceneLoader.LoadScene(SceneConstants.MainMenu);
             EventBus.Subscribe<GameEndedEvent>(e =>
             {
                 _window.ShowOnly<EndGameView>();

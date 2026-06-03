@@ -71,13 +71,6 @@ namespace Gameplay.Plot
 
         private IEnumerator HandleTrigger()
         {
-            _hintGroup?.DOFade(1f, _fadeDuration);
-
-            yield return new WaitForSeconds(_displayDuration);
-
-            _hintGroup?.DOFade(0f, _fadeDuration);
-        
-
             if (_isFinalTrigger)
             {
                 _hud?.DOFade(0f, 2);
@@ -89,6 +82,12 @@ namespace Gameplay.Plot
                     _finalFadeDuration).OnComplete(() => EventBus.Raise(new GameEndedEvent()));
 
             }
+
+            _hintGroup?.DOFade(1f, _fadeDuration);
+
+            yield return new WaitForSeconds(_displayDuration);
+
+            _hintGroup?.DOFade(0f, _fadeDuration);
         }
     }
 }

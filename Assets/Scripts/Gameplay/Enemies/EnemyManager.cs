@@ -76,7 +76,7 @@ namespace Gameplay.Enemies
                 }
                 else
                 {
-                    stabilitySystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
+                    stabilitySystem.onStabilityChanged.AddListener(healthBarView.ChangeValue);
                 }
 
                 var skillsController = enemy.GetComponent<AbilitiesController>();
@@ -259,7 +259,7 @@ namespace Gameplay.Enemies
             }
             else
             {
-                healthSystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
+                healthSystem.onStabilityChanged.AddListener(healthBarView.ChangeValue);
             }
 
             var skillsController = boss.GetComponent<AbilitiesController>();

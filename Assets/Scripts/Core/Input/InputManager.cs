@@ -101,6 +101,11 @@ namespace Core.Input
         {
             _playerActions.Enable();
         }
+
+        public void DisableEsc()
+        {
+            _inputSystemActions.UI.Cancel.Disable();
+        }
         
     }
 }

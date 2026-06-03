@@ -1,5 +1,6 @@
 using Core.UI;
 using Gameplay.Events;
+using Gameplay.UI.Views.Gameplay;
 using TMPro;
 using UnityEngine;
 
@@ -9,6 +10,9 @@ namespace Gameplay.UI
     {
         [SerializeField] private TextMeshProUGUI _branchInfoText;
         [SerializeField] private TextMeshProUGUI _promptText;
+        [SerializeField] private SkillView _switchBranchSkillView;
+
+        public SkillView SwitchBranchSkillView => _switchBranchSkillView;
 
         public void UpdateInfo(WorldBranch currentBranch)
         {

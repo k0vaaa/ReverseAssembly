@@ -1,4 +1,5 @@
-﻿using Gameplay.Combat.Offensive.ScriptableObjects;
+﻿using System;
+using Gameplay.Combat.Offensive.ScriptableObjects;
 using UnityEngine;
 
 namespace Gameplay.Combat.Offensive.Base
@@ -7,6 +8,8 @@ namespace Gameplay.Combat.Offensive.Base
     {
         protected Damage Damage { get; private set; }
         private float _cooldownTime;
+        
+        public Action<float> OnCooldownTick { get; set; }
         private float timeUntilReady { get; set; } = 0f;
         public bool IsReady { get; private set; }
 
@@ -32,6 +35,7 @@ namespace Gameplay.Combat.Offensive.Base
             {
                 IsReady = false;
                 timeUntilReady -= Time.deltaTime;
+                OnCooldownTick.Invoke(GetReadyPercent());
             }
         }
 
@@ -44,19 +48,23 @@ namespace Gameplay.Combat.Offensive.Base
             OnTick();
         }
 
+
         protected abstract void OnTick();
 
 
-        public void TryCast()
+        public bool TryCast()
         {
-            if(!IsReady) return;
+            if(!IsReady) return false;
             
             if (CastAction())
             {
                 timeUntilReady = _cooldownTime;
+                return true;
             }
 
-            
+            return false;
+
+
         }
 
         protected abstract bool CastAction();

@@ -1,5 +1,5 @@
 ﻿using Core.UI;
-
+using Gameplay.Abilities;
 using Gameplay.Core;
 
 using Gameplay.Combat.Offensive.Base;
@@ -15,8 +15,6 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
     public class ScannerSkill : Skill
     {
 
-        [Inject] private BranchManager _branchManager;
-
         private readonly ScannerAbilityDefinition _def;
         private readonly SkillContext _ctx;
 
@@ -27,6 +25,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         private ScannerView _scannerView;
         [Inject] private Camera _cam;
         private Transform _cameraTransform;
+        private ScannerTrigger _scannerTrigger;
 
         public bool IsScannerActive { get; private set; }
 
@@ -40,6 +39,16 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         {
             _cameraTransform = _cam.transform;
             _scannerView = _window.GetView<ScannerView>();
+            _scannerTrigger = _ctx.Caster.GetComponentInChildren<ScannerTrigger>();
+            _scannerTrigger.OnTriggerEntered += HandleTrigger;
+        }
+
+        private void HandleTrigger(Collider other)
+        {
+            if (other.TryGetComponent(out IBuggable buggable))
+            {
+                buggable.Visualize();
+            }
         }
 
         protected override void OnTick()
@@ -53,7 +62,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
                 var buggable = hit.collider.GetComponent<IBuggable>();
         
                 // ПРОВЕРКА: если объект багнут И находится в нужной ветке
-                if (buggable != null && buggable.IsBugged && buggable.IsInteractableInCurrentBranch(_branchManager.CurrentBranch))
+                if (buggable != null && buggable.IsBugged && buggable.IsInteractableInCurrentBranch(BranchManager.CurrentBranch))
                 {
                     if (_currentTarget != buggable)
                     {
@@ -80,6 +89,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
                 if (_ctx.FightController.TryRequestState<ScannerState>())
                 {
                     ToggleScanner();
+                    
                     return true;
                 }
 
@@ -105,6 +115,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
             {
                 _ctx.VFXController.PlayScanner();
                 _scannerView?.FillIn();
+                _scannerTrigger.Expand();
             }
             else
             {
@@ -125,7 +136,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         public void TryInteract()
         {
             if (IsScannerActive && _currentTarget != null)
-                if (_currentTarget.IsInteractableInCurrentBranch(_branchManager.CurrentBranch))
+                if (_currentTarget.IsInteractableInCurrentBranch(BranchManager.CurrentBranch))
                 {
                     _currentTarget.OnInteract();
                 }
@@ -145,6 +156,6 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
                 _currentTarget = null;
             }
         }
-
+        
     }
 }

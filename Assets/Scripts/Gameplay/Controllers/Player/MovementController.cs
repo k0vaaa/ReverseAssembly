@@ -1,3 +1,4 @@
+using Core.Bootstrap;
 using Core.Events;
 using Core.Extensions;
 using Core.Input;
@@ -11,7 +12,7 @@ using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class MovementController : StateBehaviourController
+    public class MovementController : StateBehaviourController, IInitializable
     {
         [Inject] private InputManager _inputManager;
         private IPlayerAnimator _playerAnimator;
@@ -86,7 +87,7 @@ namespace Gameplay.Controllers.Player
             }
         }*/
 
-        private void Start()
+        public void Init()
         {
             _groundCheckDistance = (_controller.height * transform.lossyScale.y / 2) + .1f;
 
