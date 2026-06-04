@@ -1,10 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Core.Bootstrap;
-using Core.Events;
 using Core.Extensions;
 using Core.UI.Types;
-using Gameplay.Events;
-using Gameplay.UI;
 using UnityEngine;
 
 namespace Core.UI
@@ -21,6 +19,17 @@ namespace Core.UI
         public T GetView<T>() where T : View
         {
             if (_views.TryGetValue(out T view))
+            {
+                return view;
+            }
+
+            Debug.LogError($"View of type {view.TypeName()} not found");
+            return null;
+        }
+
+        public View GetView(Type type)
+        {
+            if (_views.TryGetValue(type, out var view))
             {
                 return view;
             }
@@ -57,12 +66,25 @@ namespace Core.UI
             if (_stack.TryPop(out var view))
             {
                 view.Hide();
+                if (_stack.TryPeek(out var top))
+                {
+                    top.Show();
+                }
             }
         }
 
         public void Next<TView>() where TView : View
         {
             var view = GetView<TView>();
+            view.Show();
+            _stack.TryPeek(out var top);
+            top.Hide();
+            _stack.Push(view);
+        }
+
+        public void Next(Type type)
+        {
+            var view = GetView(type);
             view.Show();
             _stack.TryPeek(out var top);
             top.Hide();

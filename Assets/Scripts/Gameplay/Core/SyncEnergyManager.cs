@@ -14,7 +14,7 @@ namespace Gameplay.Core
         }
 
         public float MaxEnergy { get; private set; } = 100f;
-        public float JumpCost { get; private set; } = 30f;
+        public float JumpCost { get; private set; } = 15f;
         public float CurrentEnergy { get; private set; }
 
         public void Init()

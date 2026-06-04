@@ -1,18 +1,21 @@
 using Core.UI;
 using Gameplay.Events;
-using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Views.Gameplay.HUD;
 using TMPro;
 using UnityEngine;
 
-namespace Gameplay.UI
+namespace Gameplay.UI.Views.Gameplay.Terminal
 {
     public class TerminalView : View
     {
         [SerializeField] private TextMeshProUGUI _branchInfoText;
         [SerializeField] private TextMeshProUGUI _promptText;
         [SerializeField] private SkillView _switchBranchSkillView;
+        
 
         public SkillView SwitchBranchSkillView => _switchBranchSkillView;
+        
+
 
         public void UpdateInfo(WorldBranch currentBranch)
         {

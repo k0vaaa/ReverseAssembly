@@ -1,8 +1,6 @@
 ﻿using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.ScriptableObjects;
 using Gameplay.Core;
-using Gameplay.UI;
-using Gameplay.UI.Windows;
 using Reflex.Attributes;
 
 namespace Gameplay.Combat.Offensive.Skills.Abilities

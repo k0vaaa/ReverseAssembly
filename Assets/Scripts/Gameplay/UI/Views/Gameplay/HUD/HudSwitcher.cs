@@ -1,4 +1,4 @@
-﻿namespace Gameplay.UI
+﻿namespace Gameplay.UI.Views.Gameplay.HUD
 {
     public class HudSwitcher
     {

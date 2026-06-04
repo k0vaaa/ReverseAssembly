@@ -1,9 +1,7 @@
 ﻿using Core.UI;
 using UnityEngine;
-using UnityEngine.Events;
-using UnityEngine.UI;
 
-namespace Gameplay.UI.Views.Gameplay
+namespace Gameplay.UI.Views.Gameplay.HUD
 {
     public class CooldownView : View
     {

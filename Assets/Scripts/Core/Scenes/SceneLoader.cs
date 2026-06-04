@@ -1,5 +1,4 @@
-﻿using System.Threading.Tasks;
-using Core.Pause;
+﻿using Core.Pause;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 

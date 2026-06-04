@@ -1,3 +1,4 @@
+using System;
 using Core.Bootstrap;
 using Core.Extensions;
 using Core.Input;
@@ -8,6 +9,7 @@ using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Combat.Offensive.Skills.Abilities;
 using Gameplay.StateMachines.PlayerStates.FightStates;
+using Gameplay.StateMachines.PlayerStates.PlayerBrainStates;
 using Reflex.Attributes;
 using Reflex.Core;
 using Reflex.Injectors;
@@ -31,62 +33,71 @@ namespace Gameplay.Controllers.Player
         [SerializeField] private GameObject _crowbar;
         [SerializeField] private GameObject _pistol;
         private Skill _currentAttackSkill;
+        private bool _isInitialized;
 
 
-        private void Awake()
+        public void Init()
         {
-            _stateMachine = new StateMachine();
+            GetComponents();
+            AttackStatesInit();
+            EquipCrowbar();
+            
+            _crowbarAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
+            _gunAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
+            _isInitialized = true;
+            enabled = true;
+        }
+
+        private void GetComponents()
+        {
+            StateMachine = new StateMachine();
             _abilitiesController = GetComponent<AbilitiesController>();
             _playerAnimator = GetComponent<IPlayerAnimator>();
             GetComponent<IHittable>().onHit.AddListener(_playerAnimator.DoHit);
         }
 
-        public void Init()
-        {
-            AttackStatesInit();
-            EquipCrowbar();
-            BindInput();
-            _crowbarAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
-            _gunAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
-        }
-
         private void Update()
         {
-            _stateMachine.Tick();
+            StateMachine.Tick();
         }
 
         private void AttackStatesInit()
         {
-            //_spellState = new SpellState(this, _skillsController, _playerAnimator);
-            //_sheathState = new SheathedSwordState(this, _skillsController, _playerAnimator);
-
             var meleeState = new MeleeState(this, _abilitiesController, _playerAnimator);
             var rangedState = new RangedSkillState(this, _abilitiesController, _playerAnimator);
             var idleAttackState = new IdleAttackState(this, _abilitiesController, _playerAnimator);
-            var scannerState = new ScannerState(this, _abilitiesController, _playerAnimator);
+            
 
-            AttributeInjector.Inject(scannerState, _container);
             AttributeInjector.Inject(meleeState, _container);
 
-            _states[typeof(IdleAttackState)] = idleAttackState;
-            _states[typeof(ScannerState)] = scannerState;
-            _states[typeof(MeleeState)] = meleeState;
-            _states[typeof(RangedSkillState)] = rangedState;
+            StateMachine.AddState(idleAttackState);
+            StateMachine.AddState(meleeState);
+            StateMachine.AddState(rangedState);
             
-            _stateMachine.AddManualTransition(idleAttackState, scannerState);
-            _stateMachine.AddManualTransition(idleAttackState, meleeState);
-            _stateMachine.AddManualTransition(idleAttackState, rangedState);
-            _stateMachine.AddManualTransition(scannerState, idleAttackState);
-            _stateMachine.AddManualTransition(meleeState, idleAttackState);
-            _stateMachine.AddManualTransition(rangedState, idleAttackState);
+            StateMachine.AddManualTransition(idleAttackState, meleeState);
+            StateMachine.AddManualTransition(idleAttackState, rangedState);
+
+            StateMachine.AddManualTransition(meleeState, idleAttackState);
+            StateMachine.AddManualTransition(rangedState, idleAttackState);
 
 
-            _stateMachine.TrySetState(idleAttackState);
+            StateMachine.TrySetState(idleAttackState);
         }
+
+        private void OnEnable()
+        {
+            BindInput();
+        }
+        
+        private void OnDisable()
+        {
+            UnbindInput();
+        }
+
 
         private void BindInput()
         {
-            _input.OnScannerPressed += HandleScannerPress;
+            
             _input.OnLeftClick += HandleAttack;
             _input.OnSlotOnePressed += EquipCrowbar;
             _input.OnSlotTwoPressed += EquipPistol;
@@ -94,7 +105,7 @@ namespace Gameplay.Controllers.Player
 
         private void UnbindInput()
         {
-            _input.OnScannerPressed -= HandleScannerPress;
+            
             _input.OnLeftClick -= HandleAttack;
             _input.OnSlotOnePressed -= EquipCrowbar;
             _input.OnSlotTwoPressed -= EquipPistol;
@@ -102,13 +113,10 @@ namespace Gameplay.Controllers.Player
 
         private void HandleAttackAnimEnd()
         {
-            TryRequestState<IdleAttackState>();
+            StateMachine.TryRequestState<IdleAttackState>();
         }
 
-        private void HandleScannerPress()
-        {
-            _abilitiesController.TryGetSkill<ScannerSkill>().TryCast();
-        }
+        
 
         private void HandleAttack()
         {
@@ -119,7 +127,7 @@ namespace Gameplay.Controllers.Player
         {
             if (!_abilitiesController.TryGetSkill<ScannerSkill>().IsScannerActive)
             {
-                TryRequestState<IdleAttackState>();
+                StateMachine.TryRequestState<IdleAttackState>();
             }
             _crowbar.transform.GetChild(0).LocalResetAll();
             _crowbar.SetActive(true);
@@ -131,7 +139,7 @@ namespace Gameplay.Controllers.Player
         {
             if (!_abilitiesController.TryGetSkill<ScannerSkill>().IsScannerActive)
             {
-                TryRequestState<IdleAttackState>();
+                StateMachine.TryRequestState<IdleAttackState>();
             }
             _pistol.transform.GetChild(0).LocalResetAll();
             _crowbar.SetActive(false);
@@ -141,7 +149,6 @@ namespace Gameplay.Controllers.Player
 
         private void OnDestroy()
         {
-            if (_input != null) UnbindInput();
             if (_crowbarAnimHandler != null) _crowbarAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
             if (_gunAnimHandler != null) _gunAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
         }

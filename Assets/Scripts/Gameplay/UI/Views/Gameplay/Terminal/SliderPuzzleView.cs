@@ -1,10 +1,10 @@
+using Gameplay.Interactables;
 using UnityEngine;
 using UnityEngine.UI;
-using Gameplay.Interactables;
 
-namespace Gameplay.UI
+namespace Gameplay.UI.Views.Gameplay.Terminal
 {
-    public class PhysicsPuzzleView : PuzzleViewBase
+    public class SliderPuzzleView : PuzzleViewBase
     {
         [Header("UI Elements")]
         [SerializeField] private Slider[] _sliders;

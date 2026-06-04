@@ -39,7 +39,7 @@ namespace Gameplay.Combat.Offensive.Skills
 
         protected override bool CastAction()
         {
-            if(_fight.TryRequestState<MeleeState>()) return true;
+            if(_fight.StateMachine.TryRequestState<MeleeState>()) return true;
             return false;
         }
 

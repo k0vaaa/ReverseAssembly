@@ -1,8 +1,8 @@
-using UnityEngine;
 using Gameplay.Interactables;
+using UnityEngine;
 using UnityEngine.UI;
 
-namespace Gameplay.UI
+namespace Gameplay.UI.Views.Gameplay.Terminal
 {
     public class CommitPuzzleView : PuzzleViewBase
     {

@@ -1,9 +1,8 @@
 using Core.UI;
-using DG.Tweening;
 using Plugins.Demigiant.DOTween.Modules;
 using UnityEngine;
 
-namespace Gameplay.UI
+namespace Gameplay.UI.Views.Gameplay.HUD
 {
     public class ScannerView : View
     {

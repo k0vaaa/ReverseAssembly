@@ -1,7 +1,6 @@
 ﻿using Core.Input;
 using Gameplay.Controllers.Player;
 using Reflex.Attributes;
-using UnityEngine;
 
 namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 {

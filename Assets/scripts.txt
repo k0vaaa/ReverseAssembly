@@ -271,6 +271,7 @@ using Gameplay.Bootstrap;
 using Gameplay.Events;
 using Reflex.Attributes;
 using UnityEngine;
+using Logger = Core.Utilities.Logger;
 
 namespace Core.Bootstrap
 {
@@ -315,6 +316,7 @@ namespace Core.Bootstrap
             foreach (var initializable in _initializables)
             {
                 initializable.Init();
+                Logger.LogTyped(initializable.GetType(),"Initialized");
             }
         }
         
@@ -789,6 +791,11 @@ namespace Core.Input
         public void EnablePlayerInput()
         {
             _playerActions.Enable();
+        }
+
+        public void DisableEsc()
+        {
+            _inputSystemActions.UI.Cancel.Disable();
         }
         
     }
@@ -1679,6 +1686,11 @@ namespace Core.UI.Types
             return null;
         }
 
+        public bool TryAdd(T value)
+        {
+            return _tDictionary.TryAdd(value.GetType(), value);
+        }
+
         public bool TryGetValue<TValue>(out TValue value) where TValue : class, T
         {
             if (_tDictionary.TryGetValue(typeof(TValue), out var v))
@@ -1847,6 +1859,11 @@ namespace Core.UI
 
             Debug.LogError($"View of type {view.TypeName()} not found");
             return null;
+        }
+
+        public bool TryAddView(View view)
+        {
+            return _views.TryAdd(view);
         }
 
         public void SwitchViews<T, T1>(T from, T1 to) where T : View where T1 : View
@@ -2056,6 +2073,48 @@ namespace Core.Utilities
     }
 }
 
+=== Scripts\Gameplay\Abilities\ScannerTrigger.cs ===
+﻿using System;
+using DG.Tweening;
+using DG.Tweening.Core;
+using DG.Tweening.Plugins.Options;
+using UnityEngine;
+
+namespace Gameplay.Abilities
+{
+    public class ScannerTrigger : MonoBehaviour
+    {
+        [SerializeField] private SphereCollider _collider;
+        [SerializeField] private float _endSize = 100f;
+        [SerializeField] private float _time = 2.5f;
+        private TweenerCore<float, float, FloatOptions> _tween;
+        public event Action<Collider> OnTriggerEntered; 
+        
+        public void Expand()
+        {
+            _collider.enabled = true;
+            _tween = DOTween.To(() => _collider.radius, value => _collider.radius = value, _endSize, _time)
+                .OnComplete(() =>
+                {
+                    _collider.radius = 0.001f;
+                    _collider.enabled = false;
+                });
+        }
+
+        public void StopExpand()
+        {
+            _tween.Kill();
+            _collider.radius = 0.001f;
+            _collider.enabled = false;
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            OnTriggerEntered?.Invoke(other);
+        }
+    }
+}
+
 === Scripts\Gameplay\Anims\AnimationEventsHandler.cs ===
 ﻿using System;
 using UnityEngine;
@@ -2159,16 +2218,26 @@ namespace Gameplay.Anims
 }
 
 === Scripts\Gameplay\Anims\MockPlayerAnimator.cs ===
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace Gameplay.Anims
 {
     public class MockPlayerAnimator : MonoBehaviour, IPlayerAnimator
     {
+        private static readonly int Terminal = Animator.StringToHash("Terminal");
+        [SerializeField] private Animator _animator;
         public bool CheckAnimationState(int layerIndex, float time, string stateName)
         {
             Debug.LogWarning($"Mock: Checking animation state {stateName} on layer {layerIndex}");
             return false;
+        }
+
+
+
+        public void DoTerminal(bool on)
+        {
+            _animator.SetBool(Terminal, on);
         }
 
         public void DoAttack()
@@ -2561,13 +2630,9 @@ namespace Gameplay.Bootstrap
 }
 
 === Scripts\Gameplay\Bootstrap\MainBootstrap.cs ===
-﻿using Core.Audio;
-using Core.Events;
+﻿using Core.Events;
 using Core.Extensions;
-using Core.Input;
-using Core.SaveLoad.Interactors;
-using Core.SaveLoad.PlayerSaves;
-using Core.SaveLoad.Repos;
+using Core.Scenes;
 using Core.UI;
 using Gameplay.Events;
 using Gameplay.UI;
@@ -2579,8 +2644,10 @@ namespace Gameplay.Bootstrap
     public class MainBootstrap : MonoBehaviour, IBootstrapComponent
     {
         [Inject] private Window _window;
+        [Inject] private SceneLoader _sceneLoader;
         public void Boot()
         {
+            _window.GetView<EndGameView>().MenuClicked += () => _ = _sceneLoader.LoadScene(SceneConstants.MainMenu);
             EventBus.Subscribe<GameEndedEvent>(e =>
             {
                 _window.ShowOnly<EndGameView>();
@@ -2680,17 +2747,21 @@ namespace Gameplay.Bootstrap
 }
 
 === Scripts\Gameplay\Bootstrap\PlayerBootstrap.cs ===
-﻿using Core.Events;
+using Core.Events;
+using Core.Extensions;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.UI;
+using Gameplay.Anims;
 using Gameplay.Combat.Health;
 using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Combat.Offensive.Skills.Abilities;
 using Gameplay.Controllers.Player;
+using Gameplay.Core;
 using Gameplay.Events;
 using Gameplay.UI;
 using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using Reflex.Core;
 using Reflex.Injectors;
@@ -2705,17 +2776,26 @@ namespace Gameplay.Bootstrap
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SettingsInteractor _settingsInteractor;
         [Inject] private Container _container;
-        
+        [Inject] private SyncEnergyManager _energyManager;
+
         [SerializeField] private Transform _playerSpawnPoint;
         [SerializeField] private GameObject _playerPrefab;
         [SerializeField] private Camera _camera;
-        [Inject] private Window _window;
-        
+        [Inject] private GameplayWindow _gameplayWindow;
+
         private CooldownView _cooldownView;
         private StabilityBarView _stabilityBarView;
+        private EnergyBarView _energyBarView;
+        private TerminalView _terminalView;
 
         private StabilitySystem _playerStabilitySystem;
         private Container _playerContainer;
+        private AbilitiesController _abilitiesController;
+        private MovementController _movementController;
+        private FightController _fightController;
+        private PlayerBrain _brain;
+        private WristTerminalController _wristTerminalController;
+        private IPlayerAnimator _animator;
 
         public void Boot()
         {
@@ -2725,66 +2805,98 @@ namespace Gameplay.Bootstrap
         private void SetupPlayer()
         {
             Player = Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
-            new HudSwitcher(_window.GetView<PlayerHUDView>());
-            _playerStabilitySystem = Player.GetComponent<StabilitySystem>();
-            var abilitiesController = Player.GetComponent<AbilitiesController>();
-            var movementController = Player.GetComponent<MovementController>();
-            var fightController = Player.GetComponent<FightController>();
-            var brain = Player.GetComponent<PlayerBrain>();
-            _camera = Player.GetComponentInChildren<Camera>();
-            _playerContainer = _container.Scope(builder =>
-            {
-                builder.RegisterValue(movementController);
-                builder.RegisterValue(fightController);
-                builder.RegisterValue(abilitiesController);
-                builder.RegisterValue(_camera);
-                builder.RegisterValue(brain);
-            });
-            GameObjectInjector.InjectRecursive(Player,_playerContainer);
-            brain.Init();
-            abilitiesController.Init();
 
-            _stabilityBarView = _window.GetView<StabilityBarView>();
-            _cooldownView = _window.GetView<CooldownView>();
-            
-            _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeHp);
-            
+            GetComponents();
+
+            print(_gameplayWindow.TryAddView(_terminalView) ? "okay" : "proebali");
+
+
+            SetupContainer();
+
+            GameObjectInjector.InjectRecursive(Player, _playerContainer);
+
+            _brain.Init();
+            _abilitiesController.Init();
+            _movementController.Init();
+            _fightController.Init();
+            _wristTerminalController.Init();
+
+            _cooldownView = _gameplayWindow.GetView<CooldownView>();
+            _stabilityBarView = _gameplayWindow.GetView<StabilityBarView>();
+            _energyBarView = _gameplayWindow.GetView<EnergyBarView>();
+
+            EventBus.Subscribe<SyncEnergyChangedEvent>(e => _energyBarView.ChangeValue(e.EnergyPercent))
+                .AddTo(gameObject);
+
+            _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeValue);
+
             // TODO настроить сейвы
             _playerStabilitySystem.Init(1);
             _playerStabilitySystem.SetStability(100);
 
 
+            SetupCooldownListeners();
             
-            //skillsController.Init(_camera);
-            SetupCooldownListeners(abilitiesController);
             // TODO настроить сейвы
             var currentSave = _playerDataInteractor.CurrentSave;
             if (currentSave != null && currentSave.Position != default)
             {
-                // Запускаем корутину или просто меняем позицию через задержку.
-                // Так как это не MonoBehaviour, используем сам Player для корутины или Invoke.
-                var monoBehaviour = Player.GetComponent<MonoBehaviour>();
-                monoBehaviour.Invoke(nameof(SetPos), 0.05f);
+                Invoke(nameof(SetPos), 0.05f);
             }
+
             Player.SetActive(true);
-            EventBus.Raise(new PlayerSpawnEvent()
+
+            EventBus.Raise(new PlayerSpawnEvent
             {
                 PlayerTransform = Player.transform,
                 Camera = _camera
             });
-            
         }
 
-        private void SetupCooldownListeners(AbilitiesController abilitiesController)
+        private void GetComponents()
         {
-            _cooldownView.SetSlot1Listener(() =>
-                _cooldownView.SetSlot1FillAmount(abilitiesController.TryGetSkill<ScannerSkill>().GetReadyPercent()));
-            _cooldownView.SetSlot2Listener(() =>
-                _cooldownView.SetSlot2FillAmount(abilitiesController.TryGetSkill<SwitchBranchSkill>().GetReadyPercent()));
-            _cooldownView.SetSlot3Listener(() =>
-                _cooldownView.SetSlot3FillAmount(abilitiesController.TryGetSkill<MeleeSkill>().GetReadyPercent()));
-            _cooldownView.SetSlot4Listener(() =>
-                _cooldownView.SetSlot4FillAmount(abilitiesController.TryGetSkill<ProjectileSkill>().GetReadyPercent()));
+            _ = new HudSwitcher(_gameplayWindow.GetView<PlayerHUDView>());
+            _playerStabilitySystem = Player.GetComponent<StabilitySystem>();
+            _abilitiesController = Player.GetComponent<AbilitiesController>();
+            _movementController = Player.GetComponent<MovementController>();
+            _fightController = Player.GetComponent<FightController>();
+            _brain = Player.GetComponent<PlayerBrain>();
+            _camera = Player.GetComponentInChildren<Camera>();
+            _wristTerminalController = Player.GetComponent<WristTerminalController>();
+            _animator = Player.GetComponent<IPlayerAnimator>();
+            _terminalView = Player.GetComponentInChildren<TerminalView>(true);
+        }
+
+        private void SetupContainer()
+        {
+            _playerContainer = _container.Scope(builder =>
+            {
+                builder.RegisterValue(_movementController);
+                builder.RegisterValue(_fightController);
+                builder.RegisterValue(_abilitiesController);
+                builder.RegisterValue(_camera);
+                builder.RegisterValue(_brain);
+                builder.RegisterValue(_wristTerminalController);
+                builder.RegisterValue(_animator, new []{typeof(MockPlayerAnimator)});
+            });
+        }
+
+        private void SetupCooldownListeners()
+        {
+            _cooldownView.SetSlot2(_terminalView.SwitchBranchSkillView);
+            _cooldownView.ResetAll();
+            _abilitiesController.TryGetSkill<ScannerSkill>().OnCooldownTick += _cooldownView.SetSlot1FillAmount;
+            _abilitiesController.TryGetSkill<SwitchBranchSkill>().OnCooldownTick += _cooldownView.SetSlot2FillAmount;
+            _abilitiesController.TryGetSkill<MeleeSkill>().OnCooldownTick += _cooldownView.SetSlot3FillAmount;
+            _abilitiesController.TryGetSkill<ProjectileSkill>().OnCooldownTick += _cooldownView.SetSlot4FillAmount;
+        }
+
+        private void RemoveCooldownListeners()
+        {
+            _abilitiesController.TryGetSkill<ScannerSkill>().OnCooldownTick -= _cooldownView.SetSlot1FillAmount;
+            _abilitiesController.TryGetSkill<SwitchBranchSkill>().OnCooldownTick -= _cooldownView.SetSlot2FillAmount;
+            _abilitiesController.TryGetSkill<MeleeSkill>().OnCooldownTick -= _cooldownView.SetSlot3FillAmount;
+            _abilitiesController.TryGetSkill<ProjectileSkill>().OnCooldownTick -= _cooldownView.SetSlot4FillAmount;
         }
 
         private void SetPos()
@@ -2798,6 +2910,7 @@ namespace Gameplay.Bootstrap
         private void OnDestroy()
         {
             _playerContainer?.Dispose();
+            RemoveCooldownListeners();
         }
     }
 }
@@ -2994,7 +3107,9 @@ namespace Gameplay.Combat.Offensive.Base
 }
 
 === Scripts\Gameplay\Combat\Offensive\Base\ISkill.cs ===
-﻿namespace Gameplay.Combat.Offensive.Base
+﻿using System;
+
+namespace Gameplay.Combat.Offensive.Base
 {
     public interface ISkill
     {
@@ -3002,11 +3117,13 @@ namespace Gameplay.Combat.Offensive.Base
         float GetReadyPercent();
         bool TryCast();
         void Tick();
+        public Action<float> OnCooldownTick { get; }
     }
 }
 
 === Scripts\Gameplay\Combat\Offensive\Base\Skill.cs ===
-﻿using Gameplay.Combat.Offensive.ScriptableObjects;
+﻿using System;
+using Gameplay.Combat.Offensive.ScriptableObjects;
 using UnityEngine;
 
 namespace Gameplay.Combat.Offensive.Base
@@ -3015,6 +3132,8 @@ namespace Gameplay.Combat.Offensive.Base
     {
         protected Damage Damage { get; private set; }
         private float _cooldownTime;
+        
+        public Action<float> OnCooldownTick { get; set; }
         private float timeUntilReady { get; set; } = 0f;
         public bool IsReady { get; private set; }
 
@@ -3040,6 +3159,7 @@ namespace Gameplay.Combat.Offensive.Base
             {
                 IsReady = false;
                 timeUntilReady -= Time.deltaTime;
+                OnCooldownTick.Invoke(GetReadyPercent());
             }
         }
 
@@ -3051,6 +3171,7 @@ namespace Gameplay.Combat.Offensive.Base
             CheckCooldown();
             OnTick();
         }
+
 
         protected abstract void OnTick();
 
@@ -3292,7 +3413,7 @@ namespace Gameplay.Combat.Offensive.ScriptableObjects
 
 === Scripts\Gameplay\Combat\Offensive\Skills\Abilities\ScannerSkill.cs ===
 ﻿using Core.UI;
-
+using Gameplay.Abilities;
 using Gameplay.Core;
 
 using Gameplay.Combat.Offensive.Base;
@@ -3308,8 +3429,6 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
     public class ScannerSkill : Skill
     {
 
-        [Inject] private BranchManager _branchManager;
-
         private readonly ScannerAbilityDefinition _def;
         private readonly SkillContext _ctx;
 
@@ -3320,6 +3439,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         private ScannerView _scannerView;
         [Inject] private Camera _cam;
         private Transform _cameraTransform;
+        private ScannerTrigger _scannerTrigger;
 
         public bool IsScannerActive { get; private set; }
 
@@ -3333,6 +3453,16 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         {
             _cameraTransform = _cam.transform;
             _scannerView = _window.GetView<ScannerView>();
+            _scannerTrigger = _ctx.Caster.GetComponentInChildren<ScannerTrigger>();
+            _scannerTrigger.OnTriggerEntered += HandleTrigger;
+        }
+
+        private void HandleTrigger(Collider other)
+        {
+            if (other.TryGetComponent(out IBuggable buggable))
+            {
+                buggable.Visualize();
+            }
         }
 
         protected override void OnTick()
@@ -3346,7 +3476,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
                 var buggable = hit.collider.GetComponent<IBuggable>();
         
                 // ПРОВЕРКА: если объект багнут И находится в нужной ветке
-                if (buggable != null && buggable.IsBugged && buggable.IsInteractableInCurrentBranch(_branchManager.CurrentBranch))
+                if (buggable != null && buggable.IsBugged && buggable.IsInteractableInCurrentBranch(BranchManager.CurrentBranch))
                 {
                     if (_currentTarget != buggable)
                     {
@@ -3373,6 +3503,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
                 if (_ctx.FightController.TryRequestState<ScannerState>())
                 {
                     ToggleScanner();
+                    
                     return true;
                 }
 
@@ -3398,6 +3529,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
             {
                 _ctx.VFXController.PlayScanner();
                 _scannerView?.FillIn();
+                _scannerTrigger.Expand();
             }
             else
             {
@@ -3418,7 +3550,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         public void TryInteract()
         {
             if (IsScannerActive && _currentTarget != null)
-                if (_currentTarget.IsInteractableInCurrentBranch(_branchManager.CurrentBranch))
+                if (_currentTarget.IsInteractableInCurrentBranch(BranchManager.CurrentBranch))
                 {
                     _currentTarget.OnInteract();
                 }
@@ -3438,7 +3570,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
                 _currentTarget = null;
             }
         }
-
+        
     }
 }
 
@@ -3455,6 +3587,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
     public class SwitchBranchSkill : Skill
     {
         [Inject] private BranchManager _branchManager;
+        [Inject] private SyncEnergyManager _energyManager;
         private readonly SkillContext _ctx;
 
         public SwitchBranchSkill(AbilityDefinition abilityDefinition, SkillContext ctx) : base(abilityDefinition)
@@ -3473,8 +3606,14 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
 
         protected override bool CastAction()
         {
-            _branchManager.ToggleBranch();
-            return true;
+            if (_energyManager.TryConsumeEnergy())
+            {
+                _branchManager.ToggleBranch();
+                return true;
+            }
+
+            return false;
+
         }
 
         
@@ -3933,7 +4072,8 @@ namespace Gameplay.Controllers.Player
 }
 
 === Scripts\Gameplay\Controllers\Player\FightController.cs ===
-﻿using Core.Extensions;
+using Core.Bootstrap;
+using Core.Extensions;
 using Core.Input;
 using Core.StateMachines;
 using Gameplay.Anims;
@@ -3949,7 +4089,7 @@ using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class FightController : StateBehaviourController
+    public class FightController : StateBehaviourController, IInitializable
     {
         private IPlayerAnimator _playerAnimator;
         private AbilitiesController _abilitiesController;
@@ -3975,15 +4115,10 @@ namespace Gameplay.Controllers.Player
             GetComponent<IHittable>().onHit.AddListener(_playerAnimator.DoHit);
         }
 
-
-        private void Start()
+        public void Init()
         {
             AttackStatesInit();
             EquipCrowbar();
-        }
-
-        private void OnEnable()
-        {
             BindInput();
             _crowbarAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
             _gunAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
@@ -4078,18 +4213,18 @@ namespace Gameplay.Controllers.Player
             _currentAttackSkill = _abilitiesController.TryGetSkill<ProjectileSkill>();
         }
 
-
-        private void OnDisable()
+        private void OnDestroy()
         {
-            UnbindInput();
-            _crowbarAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
-            _gunAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
+            if (_input != null) UnbindInput();
+            if (_crowbarAnimHandler != null) _crowbarAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
+            if (_gunAnimHandler != null) _gunAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
         }
     }
 }
 
 
 === Scripts\Gameplay\Controllers\Player\MovementController.cs ===
+using Core.Bootstrap;
 using Core.Events;
 using Core.Extensions;
 using Core.Input;
@@ -4103,7 +4238,7 @@ using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class MovementController : StateBehaviourController
+    public class MovementController : StateBehaviourController, IInitializable
     {
         [Inject] private InputManager _inputManager;
         private IPlayerAnimator _playerAnimator;
@@ -4178,7 +4313,7 @@ namespace Gameplay.Controllers.Player
             }
         }*/
 
-        private void Start()
+        public void Init()
         {
             _groundCheckDistance = (_controller.height * transform.lossyScale.y / 2) + .1f;
 
@@ -4360,9 +4495,12 @@ namespace Gameplay.Controllers.Player
 }
 
 === Scripts\Gameplay\Controllers\Player\PlayerBrain.cs ===
-﻿using System;
+using System;
+using Core.Bootstrap;
+using Core.Events;
 using Core.Input;
 using Core.StateMachines;
+using Gameplay.Events;
 using Gameplay.StateMachines.PlayerStates.PlayerBrainStates;
 using Reflex.Attributes;
 using Reflex.Core;
@@ -4372,7 +4510,7 @@ using Logger = Core.Utilities.Logger;
 
 namespace Gameplay.Controllers.Player
 {
-    public class PlayerBrain : StateBehaviourController
+    public class PlayerBrain : StateBehaviourController, IInitializable
     {
         [Inject] private InputManager _input;
         private MovementController _movement;
@@ -4388,8 +4526,11 @@ namespace Gameplay.Controllers.Player
             _fight = GetComponent<FightController>();
             _abilities = GetComponent<AbilitiesController>();
             
-            
             InitStates();
+
+            _input.OnEscapePressed += HandlePause;
+            _input.OnTerminalPressed += HandleTerminal;
+            Logger.Trace();
         }
 
         private void Update()
@@ -4402,37 +4543,39 @@ namespace Gameplay.Controllers.Player
             var defaultState = new DefaultState(this,_movement, _fight);
             var terminalState = new TerminalState(this,_movement, _fight);
             var pauseState =  new PauseState(this,_movement, _fight);
+            var endGameState = new EndGameState(this,_movement, _fight);
+            
             AttributeInjector.Inject(pauseState, _container);
             AttributeInjector.Inject(defaultState, _container);
             AttributeInjector.Inject(terminalState, _container);
+            AttributeInjector.Inject(endGameState, _container);
+            
             terminalState.Init();
+
+
             _states[typeof(DefaultState)] = defaultState;
             _states[typeof(TerminalState)] = terminalState;
             _states[typeof(PauseState)] = pauseState;
+            _states[typeof(EndGameState)] = endGameState;
+
 
             _stateMachine.AddManualTransition(defaultState, terminalState);
             _stateMachine.AddManualTransition(terminalState, defaultState); 
-            _stateMachine.AddManualTransition(pauseState, defaultState); 
+            _stateMachine.AddManualTransition(pauseState, defaultState);
+
+            EventBus.Subscribe<GameEndedEvent>(HandleGameEnd);
             
             _stateMachine.TrySetState(defaultState);
             Debug.Log($"{GetType().Name} States Initialized");
             
         }
 
-        private void OnEnable()
-        {
-            _input.OnEscapePressed += HandlePause;
-            Logger.Trace();
-            
-        }
-        private void OnDisable()
-        {
-            _input.OnEscapePressed -= HandlePause;
-            Logger.Trace();
-            
-        }
 
-
+        private void HandleTerminal()
+        {
+            if(_stateMachine.CurrentState != typeof(TerminalState)) ForceRequestState<TerminalState>();
+            else ForceRequestState<DefaultState>();
+        }
         private void HandlePause()
         {
             if(_stateMachine.CurrentState != typeof(PauseState)) ForceRequestState<PauseState>();
@@ -4440,9 +4583,19 @@ namespace Gameplay.Controllers.Player
             Logger.Trace();
         }
 
+        private void HandleGameEnd(GameEndedEvent e)
+        {
+            ForceRequestState<EndGameState>();
+        }
+
         private void OnDestroy()
         {
             ForceRequestState<DefaultState>();
+            if (_input != null)
+            {
+                _input.OnEscapePressed -= HandlePause;
+                _input.OnTerminalPressed -= HandleTerminal;
+            }
         }
     }
 }
@@ -4670,32 +4823,32 @@ namespace Gameplay.Controllers.Player
 }
 
 === Scripts\Gameplay\Controllers\Player\WristTerminalController.cs ===
-﻿using Gameplay.Core;
+using System;
+using Core.Bootstrap;
+using Gameplay.Core;
 using Gameplay.StateMachines.PlayerStates.PlayerBrainStates;
+using Gameplay.UI;
+using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using UnityEngine;
 using InputManager = Core.Input.InputManager;
 
 namespace Gameplay.Controllers.Player
 {
-    public class WristTerminalController : MonoBehaviour
+    public class WristTerminalController : MonoBehaviour, IInitializable
     {
         [Inject] private InputManager _inputManager;
         [Inject] private SyncEnergyManager _syncEnergyManager;
         [Inject] private PlayerBrain _brain;
+        [Inject] private GameplayWindow _gameplayWindow;
+        private TerminalView _terminalView;
 
 
         public bool IsTerminalOpen { get; private set; }
-        
 
-        private void OnEnable()
+        public void Init()
         {
-            _inputManager.OnTerminalPressed += ToggleTerminal;
-        }
-
-        private void OnDisable()
-        {
-            _inputManager.OnTerminalPressed -= ToggleTerminal;
+            _terminalView = _gameplayWindow.GetView<TerminalView>();
         }
 
 
@@ -4703,13 +4856,21 @@ namespace Gameplay.Controllers.Player
         {
             IsTerminalOpen = !IsTerminalOpen;
 
-            if (IsTerminalOpen)
+            SetTerminal(IsTerminalOpen);
+        }
+
+
+
+        public void SetTerminal(bool active)
+        {
+            if (active)
             {
-                _brain.TryRequestState<TerminalState>();
+                _terminalView.UpdateInfo(BranchManager.CurrentBranch);
+                _terminalView.Show();
             }
             else
             {
-                _brain.TryRequestState<DefaultState>();
+                _terminalView.Hide();
             }
         }
     }
@@ -4728,7 +4889,7 @@ namespace Gameplay.Core
 {
     public class BranchManager : MonoBehaviour, IInitializable
     {
-        public WorldBranch CurrentBranch { get; private set; }
+        public static WorldBranch CurrentBranch { get; private set; }
 
         [Header("Environments")]
         [SerializeField] private GameObject _mainBranchEnv;
@@ -4800,11 +4961,17 @@ namespace Gameplay.Core
 
 using Core.Events;
 using Gameplay.Events;
+using UnityEngine;
 
 namespace Gameplay.Core
 {
     public class SyncEnergyManager : IInitializable
     {
+        public SyncEnergyManager()
+        {
+            Init();
+        }
+
         public float MaxEnergy { get; private set; } = 100f;
         public float JumpCost { get; private set; } = 30f;
         public float CurrentEnergy { get; private set; }
@@ -4836,12 +5003,15 @@ namespace Gameplay.Core
             RaiseEnergyChangedEvent();
         }
 
+        private float GetPercent() => Mathf.Clamp(CurrentEnergy / MaxEnergy, 0, 1);
+
         private void RaiseEnergyChangedEvent()
         {
             EventBus.Raise(new SyncEnergyChangedEvent
             {
                 CurrentEnergy = CurrentEnergy,
-                MaxEnergy = MaxEnergy
+                MaxEnergy = MaxEnergy,
+                EnergyPercent = GetPercent()
             });
         }
     }
@@ -5758,10 +5928,10 @@ namespace Gameplay.Enemies
                 _stabilitySystem.onStabilityChanged.RemoveAllListeners();
         
                 // Подписываем полоску на событие изменения стабильности
-                _stabilitySystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
+                _stabilitySystem.onStabilityChanged.AddListener(healthBarView.ChangeValue);
         
                 // Обновляем значение полоски сразу, чтобы она не была пустой
-                healthBarView.ChangeHp(_stabilitySystem.Stability, _stabilitySystem.MaxStability);
+                healthBarView.ChangeValue(_stabilitySystem.Stability, _stabilitySystem.MaxStability);
             }
         }
         
@@ -5847,7 +6017,7 @@ namespace Gameplay.Enemies
                 }
                 else
                 {
-                    stabilitySystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
+                    stabilitySystem.onStabilityChanged.AddListener(healthBarView.ChangeValue);
                 }
 
                 var skillsController = enemy.GetComponent<AbilitiesController>();
@@ -6030,7 +6200,7 @@ namespace Gameplay.Enemies
             }
             else
             {
-                healthSystem.onStabilityChanged.AddListener(healthBarView.ChangeHp);
+                healthSystem.onStabilityChanged.AddListener(healthBarView.ChangeValue);
             }
 
             var skillsController = boss.GetComponent<AbilitiesController>();
@@ -6096,12 +6266,12 @@ namespace Gameplay.Enemies
 
         private void Awake()
         {
-            _stabilitySystem.onStabilityChanged.AddListener(_view.ChangeHp);
+            _stabilitySystem.onStabilityChanged.AddListener(_view.ChangeValue);
         }
 
         private void OnDestroy()
         {
-            _stabilitySystem.onStabilityChanged.RemoveListener(_view.ChangeHp);
+            _stabilitySystem.onStabilityChanged.RemoveListener(_view.ChangeValue);
         }
     }
 }
@@ -6577,6 +6747,7 @@ namespace Gameplay.Events
     {
         public float CurrentEnergy;
         public float MaxEnergy;
+        public float EnergyPercent;
     }
 }
 
@@ -6681,8 +6852,11 @@ namespace Gameplay.Installers
 }
 
 === Scripts\Gameplay\Interactables\BuggableBase.cs ===
-﻿using Gameplay.UI;
+﻿using DG.Tweening;
+using ExternalAssets.QuickOutline.Scripts;
+using Gameplay.UI;
 using UnityEngine;
+using static ExternalAssets.QuickOutline.Scripts.Outline;
 
 namespace Gameplay.Interactables
 {
@@ -6690,6 +6864,9 @@ namespace Gameplay.Interactables
     {
         [SerializeField] protected PuzzleViewBase _puzzleView;
         [SerializeField] protected Events.WorldBranch _requiredBranch = Events.WorldBranch.Alpha;
+        [SerializeField] protected float _scannerVisibilityTime = 2f;
+        protected Outline _outline;
+        protected Sequence _sequence;
 
         public bool IsBugged { get; protected set; } = true;
         public virtual bool IsInteractableInCurrentBranch(Events.WorldBranch branch)
@@ -6709,6 +6886,26 @@ namespace Gameplay.Interactables
         public virtual void FixBug()
         {
             
+        }
+
+        public void Visualize()
+        {
+            if (_outline != null)
+            {
+                var mode = _outline.OutlineMode;
+                _outline.OutlineMode = Mode.OutlineAll;
+                _outline.enabled = true;
+                _sequence?.Kill();
+                _sequence = DOTween.Sequence();
+
+                _sequence.AppendInterval(_scannerVisibilityTime)
+                    .OnKill(() =>
+                    {
+                        _outline.enabled = false;
+                        _outline.OutlineMode = mode;
+                    });
+                _sequence.Play();
+            }
         }
     }
 }
@@ -6730,7 +6927,7 @@ namespace Gameplay.Interactables
         [Inject] private Window _window;
         [Inject] private InputManager _inputManager;
         private Rigidbody _rb;
-        private Outline _outline; // Опционально: компонент обводки
+         // Опционально: компонент обводки
         private BugView _bugView;
 
         private void Awake()
@@ -6845,7 +7042,6 @@ namespace Gameplay.Interactables
         [Inject] private Window _window;
         [Inject] private InputManager _inputManager;
         [SerializeField] private GameObject bridgeObj;
-        private Outline _outline;
         
         private void Awake()
         {
@@ -6934,6 +7130,7 @@ namespace Gameplay.Interactables
         void OnScanned(bool isScanning); // Вызывается, когда сканер включен/выключен
         void OnInteract();               // Вызывается при нажатии [E] на объект
         void FixBug();                   // Вызывается после прохождения мини-игры
+        public void Visualize();
     }
 }
 
@@ -7197,13 +7394,6 @@ namespace Gameplay.Plot
 
         private IEnumerator HandleTrigger()
         {
-            _hintGroup?.DOFade(1f, _fadeDuration);
-
-            yield return new WaitForSeconds(_displayDuration);
-
-            _hintGroup?.DOFade(0f, _fadeDuration);
-        
-
             if (_isFinalTrigger)
             {
                 _hud?.DOFade(0f, 2);
@@ -7215,6 +7405,12 @@ namespace Gameplay.Plot
                     _finalFadeDuration).OnComplete(() => EventBus.Raise(new GameEndedEvent()));
 
             }
+
+            _hintGroup?.DOFade(1f, _fadeDuration);
+
+            yield return new WaitForSeconds(_displayDuration);
+
+            _hintGroup?.DOFade(0f, _fadeDuration);
         }
     }
 }
@@ -7817,6 +8013,30 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
     }
 }
 
+=== Scripts\Gameplay\StateMachines\PlayerStates\PlayerBrainStates\EndGameState.cs ===
+﻿using Core.Input;
+using Gameplay.Controllers.Player;
+using Reflex.Attributes;
+
+namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
+{
+    public class EndGameState : BrainState
+    {
+        [Inject] private InputManager _input;
+        public EndGameState(PlayerBrain brain, MovementController movement, FightController fight) : base(brain, movement, fight)
+        {
+        }
+
+        public override void Enter()
+        {
+            Movement.enabled = false;
+            Fight.enabled = false;
+            _input.DisablePlayerInput();
+            _input.DisableEsc();
+        }
+    }
+}
+
 === Scripts\Gameplay\StateMachines\PlayerStates\PlayerBrainStates\PauseState.cs ===
 ﻿using Core.Input;
 using Core.Pause;
@@ -7888,8 +8108,10 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 }
 
 === Scripts\Gameplay\StateMachines\PlayerStates\PlayerBrainStates\TerminalState.cs ===
-﻿using Core.Input;
+﻿using System.Runtime.InteropServices;
+using Core.Input;
 using Core.UI;
+using Gameplay.Anims;
 using Gameplay.Combat.Offensive.Skills.Abilities;
 using Gameplay.Controllers.Player;
 using Gameplay.Core;
@@ -7902,9 +8124,9 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
     {
         [Inject] private readonly AbilitiesController _abilities;
         [Inject] private readonly InputManager _input;
-        [Inject] private BranchManager _branchManager;
-        [Inject] private Window _window;
-        private  TerminalView _terminalView;
+        [Inject] private WristTerminalController _terminalController;
+        [Inject] private MockPlayerAnimator _animator;
+        
 
         public TerminalState(PlayerBrain brain, MovementController movement, FightController fight) : base(brain, movement, fight)
         {
@@ -7913,31 +8135,32 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 
         public void Init()
         {
-            _terminalView = _window.GetView<TerminalView>();
         }
 
         public override void Enter()
         {
             Movement.enabled = true;
             Fight.enabled = false;
-            
+
+            _terminalController.SetTerminal(true);
             _input.OnInteractPressed += HandleInteract;
-            
-            _terminalView.UpdateInfo(_branchManager.CurrentBranch);
-            _terminalView.Show();
+            _animator.DoTerminal(true);
         }
 
         public override void Exit()
         {
            _input.OnInteractPressed -= HandleInteract;
-           _terminalView.Hide();
+           _terminalController.SetTerminal(false);
+           _animator.DoTerminal(false);
         }
+        
+        
 
         private void HandleInteract()
         {
             if (!_abilities.TryGetSkill<SwitchBranchSkill>().TryCast()) return;
             HudSwitcher.Instance?.ToggleTheme();
-            _terminalView.Hide();
+            Brain.ForcePreviousState();
         }
     }
 }
@@ -8150,7 +8373,8 @@ namespace Gameplay.UI
 
 
 === Scripts\Gameplay\UI\EndGameView.cs ===
-﻿using Core.UI;
+﻿using System;
+using Core.UI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8158,10 +8382,14 @@ namespace Gameplay.UI
 {
     public class EndGameView : View
     {
+        [SerializeField] private Button _menuButton;
         [SerializeField] private Button _quitButton;
+
+        public event Action MenuClicked;
 
         private void Awake()
         {
+            _menuButton.onClick.AddListener(() => MenuClicked?.Invoke());
             _quitButton.onClick.AddListener(Application.Quit);
         }
     }
@@ -8465,6 +8693,7 @@ namespace Gameplay.UI
 === Scripts\Gameplay\UI\TerminalView.cs ===
 using Core.UI;
 using Gameplay.Events;
+using Gameplay.UI.Views.Gameplay;
 using TMPro;
 using UnityEngine;
 
@@ -8474,6 +8703,9 @@ namespace Gameplay.UI
     {
         [SerializeField] private TextMeshProUGUI _branchInfoText;
         [SerializeField] private TextMeshProUGUI _promptText;
+        [SerializeField] private SkillView _switchBranchSkillView;
+
+        public SkillView SwitchBranchSkillView => _switchBranchSkillView;
 
         public void UpdateInfo(WorldBranch currentBranch)
         {
@@ -8492,6 +8724,40 @@ namespace Gameplay.UI
 }
 
 
+=== Scripts\Gameplay\UI\Views\Gameplay\BarView.cs ===
+﻿using Core.UI;
+using Plugins.Demigiant.DOTween.Modules;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.Gameplay
+{
+    public class BarView : View
+    {
+        [SerializeField] private Image _barFront;
+        [SerializeField] private Image _barMiddle;
+        [SerializeField][Range(0,1)] private float _fill = 1f;
+
+        private void OnValidate()
+        {
+            ChangeValue(_fill,1);
+        }
+
+        public void ChangeValue(float hp, float maxHp)
+        {
+            float percent = Mathf.Clamp(hp / maxHp, 0f, 1f);
+            _barFront.fillAmount = percent;
+            _barMiddle.DOFillAmount(percent, .9f);
+        }
+
+        public void ChangeValue(float percent)
+        {
+            _barFront.fillAmount = percent;
+            _barMiddle.DOFillAmount(percent, .9f);
+        }
+    }
+}
+
 === Scripts\Gameplay\UI\Views\Gameplay\CooldownView.cs ===
 ﻿using Core.UI;
 using UnityEngine;
@@ -8502,70 +8768,31 @@ namespace Gameplay.UI.Views.Gameplay
 {
     public class CooldownView : View
     {
-        [SerializeField] private Image Slot1Mask;
-        [SerializeField] private Image Slot1Status;
-        [SerializeField] private Image Slot2Mask;
-        [SerializeField] private Image Slot2Status;
-        [SerializeField] private Image Slot3Mask;
-        [SerializeField] private Image Slot3Status;
-        [SerializeField] private Image Slot4Mask;
-        [SerializeField] private Image Slot4Status;
+        [SerializeField] private SkillView _slot1;
+        [SerializeField] private SkillView _slot2;
+        [SerializeField] private SkillView _slot3;
+        [SerializeField] private SkillView _slot4;
+
+
+        public void SetSlot1(SkillView view) => _slot1 = view;
+        public void SetSlot2(SkillView view) => _slot2 = view;
+        public void SetSlot3(SkillView view) => _slot3 = view;
+        public void SetSlot4(SkillView view) => _slot4 = view;
         
-        private readonly UnityEvent _updateSlot1 = new();
-        private readonly UnityEvent _updateSlot2 = new();
-        private readonly UnityEvent _updateSlot3 = new();
-        private readonly UnityEvent _updateSlot4 = new();
-        
+        public void SetSlot1FillAmount(float value) => _slot1.SetFill(value);
+        public void SetSlot2FillAmount(float value) => _slot2.SetFill(value);
+        public void SetSlot3FillAmount(float value) => _slot3.SetFill(value);
+        public void SetSlot4FillAmount(float value) => _slot4.SetFill(value);
 
-        private void Update()
+        public void ResetAll()
         {
-            _updateSlot1.Invoke();
-            _updateSlot2.Invoke();
-            _updateSlot3.Invoke();
-            _updateSlot4.Invoke();
-     
-            Slot1Mask.enabled = Slot1Status.fillAmount > 0;
-            Slot2Mask.enabled = Slot2Status.fillAmount > 0;
-            Slot3Mask.enabled = Slot3Status.fillAmount > 0;
-            Slot4Mask.enabled = Slot4Status.fillAmount > 0;
+            _slot1.SetFill(0);
+            _slot2.SetFill(0);
+            _slot3.SetFill(0);
+            _slot4.SetFill(0);
         }
 
-        public void SetSlot1Listener(UnityAction callback)
-        {
-            _updateSlot1.AddListener(callback);
-        }
 
-        public void SetSlot2Listener(UnityAction callback)
-        {
-            _updateSlot2.AddListener(callback);
-        }
-        public void SetSlot3Listener(UnityAction callback)
-        {
-            _updateSlot3.AddListener(callback);
-        }
-        public void SetSlot4Listener(UnityAction callback)
-        {
-            _updateSlot4.AddListener(callback);
-        }
-
-        public void SetSlot1FillAmount(float value)
-        {
-            Slot1Status.fillAmount = value;
-        }
-
-        public void SetSlot2FillAmount(float value)
-        {
-            Slot2Status.fillAmount = value;
-        }
-        public void SetSlot3FillAmount(float value)
-        {
-            Slot3Status.fillAmount = value;
-        }
-
-        public void SetSlot4FillAmount(float value)
-        {
-            Slot4Status.fillAmount = value;
-        }
     }
 }
 
@@ -8585,6 +8812,28 @@ namespace Gameplay.UI.Views.Gameplay
         {
             restartButton.onClick.AddListener(callback.Invoke);
         }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\EnergyBarView.cs ===
+﻿using UnityEngine;
+
+namespace Gameplay.UI.Views.Gameplay
+{
+    public class EnergyBarView : BarView
+    {
+        
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\GameplayWindow.cs ===
+﻿using Core.UI;
+
+namespace Gameplay.UI.Windows
+{
+    public class GameplayWindow : Window
+    {
+        
     }
 }
 
@@ -8636,26 +8885,46 @@ namespace Gameplay.UI.Views.Gameplay
     }
 }
 
-=== Scripts\Gameplay\UI\Views\Gameplay\StabilityBarView.cs ===
-﻿using Core.UI;
-using DG.Tweening;
-using Plugins.Demigiant.DOTween.Modules;
+=== Scripts\Gameplay\UI\Views\Gameplay\SkillView.cs ===
+﻿using System;
+using UnityEditor.AdaptivePerformance.Editor;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 namespace Gameplay.UI.Views.Gameplay
 {
-    public class StabilityBarView : View
+    public class SkillView : MonoBehaviour
     {
-        [SerializeField] private Image _hpFront;
-        [SerializeField] private Image _hpMiddle;
+        [SerializeField] private Image _mask;
+        [SerializeField] private Image _status;
+        
+        private readonly UnityEvent _updateSlot = new();
 
-        public void ChangeHp(float hp, float maxHp)
+        private void Update()
         {
-            float percent = Mathf.Clamp(hp / maxHp, 0f, 1f);
-            _hpFront.fillAmount = percent;
-            _hpMiddle.DOFillAmount(percent, .9f);
+            _mask.enabled = _status.fillAmount > 0;
+            if (_mask.enabled)
+            {
+                _updateSlot.Invoke();
+            }
         }
+
+        public void SetFill(float value)
+        {
+            _status.fillAmount = value;
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\StabilityBarView.cs ===
+﻿using UnityEngine;
+
+namespace Gameplay.UI.Views.Gameplay
+{
+    public class StabilityBarView : BarView
+    {
+        
     }
 }
 
@@ -8790,17 +9059,6 @@ namespace Gameplay.UI.Views.MainMenu
         {
             _goBackButton.onClick.AddListener(callback.Invoke);
         }
-    }
-}
-
-=== Scripts\Gameplay\UI\Windows\GameplayWindow.cs ===
-﻿using Core.UI;
-
-namespace Gameplay.UI.Windows
-{
-    public class GameplayWindow : Window
-    {
-        
     }
 }
 

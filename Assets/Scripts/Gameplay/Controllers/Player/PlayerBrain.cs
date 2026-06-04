@@ -1,9 +1,9 @@
-using System;
 using Core.Bootstrap;
 using Core.Events;
 using Core.Input;
 using Core.StateMachines;
 using Gameplay.Events;
+using Gameplay.StateMachines;
 using Gameplay.StateMachines.PlayerStates.PlayerBrainStates;
 using Reflex.Attributes;
 using Reflex.Core;
@@ -24,7 +24,7 @@ namespace Gameplay.Controllers.Player
 
         public void Init()
         {
-            _stateMachine = new StateMachine();
+            StateMachine = new StateMachine();
             _movement = GetComponent<MovementController>();
             _fight = GetComponent<FightController>();
             _abilities = GetComponent<AbilitiesController>();
@@ -38,7 +38,7 @@ namespace Gameplay.Controllers.Player
 
         private void Update()
         {
-            _stateMachine.Tick();
+            StateMachine.Tick();
         }
 
         private void InitStates()
@@ -48,27 +48,26 @@ namespace Gameplay.Controllers.Player
             var pauseState =  new PauseState(this,_movement, _fight);
             var endGameState = new EndGameState(this,_movement, _fight);
             
-            AttributeInjector.Inject(pauseState, _container);
-            AttributeInjector.Inject(defaultState, _container);
-            AttributeInjector.Inject(terminalState, _container);
-            AttributeInjector.Inject(endGameState, _container);
+            StateMachine.AddState(defaultState);
+            StateMachine.AddState(terminalState);
+            StateMachine.AddState(pauseState);
+            StateMachine.AddState(endGameState);
+            
+            StateMachineInjector.InjectStates(StateMachine, _container);
             
             terminalState.Init();
 
 
-            _states[typeof(DefaultState)] = defaultState;
-            _states[typeof(TerminalState)] = terminalState;
-            _states[typeof(PauseState)] = pauseState;
-            _states[typeof(EndGameState)] = endGameState;
+            
 
 
-            _stateMachine.AddManualTransition(defaultState, terminalState);
-            _stateMachine.AddManualTransition(terminalState, defaultState); 
-            _stateMachine.AddManualTransition(pauseState, defaultState);
+            StateMachine.AddManualTransition(defaultState, terminalState);
+            StateMachine.AddManualTransition(terminalState, defaultState); 
+            StateMachine.AddManualTransition(pauseState, defaultState);
 
             EventBus.Subscribe<GameEndedEvent>(HandleGameEnd);
             
-            _stateMachine.TrySetState(defaultState);
+            StateMachine.TrySetState(defaultState);
             Debug.Log($"{GetType().Name} States Initialized");
             
         }
@@ -76,24 +75,23 @@ namespace Gameplay.Controllers.Player
 
         private void HandleTerminal()
         {
-            if(_stateMachine.CurrentState != typeof(TerminalState)) ForceRequestState<TerminalState>();
-            else ForceRequestState<DefaultState>();
+            StateMachine.ForceToggleState<TerminalState,DefaultState>();
         }
         private void HandlePause()
         {
-            if(_stateMachine.CurrentState != typeof(PauseState)) ForceRequestState<PauseState>();
-            else ForcePreviousState();
+            if(StateMachine.CurrentState != typeof(PauseState)) StateMachine.ForceRequestState<PauseState>();
+            else StateMachine.ForcePreviousState();
             Logger.Trace();
         }
 
         private void HandleGameEnd(GameEndedEvent e)
         {
-            ForceRequestState<EndGameState>();
+            StateMachine.ForceRequestState<EndGameState>();
         }
 
         private void OnDestroy()
         {
-            ForceRequestState<DefaultState>();
+            StateMachine.ForceRequestState<DefaultState>();
             if (_input != null)
             {
                 _input.OnEscapePressed -= HandlePause;

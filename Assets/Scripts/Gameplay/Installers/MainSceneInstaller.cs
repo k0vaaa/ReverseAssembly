@@ -1,7 +1,7 @@
 ﻿using Core.Inventory;
 using Core.UI;
 using Gameplay.Core;
-using Gameplay.UI.Windows;
+using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Core;
 using Reflex.Enums;
 using UnityEngine;
@@ -12,16 +12,15 @@ namespace Gameplay.Installers
 {
     public class MainSceneInstaller : MonoBehaviour, IInstaller
     {
-        [SerializeField] private Window _mainWindow;
+        [SerializeField] private HUDWindow _hudWindow;
         [SerializeField] private WindowManager _windowManager;
         [SerializeField] private BranchManager _branchManager;
         [SerializeField] private Volume _postProcessVolume;
         [SerializeField] private InventoryManager _inventoryManager;
-        private AnimationClip _clip;
         
         public void InstallBindings(ContainerBuilder builder)
         {
-            builder.RegisterValue(_mainWindow, new []{typeof(Window), typeof(GameplayWindow)});
+            builder.RegisterValue(_hudWindow);
             builder.RegisterValue(_windowManager);
             builder.RegisterValue(_branchManager);
             builder.RegisterValue(_postProcessVolume);

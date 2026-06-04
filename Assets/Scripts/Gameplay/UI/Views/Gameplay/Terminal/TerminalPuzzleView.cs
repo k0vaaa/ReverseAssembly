@@ -1,12 +1,11 @@
-﻿
-using Core.Inventory;
+﻿using Core.Inventory;
+using Gameplay.Interactables;
+using Reflex.Attributes;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using Gameplay.Interactables;
-using Reflex.Attributes;
 
-namespace Gameplay.UI
+namespace Gameplay.UI.Views.Gameplay.Terminal
 {
     public class TerminalPuzzleView : PuzzleViewBase
     {   
@@ -15,9 +14,6 @@ namespace Gameplay.UI
         [SerializeField] private TextMeshProUGUI _blocksCountText;
         [SerializeField] private Button _repairButton;
         [SerializeField] private Button _closeButton;
-
-        // Внимание: Здесь нам нужно откуда-то знать, сколько блоков собрано.
-        // Используем InventoryManager (через синглтон или DI)
         [SerializeField] private int _requiredBlocks = 3; 
 
         public override void ShowPuzzle(IBuggable target)

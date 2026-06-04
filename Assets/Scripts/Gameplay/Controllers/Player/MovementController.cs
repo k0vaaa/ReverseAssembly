@@ -68,7 +68,7 @@ namespace Gameplay.Controllers.Player
 
         private void Awake()
         {
-            _stateMachine = new StateMachine();
+            StateMachine = new StateMachine();
             _playerAnimator = GetComponent<IPlayerAnimator>();
             _controller = GetComponent<CharacterController>();
             _stabilitySystem = GetComponent<StabilitySystem>();
@@ -96,7 +96,7 @@ namespace Gameplay.Controllers.Player
 
         private void Update()
         {
-            _stateMachine.Tick();
+            StateMachine.Tick();
             //SetControllerParams();
             //Rotate();
         }
@@ -117,16 +117,16 @@ namespace Gameplay.Controllers.Player
             _deathState = new DeathState(this, _playerAnimator);
             EventBus.Subscribe<PlayerDeathEvent>(HandleDeath).AddTo(gameObject);
 
-            _stateMachine.AddTransition(_idleState, _walkingState, () => _inputManager.MoveInput != Vector2.zero);
-            _stateMachine.AddTransition(_idleState, _sprintingState, () => _inputManager.SprintInput && CanSprint);
-            _stateMachine.AddTransition(_walkingState, _idleState, () => _inputManager.MoveInput == Vector2.zero);
-            _stateMachine.AddTransition(_walkingState, _sprintingState, () => _inputManager.SprintInput && CanSprint);
-            _stateMachine.AddTransition(_walkingState, _fallingState, () => !IsGrounded);
-            _stateMachine.AddTransition(_sprintingState, _walkingState, () => !_inputManager.SprintInput || !CanSprint);
-            _stateMachine.AddTransition(_sprintingState, _fallingState, () => !IsGrounded);
-            _stateMachine.AddTransition(_jumpingState, _fallingState, () => !IsGrounded);
-            _stateMachine.AddTransition(_fallingState, _idleState, () => IsGrounded);
-            _stateMachine.AddAntiState(_fallingState, _jumpingState);
+            StateMachine.AddTransition(_idleState, _walkingState, () => _inputManager.MoveInput != Vector2.zero);
+            StateMachine.AddTransition(_idleState, _sprintingState, () => _inputManager.SprintInput && CanSprint);
+            StateMachine.AddTransition(_walkingState, _idleState, () => _inputManager.MoveInput == Vector2.zero);
+            StateMachine.AddTransition(_walkingState, _sprintingState, () => _inputManager.SprintInput && CanSprint);
+            StateMachine.AddTransition(_walkingState, _fallingState, () => !IsGrounded);
+            StateMachine.AddTransition(_sprintingState, _walkingState, () => !_inputManager.SprintInput || !CanSprint);
+            StateMachine.AddTransition(_sprintingState, _fallingState, () => !IsGrounded);
+            StateMachine.AddTransition(_jumpingState, _fallingState, () => !IsGrounded);
+            StateMachine.AddTransition(_fallingState, _idleState, () => IsGrounded);
+            StateMachine.AddAntiState(_fallingState, _jumpingState);
 
 
             if (_inputManager != null)
@@ -134,20 +134,20 @@ namespace Gameplay.Controllers.Player
                 _inputManager.OnJumpPressed += HandleJump;
             }
 
-            _stateMachine.TrySetState(_idleState);
+            StateMachine.TrySetState(_idleState);
         }
 
         private void HandleJump()
         {
             if (IsGrounded)
             {
-                _stateMachine.ForceSetState(_jumpingState);
+                StateMachine.ForceSetState(_jumpingState);
             }
         }
 
         private void HandleDeath(PlayerDeathEvent e)
         {
-            _stateMachine.ForceSetState(_deathState);
+            StateMachine.ForceSetState(_deathState);
         }
 
         #region Movement

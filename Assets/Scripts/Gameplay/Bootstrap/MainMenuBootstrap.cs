@@ -1,11 +1,9 @@
-﻿using Core.Bootstrap;
-
-using Core.SaveLoad.Interactors;
+﻿using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.SaveLoad.Saveables;
 using Core.Scenes;
-using Core.UI;
 using Gameplay.UI.Views.MainMenu;
+using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using UnityEngine;
 
@@ -13,7 +11,7 @@ namespace Gameplay.Bootstrap
 {
     public class MainMenuBootstrap : MonoBehaviour, IBootstrapComponent
     {
-        [Inject] private Window _menuWindow;
+        [Inject] private MenuWindow _menuWindow;
         [Inject] private SettingsInteractor _settingsInteractor;
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SceneLoader _sceneLoader;

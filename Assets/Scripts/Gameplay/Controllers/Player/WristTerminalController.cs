@@ -1,8 +1,7 @@
-using System;
 using Core.Bootstrap;
 using Gameplay.Core;
-using Gameplay.StateMachines.PlayerStates.PlayerBrainStates;
-using Gameplay.UI;
+using Gameplay.UI.Views.Gameplay.HUD;
+using Gameplay.UI.Views.Gameplay.Terminal;
 using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using UnityEngine;
@@ -15,7 +14,7 @@ namespace Gameplay.Controllers.Player
         [Inject] private InputManager _inputManager;
         [Inject] private SyncEnergyManager _syncEnergyManager;
         [Inject] private PlayerBrain _brain;
-        [Inject] private GameplayWindow _gameplayWindow;
+        [Inject] private TerminalWindow _terminalWindow;
         private TerminalView _terminalView;
 
 
@@ -23,7 +22,7 @@ namespace Gameplay.Controllers.Player
 
         public void Init()
         {
-            _terminalView = _gameplayWindow.GetView<TerminalView>();
+            _terminalView = _terminalWindow.GetView<TerminalView>();
         }
 
 
@@ -40,12 +39,12 @@ namespace Gameplay.Controllers.Player
         {
             if (active)
             {
-                _terminalView.UpdateInfo(BranchManager.CurrentBranch);
-                _terminalView.Show();
+                
+                _terminalWindow.Show();
             }
             else
             {
-                _terminalView.Hide();
+                _terminalWindow.Hide();
             }
         }
     }

@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-namespace Gameplay.UI
+namespace Gameplay.UI.Views.Gameplay.Terminal
 {
     [RequireComponent(typeof(CanvasGroup))]
     public class DraggableCodeLine : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler

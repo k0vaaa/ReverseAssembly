@@ -1,10 +1,8 @@
-﻿using System;
-using UnityEditor.AdaptivePerformance.Editor;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
-namespace Gameplay.UI.Views.Gameplay
+namespace Gameplay.UI.Views.Gameplay.HUD
 {
     public class SkillView : MonoBehaviour
     {

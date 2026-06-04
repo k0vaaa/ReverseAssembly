@@ -2,7 +2,7 @@
 
 namespace Gameplay.UI.Windows
 {
-    public class GameplayWindow : Window
+    public class TerminalWindow : Window
     {
         
     }

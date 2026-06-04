@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Core.Extensions;
+﻿using Core.Extensions;
 using Core.UI.Types;
 using UnityEngine;
 
@@ -19,6 +17,11 @@ namespace Core.UI
 
             Debug.LogError($"Window of type {window.TypeName()} not found");
             return null;
+        }
+
+        public bool TryAdd(Window window)
+        {
+            return _windows.TryAdd(window);
         }
 
         public void SwitchWindows<T, T1>(T from, T1 to) where T : Window where T1 : Window

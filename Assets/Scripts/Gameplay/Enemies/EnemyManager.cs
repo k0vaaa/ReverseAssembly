@@ -5,7 +5,7 @@ using Core.SaveLoad.Saveables;
 using Gameplay.Combat.Health;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Controllers.Player;
-using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
 using UnityEngine;
 using Object = UnityEngine.Object; 

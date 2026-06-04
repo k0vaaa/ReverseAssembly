@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Core.StateMachines
 {
@@ -11,8 +12,10 @@ namespace Core.StateMachines
         public Type CurrentState => _currentState.GetType();
         public Type PreviousState => _previousState.GetType();
 
-
-        private Dictionary<Type, HashSet<Transition>> _states = new Dictionary<Type, HashSet<Transition>>();
+        private Dictionary<Type, IState> _states = new();
+        public Dictionary<Type, IState> States => _states;
+        
+        private Dictionary<Type, HashSet<Transition>> _transitions = new Dictionary<Type, HashSet<Transition>>();
 
         private Dictionary<Type, HashSet<Type>> _antiStates = new();
         private Dictionary<Type, HashSet<Type>> _manualTransitions = new();
@@ -21,6 +24,8 @@ namespace Core.StateMachines
         private HashSet<Transition> _anyStates = new HashSet<Transition>();
 
         private HashSet<Transition> _emptyStates = new HashSet<Transition>(0);
+        
+        
 
         public void Tick()
         {
@@ -100,7 +105,7 @@ namespace Core.StateMachines
             _previousState = _currentState;
             _currentState = nextState;
 
-            _states.TryGetValue(_currentState.GetType(), out _currentStates);
+            _transitions.TryGetValue(_currentState.GetType(), out _currentStates);
 
             if (_currentStates == null)
             {
@@ -117,10 +122,10 @@ namespace Core.StateMachines
                 return;
             }
 
-            if (_states.TryGetValue(from.GetType(), out var states) == false)
+            if (_transitions.TryGetValue(from.GetType(), out var states) == false)
             {
                 states = new HashSet<Transition>();
-                _states[from.GetType()] = states;
+                _transitions[from.GetType()] = states;
             }
 
             states.Add(new Transition(to, predicate));
@@ -174,5 +179,64 @@ namespace Core.StateMachines
         {
             ForceSetState(_previousState);
         }
+        
+        
+        public bool TryRequestState<T>() where T : IState
+        {
+            if (_states.TryGetValue(typeof(T), out var state))
+            {
+                return TrySetState(state);
+            }
+        
+            Debug.LogError($"Стейт {typeof(T).Name} не найден в {GetType().Name}!");
+            return false;
+        }
+        public void ForceRequestState<T>() where T : IState
+        {
+            if (_states.TryGetValue(typeof(T), out var state))
+            { 
+                ForceSetState(state);
+                return;
+            }
+        
+            Debug.LogError($"Стейт {typeof(T).Name} не найден в {GetType().Name}!");
+        }
+
+        public void ForceRequestState(Type type)
+        {
+            if (_states.TryGetValue(type, out var state))
+            {
+                ForceSetState(state);
+                return;
+            }
+
+            Debug.LogError($"Стейт {type.Name} не найден в {GetType().Name}!");
+        }
+
+        public void ForceToggleState<T,T1>() where T : IState where T1 : IState
+        {
+            if (CurrentState != typeof(T))
+            {
+                ForceRequestState<T>();
+            }
+            else
+            {
+                ForceRequestState<T1>();
+            }
+        }
+        
+        public void RequestToggleState<T,T1>() where T : IState where T1 : IState
+        {
+            if (CurrentState != typeof(T))
+            {
+                TryRequestState<T>();
+            }
+            else
+            {
+                TryRequestState<T1>();
+            }
+        }
+
+        public void AddState(IState state) => _states.Add(state.GetType(),state);
     }
 }

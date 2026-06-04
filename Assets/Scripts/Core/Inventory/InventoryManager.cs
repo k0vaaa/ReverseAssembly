@@ -4,7 +4,7 @@ using Core.Input;
 using Core.SaveLoad.PlayerSaves;
 using Core.UI;
 using Gameplay.Events;
-using Gameplay.UI;
+using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
 using UnityEngine;
 
@@ -13,7 +13,7 @@ namespace Core.Inventory
     public class InventoryManager : MonoBehaviour
     {
         [Inject] private PlayerDataInteractor _playerData;
-        [Inject] private Window _window;
+        [Inject] private HUDWindow _hudWindow;
         [Inject] private InputManager _input;
         
         
@@ -26,7 +26,7 @@ namespace Core.Inventory
             EventBus.Subscribe<CodeBlockCollectedEvent>(OnBlockCollected).AddTo(gameObject);
             
             // Получаем HUD и обновляем сразу
-            _hudView = _window.GetView<PlayerHUDView>();
+            _hudView = _hudWindow.GetView<PlayerHUDView>();
             if (_hudView != null)
             {
                 // Показываем HUD если он скрыт

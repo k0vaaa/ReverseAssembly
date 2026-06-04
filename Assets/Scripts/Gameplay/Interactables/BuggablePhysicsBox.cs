@@ -3,7 +3,9 @@ using UnityEngine;
 using Core.UI;
 using Core.Input;
 using ExternalAssets.QuickOutline.Scripts;
-using Gameplay.UI;
+using Gameplay.UI.Views.Gameplay.HUD;
+using Gameplay.UI.Views.Gameplay.Terminal;
+using Gameplay.UI.Windows;
 using Reflex.Attributes;
 
 namespace Gameplay.Interactables
@@ -11,10 +13,9 @@ namespace Gameplay.Interactables
     [RequireComponent(typeof(Rigidbody))]
     public class BuggablePhysicsBox : BuggableBase
     {
-        [Inject] private Window _window;
+        
         [Inject] private InputManager _inputManager;
         private Rigidbody _rb;
-         // Опционально: компонент обводки
         private BugView _bugView;
 
         private void Awake()
@@ -23,7 +24,7 @@ namespace Gameplay.Interactables
             _outline = GetComponent<Outline>();
 
             if (_outline) _outline.enabled = false;
-            _bugView = _window.GetView<BugView>();
+            _bugView = _windowManager.GetWindow<HUDWindow>().GetView<BugView>();
             
             if (IsBugged)
             {
@@ -54,7 +55,7 @@ namespace Gameplay.Interactables
 
             Debug.Log("Открытие мини-игры Синхронизации Физики...");
 
-            if (_window == null)
+            if (_windowManager == null)
             {
                 Debug.LogError("ViewManager не внедрен (NULL)! Проверьте DI контейнер.");
                 return;
@@ -67,7 +68,7 @@ namespace Gameplay.Interactables
             }
             else
             {
-                var puzzleView = _window.GetView<PhysicsPuzzleView>();
+                var puzzleView = _windowManager.GetWindow<TerminalWindow>().GetView<SliderPuzzleView>();
                 if (puzzleView == null)
                 {
                     Debug.LogError("PhysicsPuzzleView не найден! Вы добавили его в список ViewManager?");

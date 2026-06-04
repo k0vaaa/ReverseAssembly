@@ -4,6 +4,7 @@ using Core.Scenes;
 using Core.UI;
 using Gameplay.Controllers.Player;
 using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Views.Gameplay.HUD;
 using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using UnityEngine;
@@ -38,7 +39,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         public override void Exit()
         {
             Unsub();
-            _windowManager.ShowOnly<GameplayWindow>();
+            _windowManager.ShowOnly<HUDWindow>();
             Movement.enabled = true;
             Fight.enabled = true;
             _input.EnablePlayerInput();
@@ -62,7 +63,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 
 
         private void HandleExit() => Application.Quit();
-        private void HandleResume() => Brain.ForcePreviousState();
+        private void HandleResume() => Brain.StateMachine.ForcePreviousState();
         private void HandleMenu() => _sceneLoader.LoadScene(SceneConstants.MainMenu);
     }
 }

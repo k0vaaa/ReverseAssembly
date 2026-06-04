@@ -1,4 +1,5 @@
 ﻿using Core.UI;
+using Gameplay.UI.Windows;
 using Reflex.Core;
 using UnityEngine;
 
@@ -6,7 +7,7 @@ namespace Gameplay.Installers
 {
     public class MenuInstaller : MonoBehaviour, IInstaller
     {
-        [SerializeField] private Window _window;
+        [SerializeField] private MenuWindow _window;
 
 
         public void InstallBindings(ContainerBuilder builder)

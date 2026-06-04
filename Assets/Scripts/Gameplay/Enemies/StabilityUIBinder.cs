@@ -1,5 +1,5 @@
 ﻿using Gameplay.Combat.Health;
-using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Views.Gameplay.HUD;
 using UnityEngine;
 
 namespace Gameplay.Enemies

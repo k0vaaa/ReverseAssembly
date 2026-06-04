@@ -54,6 +54,19 @@ namespace Core.UI.Types
             value = null;
             return false;
         }
+        
+        public bool TryGetValue(Type type, out T value)
+        {
+            if (_tDictionary.TryGetValue(type, out var v))
+            {
+                value = v;
+                return true;
+            }
+
+            Debug.LogError($"Value of type {type.Name} not found");
+            value = null;
+            return false;
+        }
 
         public IEnumerator<T> GetEnumerator()
         {

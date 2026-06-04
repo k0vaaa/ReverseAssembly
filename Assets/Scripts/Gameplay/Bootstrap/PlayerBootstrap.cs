@@ -10,8 +10,8 @@ using Gameplay.Combat.Offensive.Skills.Abilities;
 using Gameplay.Controllers.Player;
 using Gameplay.Core;
 using Gameplay.Events;
-using Gameplay.UI;
-using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Views.Gameplay.HUD;
+using Gameplay.UI.Views.Gameplay.Terminal;
 using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using Reflex.Core;
@@ -28,16 +28,17 @@ namespace Gameplay.Bootstrap
         [Inject] private SettingsInteractor _settingsInteractor;
         [Inject] private Container _container;
         [Inject] private SyncEnergyManager _energyManager;
+        [Inject] private WindowManager _windowManager;
+        [Inject] private HUDWindow _hudWindow;
 
         [SerializeField] private Transform _playerSpawnPoint;
         [SerializeField] private GameObject _playerPrefab;
         [SerializeField] private Camera _camera;
-        [Inject] private GameplayWindow _gameplayWindow;
 
         private CooldownView _cooldownView;
         private StabilityBarView _stabilityBarView;
         private EnergyBarView _energyBarView;
-        private TerminalView _terminalView;
+        private TerminalWindow _terminalWindow;
 
         private StabilitySystem _playerStabilitySystem;
         private Container _playerContainer;
@@ -59,9 +60,6 @@ namespace Gameplay.Bootstrap
 
             GetComponents();
 
-            print(_gameplayWindow.TryAddView(_terminalView) ? "okay" : "proebali");
-
-
             SetupContainer();
 
             GameObjectInjector.InjectRecursive(Player, _playerContainer);
@@ -72,9 +70,9 @@ namespace Gameplay.Bootstrap
             _fightController.Init();
             _wristTerminalController.Init();
 
-            _cooldownView = _gameplayWindow.GetView<CooldownView>();
-            _stabilityBarView = _gameplayWindow.GetView<StabilityBarView>();
-            _energyBarView = _gameplayWindow.GetView<EnergyBarView>();
+            _cooldownView = _hudWindow.GetView<CooldownView>();
+            _stabilityBarView = _hudWindow.GetView<StabilityBarView>();
+            _energyBarView = _hudWindow.GetView<EnergyBarView>();
 
             EventBus.Subscribe<SyncEnergyChangedEvent>(e => _energyBarView.ChangeValue(e.EnergyPercent))
                 .AddTo(gameObject);
@@ -106,7 +104,7 @@ namespace Gameplay.Bootstrap
 
         private void GetComponents()
         {
-            _ = new HudSwitcher(_gameplayWindow.GetView<PlayerHUDView>());
+            _ = new HudSwitcher(_hudWindow.GetView<PlayerHUDView>());
             _playerStabilitySystem = Player.GetComponent<StabilitySystem>();
             _abilitiesController = Player.GetComponent<AbilitiesController>();
             _movementController = Player.GetComponent<MovementController>();
@@ -115,7 +113,10 @@ namespace Gameplay.Bootstrap
             _camera = Player.GetComponentInChildren<Camera>();
             _wristTerminalController = Player.GetComponent<WristTerminalController>();
             _animator = Player.GetComponent<IPlayerAnimator>();
-            _terminalView = Player.GetComponentInChildren<TerminalView>(true);
+            _terminalWindow = Player.GetComponentInChildren<TerminalWindow>(true);
+            _windowManager.TryAdd(_terminalWindow);
+            print("TerminalWindow Added to WindowManager");
+
         }
 
         private void SetupContainer()
@@ -129,12 +130,14 @@ namespace Gameplay.Bootstrap
                 builder.RegisterValue(_brain);
                 builder.RegisterValue(_wristTerminalController);
                 builder.RegisterValue(_animator, new []{typeof(MockPlayerAnimator)});
+                builder.RegisterValue(_terminalWindow);
             });
         }
 
         private void SetupCooldownListeners()
         {
-            _cooldownView.SetSlot2(_terminalView.SwitchBranchSkillView);
+            _cooldownView.SetSlot1(_terminalWindow.GetView<TerminalScannerView>().ScannerSkillView);
+            _cooldownView.SetSlot2(_terminalWindow.GetView<TerminalView>().SwitchBranchSkillView);
             _cooldownView.ResetAll();
             _abilitiesController.TryGetSkill<ScannerSkill>().OnCooldownTick += _cooldownView.SetSlot1FillAmount;
             _abilitiesController.TryGetSkill<SwitchBranchSkill>().OnCooldownTick += _cooldownView.SetSlot2FillAmount;

@@ -1,8 +1,8 @@
 ﻿
 using Core.Input;
-using Core.UI;
 using ExternalAssets.QuickOutline.Scripts;
-using Gameplay.UI;
+using Gameplay.UI.Views.Gameplay.Terminal;
+using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using UnityEngine;
 
@@ -10,7 +10,6 @@ namespace Gameplay.Interactables
 {
     public class BuggableTerminal: BuggableBase
     {
-        [Inject] private Window _window;
         [Inject] private InputManager _inputManager;
         [SerializeField] private GameObject bridgeObj;
         
@@ -39,10 +38,18 @@ namespace Gameplay.Interactables
         public override void OnInteract()
         {
             // Ищем наш новый PuzzleView
-            var puzzle = _puzzleView as TerminalPuzzleView; 
-            puzzle.ShowPuzzle(this);
+            if (_puzzleView != null)
+            {
+                _puzzleView.ShowPuzzle(this);
+            }
+            else
+            {
+                _puzzleView = _windowManager.GetWindow<TerminalWindow>().GetView<TerminalPuzzleView>();
+            }
+            
+            
         
-            // Отключаем управление игроком (как в BuggablePhysicsBox)
+            
             _inputManager.DisablePlayerInput();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;

@@ -11,8 +11,7 @@ using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Controllers.Player;
 using Gameplay.Enemies.States;
 using Gameplay.Events;
-using Gameplay.UI.Views.Gameplay;
-
+using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
 using Reflex.Core;
 using Reflex.Injectors;
@@ -79,7 +78,7 @@ namespace Gameplay.Enemies
         private void GetComponents()
         {
             SwordCollider = _sword.GetComponent<BoxCollider>();
-            _stateMachine = new StateMachine();
+            StateMachine = new StateMachine();
             _abilitiesController = GetComponent<EnemySkillsController>();
             _enemyAnimator = GetComponent<EnemyAnimator>();
             _stabilitySystem = GetComponent<StabilitySystem>();
@@ -129,7 +128,7 @@ namespace Gameplay.Enemies
         private void OnEnable()
         {
             _animHandler.OnAnimationEnded += HandleAnimEnd;
-            ForceRequestState<IdleState>();
+            StateMachine.ForceRequestState<IdleState>();
             
         }
 
@@ -158,7 +157,7 @@ namespace Gameplay.Enemies
             }
 
             ChasingChecker();
-            _stateMachine.Tick();
+            StateMachine.Tick();
         }
 
         public void ApplyGlitchStun(float duration)
@@ -224,37 +223,39 @@ namespace Gameplay.Enemies
             
 
 
-            _stateMachine.AddAnyTransition(deathState, () => _stabilitySystem.Stability <= 0f);
+            StateMachine.AddAnyTransition(deathState, () => _stabilitySystem.Stability <= 0f);
 
             var stunState = new GlitchStunState(this, _enemyAnimator, _agent);
-            _states[typeof(IdleState)] = idleState;
-            _states[typeof(WalkState)] = walkState;
-            _states[typeof(FearState)] = fearState;
-            _states[typeof(DeathState)] = deathState;
-            _states[typeof(AttackState)] = attackState;
-            _states[typeof(GlitchStunState)] = stunState;
-
-            _stateMachine.AddAnyTransition(stunState, () => IsStunned);
-            _stateMachine.AddTransition(stunState, idleState, () => !IsStunned);
+            
+            StateMachine.AddState(idleState);
+            StateMachine.AddState(walkState);
+            StateMachine.AddState(fearState);
+            StateMachine.AddState(deathState);
+            StateMachine.AddState(attackState);
+            StateMachine.AddState(stunState);
+            
+            
+            StateMachine.AddAnyTransition(stunState, () => IsStunned);
+            StateMachine.AddTransition(stunState, idleState, () => !IsStunned);
 
             if (_isPeaceful)
             {
-                _stateMachine.AddTransition(idleState, fearState,
+                StateMachine.AddTransition(idleState, fearState,
                     () => _stabilitySystem.Stability / _stabilitySystem.MaxStability <= .3f);
             }
             else
             {
-                _stateMachine.AddTransition(idleState, walkState, () => IsChasing && !IsInAttackRange);
-                _stateMachine.AddTransition(idleState, attackState,
+                StateMachine.AddTransition(idleState, walkState, () => IsChasing && !IsInAttackRange);
+                StateMachine.AddTransition(idleState, attackState,
                     () => IsInAttackRange && AttackReady());
             }
 
 
-            _stateMachine.AddTransition(walkState, idleState, () => !IsChasing || IsInAttackRange);
-            _stateMachine.AddTransition(walkState, attackState, () => IsInAttackRange && AttackReady());
-            _stateMachine.AddTransition(attackState, idleState,
+            StateMachine.AddTransition(walkState, idleState, () => !IsChasing || IsInAttackRange);
+            StateMachine.AddTransition(walkState, attackState, () => IsInAttackRange && AttackReady());
+            StateMachine.AddTransition(attackState, idleState,
                 () => IsInAttackRange && _attackAnimEnded);
-            _stateMachine.AddTransition(attackState, walkState,
+            StateMachine.AddTransition(attackState, walkState,
                 () => !IsInAttackRange && _attackAnimEnded);
 
 
@@ -264,7 +265,7 @@ namespace Gameplay.Enemies
             // enemyStateMachine.AddTransition(spellState, walkState, () => !IsInCastRange && RangeAnimationEnded());
 
 
-            _stateMachine.TrySetState(idleState);
+            StateMachine.TrySetState(idleState);
         }
 
         private void ChasingChecker()
@@ -308,7 +309,7 @@ namespace Gameplay.Enemies
                 _stabilitySystem.IsInvincible = false;
                 _agent.enabled = true;
                 if (_hpCanvas != null) _hpCanvas.enabled = true;
-                ForceRequestState<IdleState>();
+                StateMachine.ForceRequestState<IdleState>();
             }
             else
             {

@@ -33,7 +33,7 @@ namespace Gameplay.Combat.Offensive.Skills
 
         protected override bool CastAction()
         {
-            if (!_ctx.FightController.TryRequestState<RangedSkillState>()) return false;
+            if (!_ctx.FightController.StateMachine.TryRequestState<RangedSkillState>()) return false;
             var obj = Object.Instantiate(_def.ProjectilePrefab,_castPoint.position, Quaternion.identity);
             
             var proj = obj.AddComponent<Projectile>();

@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using Core.Events;
 using Core.Input;
