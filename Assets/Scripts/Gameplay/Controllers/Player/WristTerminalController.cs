@@ -1,6 +1,5 @@
 using Core.Bootstrap;
 using Gameplay.Core;
-using Gameplay.UI.Views.Gameplay.HUD;
 using Gameplay.UI.Views.Gameplay.Terminal;
 using Gameplay.UI.Windows;
 using Reflex.Attributes;

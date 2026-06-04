@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Core.StateMachines;
+﻿using Core.StateMachines;
 using UnityEngine;
 
 namespace Gameplay.Controllers.Player

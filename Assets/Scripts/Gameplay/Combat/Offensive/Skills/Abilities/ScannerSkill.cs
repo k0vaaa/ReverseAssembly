@@ -1,10 +1,8 @@
-﻿using Core.UI;
-using Gameplay.Abilities;
+﻿using Gameplay.Abilities;
 using Gameplay.Core;
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.Skills.Definitions;
 using Gameplay.Interactables;
-using Gameplay.StateMachines.PlayerStates.FightStates;
 using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
 using UnityEngine;

@@ -1,4 +1,3 @@
-using System;
 using Core.Bootstrap;
 using Core.Extensions;
 using Core.Input;
@@ -9,7 +8,6 @@ using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Combat.Offensive.Skills.Abilities;
 using Gameplay.StateMachines.PlayerStates.FightStates;
-using Gameplay.StateMachines.PlayerStates.PlayerBrainStates;
 using Reflex.Attributes;
 using Reflex.Core;
 using Reflex.Injectors;

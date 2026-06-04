@@ -37,7 +37,7 @@ namespace Core.UI
                 window.Hide();
             }
 
-            GetWindow<TWindow>().Show();
+            GetWindow<TWindow>()?.Show();
         }
     }
 }

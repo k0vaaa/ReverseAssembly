@@ -1,5 +1,4 @@
-﻿using System;
-using Core.UI;
+﻿using Core.UI;
 using DG.Tweening;
 using ExternalAssets.QuickOutline.Scripts;
 using Gameplay.UI.Views.Gameplay.Terminal;

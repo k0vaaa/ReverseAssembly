@@ -7,7 +7,6 @@ using Gameplay.StateMachines;
 using Gameplay.StateMachines.PlayerStates.PlayerBrainStates;
 using Reflex.Attributes;
 using Reflex.Core;
-using Reflex.Injectors;
 using UnityEngine;
 using Logger = Core.Utilities.Logger;
 
@@ -91,12 +90,13 @@ namespace Gameplay.Controllers.Player
 
         private void OnDestroy()
         {
-            StateMachine.ForceRequestState<DefaultState>();
             if (_input != null)
             {
                 _input.OnEscapePressed -= HandlePause;
                 _input.OnTerminalPressed -= HandleTerminal;
             }
+
+            //StateMachine.ForceRequestState<DefaultState>();
         }
     }
 }

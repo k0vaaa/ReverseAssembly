@@ -50,7 +50,11 @@ namespace Gameplay.UI.Views.Gameplay.Terminal
 
         public void OnDrag(PointerEventData eventData)
         {
-            transform.position = eventData.position;
+            // Корректный перевод координат экрана в мировые координаты (работает для WorldSpace, ScreenSpace Camera/Overlay)
+            if (RectTransformUtility.ScreenPointToWorldPointInRectangle((RectTransform)_parent, eventData.position, eventData.pressEventCamera, out Vector3 globalMousePos))
+            {
+                transform.position = globalMousePos;
+            }
 
             int newSiblingIndex = _parent.childCount - 1; // По умолчанию в конец
 
@@ -60,8 +64,8 @@ namespace Gameplay.UI.Views.Gameplay.Terminal
                 if (sibling == this.transform || sibling == _placeholder.transform) continue;
 
                 // Для VerticalLayoutGroup элементы идут сверху вниз (Y уменьшается)
-                // Если мышка выше (Y больше), чем центр элемента, ставим перед ним
-                if (eventData.position.y > sibling.position.y)
+                // Сравниваем в мировых координатах (так как transform.position теперь тоже в мировых)
+                if (transform.position.y > sibling.position.y)
                 {
                     newSiblingIndex = sibling.GetSiblingIndex();
                     // Корректируем индекс, если плейсхолдер уже стоит перед ним

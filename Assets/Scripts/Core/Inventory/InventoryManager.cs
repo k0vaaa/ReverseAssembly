@@ -2,7 +2,6 @@ using Core.Events;
 using Core.Extensions;
 using Core.Input;
 using Core.SaveLoad.PlayerSaves;
-using Core.UI;
 using Gameplay.Events;
 using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;

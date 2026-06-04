@@ -1,5 +1,4 @@
-﻿using Core.UI;
-using Gameplay.UI.Windows;
+﻿using Gameplay.UI.Windows;
 using Reflex.Core;
 using UnityEngine;
 
