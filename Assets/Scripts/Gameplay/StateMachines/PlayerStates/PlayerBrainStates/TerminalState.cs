@@ -54,7 +54,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
             Movement.enabled = true;
             Fight.enabled = false;
             StateMachine.TryRequestState<BranchesState>();
-            _terminalController.SetTerminal(true);
+            //_terminalController.SetTerminal(true);
             
             _input.OnScannerPressed += HandleScannerPress;
             _animator.DoTerminal(true);
@@ -64,7 +64,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         public override void Exit()
         {
             _input.OnScannerPressed -= HandleScannerPress;
-            _terminalController.SetTerminal(false);
+            //_terminalController.SetTerminal(false);
             _animator.DoTerminal(false);
             StateMachine.ForceRequestState<ClosedState>();
         }

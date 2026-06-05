@@ -806,9 +806,8 @@ using Core.Events;
 using Core.Extensions;
 using Core.Input;
 using Core.SaveLoad.PlayerSaves;
-using Core.UI;
 using Gameplay.Events;
-using Gameplay.UI;
+using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
 using UnityEngine;
 
@@ -817,7 +816,7 @@ namespace Core.Inventory
     public class InventoryManager : MonoBehaviour
     {
         [Inject] private PlayerDataInteractor _playerData;
-        [Inject] private Window _window;
+        [Inject] private HUDWindow _hudWindow;
         [Inject] private InputManager _input;
         
         
@@ -830,7 +829,7 @@ namespace Core.Inventory
             EventBus.Subscribe<CodeBlockCollectedEvent>(OnBlockCollected).AddTo(gameObject);
             
             // Получаем HUD и обновляем сразу
-            _hudView = _window.GetView<PlayerHUDView>();
+            _hudView = _hudWindow.GetView<PlayerHUDView>();
             if (_hudView != null)
             {
                 // Показываем HUD если он скрыт
@@ -1390,8 +1389,7 @@ namespace Core.Scenes
 }
 
 === Scripts\Core\Scenes\SceneLoader.cs ===
-﻿using System.Threading.Tasks;
-using Core.Pause;
+﻿using Core.Pause;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -1441,6 +1439,7 @@ namespace Core.Scenes
 === Scripts\Core\StateMachines\StateMachine.cs ===
 ﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Core.StateMachines
 {
@@ -1452,8 +1451,10 @@ namespace Core.StateMachines
         public Type CurrentState => _currentState.GetType();
         public Type PreviousState => _previousState.GetType();
 
-
-        private Dictionary<Type, HashSet<Transition>> _states = new Dictionary<Type, HashSet<Transition>>();
+        private Dictionary<Type, IState> _states = new();
+        public Dictionary<Type, IState> States => _states;
+        
+        private Dictionary<Type, HashSet<Transition>> _transitions = new Dictionary<Type, HashSet<Transition>>();
 
         private Dictionary<Type, HashSet<Type>> _antiStates = new();
         private Dictionary<Type, HashSet<Type>> _manualTransitions = new();
@@ -1462,6 +1463,8 @@ namespace Core.StateMachines
         private HashSet<Transition> _anyStates = new HashSet<Transition>();
 
         private HashSet<Transition> _emptyStates = new HashSet<Transition>(0);
+        
+        
 
         public void Tick()
         {
@@ -1541,7 +1544,7 @@ namespace Core.StateMachines
             _previousState = _currentState;
             _currentState = nextState;
 
-            _states.TryGetValue(_currentState.GetType(), out _currentStates);
+            _transitions.TryGetValue(_currentState.GetType(), out _currentStates);
 
             if (_currentStates == null)
             {
@@ -1558,10 +1561,10 @@ namespace Core.StateMachines
                 return;
             }
 
-            if (_states.TryGetValue(from.GetType(), out var states) == false)
+            if (_transitions.TryGetValue(from.GetType(), out var states) == false)
             {
                 states = new HashSet<Transition>();
-                _states[from.GetType()] = states;
+                _transitions[from.GetType()] = states;
             }
 
             states.Add(new Transition(to, predicate));
@@ -1615,6 +1618,65 @@ namespace Core.StateMachines
         {
             ForceSetState(_previousState);
         }
+        
+        
+        public bool TryRequestState<T>() where T : IState
+        {
+            if (_states.TryGetValue(typeof(T), out var state))
+            {
+                return TrySetState(state);
+            }
+        
+            Debug.LogError($"Стейт {typeof(T).Name} не найден в {GetType().Name}!");
+            return false;
+        }
+        public void ForceRequestState<T>() where T : IState
+        {
+            if (_states.TryGetValue(typeof(T), out var state))
+            { 
+                ForceSetState(state);
+                return;
+            }
+        
+            Debug.LogError($"Стейт {typeof(T).Name} не найден в {GetType().Name}!");
+        }
+
+        public void ForceRequestState(Type type)
+        {
+            if (_states.TryGetValue(type, out var state))
+            {
+                ForceSetState(state);
+                return;
+            }
+
+            Debug.LogError($"Стейт {type.Name} не найден в {GetType().Name}!");
+        }
+
+        public void ForceToggleState<T,T1>() where T : IState where T1 : IState
+        {
+            if (CurrentState != typeof(T))
+            {
+                ForceRequestState<T>();
+            }
+            else
+            {
+                ForceRequestState<T1>();
+            }
+        }
+        
+        public void RequestToggleState<T,T1>() where T : IState where T1 : IState
+        {
+            if (CurrentState != typeof(T))
+            {
+                TryRequestState<T>();
+            }
+            else
+            {
+                TryRequestState<T1>();
+            }
+        }
+
+        public void AddState(IState state) => _states.Add(state.GetType(),state);
     }
 }
 
@@ -1700,6 +1762,19 @@ namespace Core.UI.Types
             }
 
             Debug.LogError($"Value of type {typeof(TValue).Name} not found");
+            value = null;
+            return false;
+        }
+        
+        public bool TryGetValue(Type type, out T value)
+        {
+            if (_tDictionary.TryGetValue(type, out var v))
+            {
+                value = v;
+                return true;
+            }
+
+            Debug.LogError($"Value of type {type.Name} not found");
             value = null;
             return false;
         }
@@ -1830,13 +1905,11 @@ namespace Core.UI.Views
 }
 
 === Scripts\Core\UI\Window.cs ===
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Core.Bootstrap;
-using Core.Events;
 using Core.Extensions;
 using Core.UI.Types;
-using Gameplay.Events;
-using Gameplay.UI;
 using UnityEngine;
 
 namespace Core.UI
@@ -1853,6 +1926,17 @@ namespace Core.UI
         public T GetView<T>() where T : View
         {
             if (_views.TryGetValue(out T view))
+            {
+                return view;
+            }
+
+            Debug.LogError($"View of type {view.TypeName()} not found");
+            return null;
+        }
+
+        public View GetView(Type type)
+        {
+            if (_views.TryGetValue(type, out var view))
             {
                 return view;
             }
@@ -1889,6 +1973,10 @@ namespace Core.UI
             if (_stack.TryPop(out var view))
             {
                 view.Hide();
+                if (_stack.TryPeek(out var top))
+                {
+                    top.Show();
+                }
             }
         }
 
@@ -1900,13 +1988,20 @@ namespace Core.UI
             top.Hide();
             _stack.Push(view);
         }
+
+        public void Next(Type type)
+        {
+            var view = GetView(type);
+            view.Show();
+            _stack.TryPeek(out var top);
+            top.Hide();
+            _stack.Push(view);
+        }
     }
 }
 
 === Scripts\Core\UI\WindowManager.cs ===
-﻿using System;
-using System.Collections.Generic;
-using Core.Extensions;
+﻿using Core.Extensions;
 using Core.UI.Types;
 using UnityEngine;
 
@@ -1927,6 +2022,11 @@ namespace Core.UI
             return null;
         }
 
+        public bool TryAdd(Window window)
+        {
+            return _windows.TryAdd(window);
+        }
+
         public void SwitchWindows<T, T1>(T from, T1 to) where T : Window where T1 : Window
         {
             from.Hide();
@@ -1940,7 +2040,7 @@ namespace Core.UI
                 window.Hide();
             }
 
-            GetWindow<TWindow>().Show();
+            GetWindow<TWindow>()?.Show();
         }
     }
 }
@@ -2218,8 +2318,7 @@ namespace Gameplay.Anims
 }
 
 === Scripts\Gameplay\Anims\MockPlayerAnimator.cs ===
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace Gameplay.Anims
 {
@@ -2620,6 +2719,34 @@ namespace Gameplay.Bootstrap
 }
 
 
+=== Scripts\Gameplay\Bootstrap\GameSceneBootstrap.cs ===
+﻿using Core.Events;
+using Core.Extensions;
+using Core.Scenes;
+using Gameplay.Events;
+using Gameplay.UI.Views.Gameplay.HUD;
+using Reflex.Attributes;
+using UnityEngine;
+
+namespace Gameplay.Bootstrap
+{
+    public class GameSceneBootstrap : MonoBehaviour, IBootstrapComponent
+    {
+        [Inject] private HUDWindow _hudWindow;
+        [Inject] private SceneLoader _sceneLoader;
+        public void Boot()
+        {
+            _hudWindow.GetView<EndGameView>().MenuClicked += () => _ = _sceneLoader.LoadScene(SceneConstants.MainMenu);
+            EventBus.Subscribe<GameEndedEvent>(e =>
+            {
+                _hudWindow.ShowOnly<EndGameView>();
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }).AddTo(gameObject);
+        }
+    }
+}
+
 === Scripts\Gameplay\Bootstrap\IBootstrapComponent.cs ===
 ﻿namespace Gameplay.Bootstrap
 {
@@ -2629,44 +2756,13 @@ namespace Gameplay.Bootstrap
     }
 }
 
-=== Scripts\Gameplay\Bootstrap\MainBootstrap.cs ===
-﻿using Core.Events;
-using Core.Extensions;
-using Core.Scenes;
-using Core.UI;
-using Gameplay.Events;
-using Gameplay.UI;
-using Reflex.Attributes;
-using UnityEngine;
-
-namespace Gameplay.Bootstrap
-{
-    public class MainBootstrap : MonoBehaviour, IBootstrapComponent
-    {
-        [Inject] private Window _window;
-        [Inject] private SceneLoader _sceneLoader;
-        public void Boot()
-        {
-            _window.GetView<EndGameView>().MenuClicked += () => _ = _sceneLoader.LoadScene(SceneConstants.MainMenu);
-            EventBus.Subscribe<GameEndedEvent>(e =>
-            {
-                _window.ShowOnly<EndGameView>();
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }).AddTo(gameObject);
-        }
-    }
-}
-
 === Scripts\Gameplay\Bootstrap\MainMenuBootstrap.cs ===
-﻿using Core.Bootstrap;
-
-using Core.SaveLoad.Interactors;
+﻿using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.SaveLoad.Saveables;
 using Core.Scenes;
-using Core.UI;
 using Gameplay.UI.Views.MainMenu;
+using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using UnityEngine;
 
@@ -2674,7 +2770,7 @@ namespace Gameplay.Bootstrap
 {
     public class MainMenuBootstrap : MonoBehaviour, IBootstrapComponent
     {
-        [Inject] private Window _menuWindow;
+        [Inject] private MenuWindow _menuWindow;
         [Inject] private SettingsInteractor _settingsInteractor;
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SceneLoader _sceneLoader;
@@ -2759,8 +2855,8 @@ using Gameplay.Combat.Offensive.Skills.Abilities;
 using Gameplay.Controllers.Player;
 using Gameplay.Core;
 using Gameplay.Events;
-using Gameplay.UI;
-using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Views.Gameplay.HUD;
+using Gameplay.UI.Views.Gameplay.Terminal;
 using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using Reflex.Core;
@@ -2777,16 +2873,17 @@ namespace Gameplay.Bootstrap
         [Inject] private SettingsInteractor _settingsInteractor;
         [Inject] private Container _container;
         [Inject] private SyncEnergyManager _energyManager;
+        [Inject] private WindowManager _windowManager;
+        [Inject] private HUDWindow _hudWindow;
 
         [SerializeField] private Transform _playerSpawnPoint;
         [SerializeField] private GameObject _playerPrefab;
         [SerializeField] private Camera _camera;
-        [Inject] private GameplayWindow _gameplayWindow;
 
         private CooldownView _cooldownView;
         private StabilityBarView _stabilityBarView;
         private EnergyBarView _energyBarView;
-        private TerminalView _terminalView;
+        private TerminalWindow _terminalWindow;
 
         private StabilitySystem _playerStabilitySystem;
         private Container _playerContainer;
@@ -2808,9 +2905,6 @@ namespace Gameplay.Bootstrap
 
             GetComponents();
 
-            print(_gameplayWindow.TryAddView(_terminalView) ? "okay" : "proebali");
-
-
             SetupContainer();
 
             GameObjectInjector.InjectRecursive(Player, _playerContainer);
@@ -2821,9 +2915,9 @@ namespace Gameplay.Bootstrap
             _fightController.Init();
             _wristTerminalController.Init();
 
-            _cooldownView = _gameplayWindow.GetView<CooldownView>();
-            _stabilityBarView = _gameplayWindow.GetView<StabilityBarView>();
-            _energyBarView = _gameplayWindow.GetView<EnergyBarView>();
+            _cooldownView = _hudWindow.GetView<CooldownView>();
+            _stabilityBarView = _hudWindow.GetView<StabilityBarView>();
+            _energyBarView = _hudWindow.GetView<EnergyBarView>();
 
             EventBus.Subscribe<SyncEnergyChangedEvent>(e => _energyBarView.ChangeValue(e.EnergyPercent))
                 .AddTo(gameObject);
@@ -2855,7 +2949,7 @@ namespace Gameplay.Bootstrap
 
         private void GetComponents()
         {
-            _ = new HudSwitcher(_gameplayWindow.GetView<PlayerHUDView>());
+            _ = new HudSwitcher(_hudWindow.GetView<PlayerHUDView>());
             _playerStabilitySystem = Player.GetComponent<StabilitySystem>();
             _abilitiesController = Player.GetComponent<AbilitiesController>();
             _movementController = Player.GetComponent<MovementController>();
@@ -2864,7 +2958,10 @@ namespace Gameplay.Bootstrap
             _camera = Player.GetComponentInChildren<Camera>();
             _wristTerminalController = Player.GetComponent<WristTerminalController>();
             _animator = Player.GetComponent<IPlayerAnimator>();
-            _terminalView = Player.GetComponentInChildren<TerminalView>(true);
+            _terminalWindow = Player.GetComponentInChildren<TerminalWindow>(true);
+            _windowManager.TryAdd(_terminalWindow);
+            print("TerminalWindow Added to WindowManager");
+
         }
 
         private void SetupContainer()
@@ -2878,12 +2975,14 @@ namespace Gameplay.Bootstrap
                 builder.RegisterValue(_brain);
                 builder.RegisterValue(_wristTerminalController);
                 builder.RegisterValue(_animator, new []{typeof(MockPlayerAnimator)});
+                builder.RegisterValue(_terminalWindow);
             });
         }
 
         private void SetupCooldownListeners()
         {
-            _cooldownView.SetSlot2(_terminalView.SwitchBranchSkillView);
+            _cooldownView.SetSlot1(_terminalWindow.GetView<TerminalScannerView>().ScannerSkillView);
+            _cooldownView.SetSlot2(_terminalWindow.GetView<TerminalView>().SwitchBranchSkillView);
             _cooldownView.ResetAll();
             _abilitiesController.TryGetSkill<ScannerSkill>().OnCooldownTick += _cooldownView.SetSlot1FillAmount;
             _abilitiesController.TryGetSkill<SwitchBranchSkill>().OnCooldownTick += _cooldownView.SetSlot2FillAmount;
@@ -3412,15 +3511,12 @@ namespace Gameplay.Combat.Offensive.ScriptableObjects
 }
 
 === Scripts\Gameplay\Combat\Offensive\Skills\Abilities\ScannerSkill.cs ===
-﻿using Core.UI;
-using Gameplay.Abilities;
+﻿using Gameplay.Abilities;
 using Gameplay.Core;
-
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.Skills.Definitions;
 using Gameplay.Interactables;
-using Gameplay.StateMachines.PlayerStates.FightStates;
-using Gameplay.UI;
+using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
 using UnityEngine;
 
@@ -3428,11 +3524,10 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
 {
     public class ScannerSkill : Skill
     {
-
         private readonly ScannerAbilityDefinition _def;
         private readonly SkillContext _ctx;
 
-        [Inject] private Window _window;
+        [Inject] private HUDWindow _hudWindow;
 
 
         private IBuggable _currentTarget;
@@ -3452,7 +3547,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         public override void Init()
         {
             _cameraTransform = _cam.transform;
-            _scannerView = _window.GetView<ScannerView>();
+            _scannerView = _hudWindow.GetView<ScannerView>();
             _scannerTrigger = _ctx.Caster.GetComponentInChildren<ScannerTrigger>();
             _scannerTrigger.OnTriggerEntered += HandleTrigger;
         }
@@ -3474,15 +3569,16 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
                     _def.ScanDistance, _def.InteractableLayer))
             {
                 var buggable = hit.collider.GetComponent<IBuggable>();
-        
+
                 // ПРОВЕРКА: если объект багнут И находится в нужной ветке
-                if (buggable != null && buggable.IsBugged && buggable.IsInteractableInCurrentBranch(BranchManager.CurrentBranch))
+                if (buggable != null && buggable.IsBugged &&
+                    buggable.IsInteractableInCurrentBranch(BranchManager.CurrentBranch))
                 {
                     if (_currentTarget != buggable)
                     {
-                        _currentTarget?.OnScanned(false);
+                        _currentTarget?.Scan(false);
                         _currentTarget = buggable;
-                        _currentTarget.OnScanned(true); 
+                        _currentTarget.Scan(true);
                     }
                 }
                 else
@@ -3498,33 +3594,19 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
 
         protected override bool CastAction()
         {
-            if (!IsScannerActive)
-            {
-                if (_ctx.FightController.TryRequestState<ScannerState>())
-                {
-                    ToggleScanner();
-                    
-                    return true;
-                }
-
-                return false;
-            }
-            else
-            {
-                if (_ctx.FightController.TryRequestState<IdleAttackState>())
-                {
-                    ToggleScanner();
-                    return true;
-                }
-
-                return false;
-            }
-            
+            ToggleScanner();
+            return true;
         }
 
-        public void ToggleScanner()
+        private void ToggleScanner()
         {
             IsScannerActive = !IsScannerActive;
+            SetScanner(IsScannerActive);
+        }
+
+        public void SetScanner(bool active)
+        {
+            IsScannerActive = active;
             if (IsScannerActive)
             {
                 _ctx.VFXController.PlayScanner();
@@ -3536,12 +3618,10 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
                 _ctx.VFXController.PlayScanner(false);
                 _scannerView?.FillOut();
             }
-
-            //_scannerView?.SetVisible(IsScannerActive);
-
+            
             if (!IsScannerActive && _currentTarget != null)
             {
-                _currentTarget.OnScanned(false);
+                _currentTarget.Scan(false);
                 _currentTarget = null;
             }
         }
@@ -3550,6 +3630,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         public void TryInteract()
         {
             if (IsScannerActive && _currentTarget != null)
+            {
                 if (_currentTarget.IsInteractableInCurrentBranch(BranchManager.CurrentBranch))
                 {
                     _currentTarget.OnInteract();
@@ -3558,19 +3639,18 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
                 {
                     Debug.Log("Объект недоступен в этой реальности!");
                 }
+            }
         }
-
 
 
         private void ResetTarget()
         {
             if (_currentTarget != null)
             {
-                _currentTarget.OnScanned(false);
+                _currentTarget.Scan(false);
                 _currentTarget = null;
             }
         }
-        
     }
 }
 
@@ -3578,8 +3658,6 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
 ﻿using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.ScriptableObjects;
 using Gameplay.Core;
-using Gameplay.UI;
-using Gameplay.UI.Windows;
 using Reflex.Attributes;
 
 namespace Gameplay.Combat.Offensive.Skills.Abilities
@@ -3813,7 +3891,7 @@ namespace Gameplay.Combat.Offensive.Skills
 
         protected override bool CastAction()
         {
-            if(_fight.TryRequestState<MeleeState>()) return true;
+            if(_fight.StateMachine.TryRequestState<MeleeState>()) return true;
             return false;
         }
 
@@ -3901,7 +3979,7 @@ namespace Gameplay.Combat.Offensive.Skills
 
         protected override bool CastAction()
         {
-            if (!_ctx.FightController.TryRequestState<RangedSkillState>()) return false;
+            if (!_ctx.FightController.StateMachine.TryRequestState<RangedSkillState>()) return false;
             var obj = Object.Instantiate(_def.ProjectilePrefab,_castPoint.position, Quaternion.identity);
             
             var proj = obj.AddComponent<Projectile>();
@@ -4105,62 +4183,71 @@ namespace Gameplay.Controllers.Player
         [SerializeField] private GameObject _crowbar;
         [SerializeField] private GameObject _pistol;
         private Skill _currentAttackSkill;
+        private bool _isInitialized;
 
 
-        private void Awake()
+        public void Init()
         {
-            _stateMachine = new StateMachine();
+            GetComponents();
+            AttackStatesInit();
+            EquipCrowbar();
+            
+            _crowbarAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
+            _gunAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
+            _isInitialized = true;
+            enabled = true;
+        }
+
+        private void GetComponents()
+        {
+            StateMachine = new StateMachine();
             _abilitiesController = GetComponent<AbilitiesController>();
             _playerAnimator = GetComponent<IPlayerAnimator>();
             GetComponent<IHittable>().onHit.AddListener(_playerAnimator.DoHit);
         }
 
-        public void Init()
-        {
-            AttackStatesInit();
-            EquipCrowbar();
-            BindInput();
-            _crowbarAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
-            _gunAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
-        }
-
         private void Update()
         {
-            _stateMachine.Tick();
+            StateMachine.Tick();
         }
 
         private void AttackStatesInit()
         {
-            //_spellState = new SpellState(this, _skillsController, _playerAnimator);
-            //_sheathState = new SheathedSwordState(this, _skillsController, _playerAnimator);
-
             var meleeState = new MeleeState(this, _abilitiesController, _playerAnimator);
             var rangedState = new RangedSkillState(this, _abilitiesController, _playerAnimator);
             var idleAttackState = new IdleAttackState(this, _abilitiesController, _playerAnimator);
-            var scannerState = new ScannerState(this, _abilitiesController, _playerAnimator);
+            
 
-            AttributeInjector.Inject(scannerState, _container);
             AttributeInjector.Inject(meleeState, _container);
 
-            _states[typeof(IdleAttackState)] = idleAttackState;
-            _states[typeof(ScannerState)] = scannerState;
-            _states[typeof(MeleeState)] = meleeState;
-            _states[typeof(RangedSkillState)] = rangedState;
+            StateMachine.AddState(idleAttackState);
+            StateMachine.AddState(meleeState);
+            StateMachine.AddState(rangedState);
             
-            _stateMachine.AddManualTransition(idleAttackState, scannerState);
-            _stateMachine.AddManualTransition(idleAttackState, meleeState);
-            _stateMachine.AddManualTransition(idleAttackState, rangedState);
-            _stateMachine.AddManualTransition(scannerState, idleAttackState);
-            _stateMachine.AddManualTransition(meleeState, idleAttackState);
-            _stateMachine.AddManualTransition(rangedState, idleAttackState);
+            StateMachine.AddManualTransition(idleAttackState, meleeState);
+            StateMachine.AddManualTransition(idleAttackState, rangedState);
+
+            StateMachine.AddManualTransition(meleeState, idleAttackState);
+            StateMachine.AddManualTransition(rangedState, idleAttackState);
 
 
-            _stateMachine.TrySetState(idleAttackState);
+            StateMachine.TrySetState(idleAttackState);
         }
+
+        private void OnEnable()
+        {
+            BindInput();
+        }
+        
+        private void OnDisable()
+        {
+            UnbindInput();
+        }
+
 
         private void BindInput()
         {
-            _input.OnScannerPressed += HandleScannerPress;
+            
             _input.OnLeftClick += HandleAttack;
             _input.OnSlotOnePressed += EquipCrowbar;
             _input.OnSlotTwoPressed += EquipPistol;
@@ -4168,7 +4255,7 @@ namespace Gameplay.Controllers.Player
 
         private void UnbindInput()
         {
-            _input.OnScannerPressed -= HandleScannerPress;
+            
             _input.OnLeftClick -= HandleAttack;
             _input.OnSlotOnePressed -= EquipCrowbar;
             _input.OnSlotTwoPressed -= EquipPistol;
@@ -4176,13 +4263,10 @@ namespace Gameplay.Controllers.Player
 
         private void HandleAttackAnimEnd()
         {
-            TryRequestState<IdleAttackState>();
+            StateMachine.TryRequestState<IdleAttackState>();
         }
 
-        private void HandleScannerPress()
-        {
-            _abilitiesController.TryGetSkill<ScannerSkill>().TryCast();
-        }
+        
 
         private void HandleAttack()
         {
@@ -4193,7 +4277,7 @@ namespace Gameplay.Controllers.Player
         {
             if (!_abilitiesController.TryGetSkill<ScannerSkill>().IsScannerActive)
             {
-                TryRequestState<IdleAttackState>();
+                StateMachine.TryRequestState<IdleAttackState>();
             }
             _crowbar.transform.GetChild(0).LocalResetAll();
             _crowbar.SetActive(true);
@@ -4205,7 +4289,7 @@ namespace Gameplay.Controllers.Player
         {
             if (!_abilitiesController.TryGetSkill<ScannerSkill>().IsScannerActive)
             {
-                TryRequestState<IdleAttackState>();
+                StateMachine.TryRequestState<IdleAttackState>();
             }
             _pistol.transform.GetChild(0).LocalResetAll();
             _crowbar.SetActive(false);
@@ -4215,7 +4299,6 @@ namespace Gameplay.Controllers.Player
 
         private void OnDestroy()
         {
-            if (_input != null) UnbindInput();
             if (_crowbarAnimHandler != null) _crowbarAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
             if (_gunAnimHandler != null) _gunAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
         }
@@ -4294,7 +4377,7 @@ namespace Gameplay.Controllers.Player
 
         private void Awake()
         {
-            _stateMachine = new StateMachine();
+            StateMachine = new StateMachine();
             _playerAnimator = GetComponent<IPlayerAnimator>();
             _controller = GetComponent<CharacterController>();
             _stabilitySystem = GetComponent<StabilitySystem>();
@@ -4322,7 +4405,7 @@ namespace Gameplay.Controllers.Player
 
         private void Update()
         {
-            _stateMachine.Tick();
+            StateMachine.Tick();
             //SetControllerParams();
             //Rotate();
         }
@@ -4343,16 +4426,16 @@ namespace Gameplay.Controllers.Player
             _deathState = new DeathState(this, _playerAnimator);
             EventBus.Subscribe<PlayerDeathEvent>(HandleDeath).AddTo(gameObject);
 
-            _stateMachine.AddTransition(_idleState, _walkingState, () => _inputManager.MoveInput != Vector2.zero);
-            _stateMachine.AddTransition(_idleState, _sprintingState, () => _inputManager.SprintInput && CanSprint);
-            _stateMachine.AddTransition(_walkingState, _idleState, () => _inputManager.MoveInput == Vector2.zero);
-            _stateMachine.AddTransition(_walkingState, _sprintingState, () => _inputManager.SprintInput && CanSprint);
-            _stateMachine.AddTransition(_walkingState, _fallingState, () => !IsGrounded);
-            _stateMachine.AddTransition(_sprintingState, _walkingState, () => !_inputManager.SprintInput || !CanSprint);
-            _stateMachine.AddTransition(_sprintingState, _fallingState, () => !IsGrounded);
-            _stateMachine.AddTransition(_jumpingState, _fallingState, () => !IsGrounded);
-            _stateMachine.AddTransition(_fallingState, _idleState, () => IsGrounded);
-            _stateMachine.AddAntiState(_fallingState, _jumpingState);
+            StateMachine.AddTransition(_idleState, _walkingState, () => _inputManager.MoveInput != Vector2.zero);
+            StateMachine.AddTransition(_idleState, _sprintingState, () => _inputManager.SprintInput && CanSprint);
+            StateMachine.AddTransition(_walkingState, _idleState, () => _inputManager.MoveInput == Vector2.zero);
+            StateMachine.AddTransition(_walkingState, _sprintingState, () => _inputManager.SprintInput && CanSprint);
+            StateMachine.AddTransition(_walkingState, _fallingState, () => !IsGrounded);
+            StateMachine.AddTransition(_sprintingState, _walkingState, () => !_inputManager.SprintInput || !CanSprint);
+            StateMachine.AddTransition(_sprintingState, _fallingState, () => !IsGrounded);
+            StateMachine.AddTransition(_jumpingState, _fallingState, () => !IsGrounded);
+            StateMachine.AddTransition(_fallingState, _idleState, () => IsGrounded);
+            StateMachine.AddAntiState(_fallingState, _jumpingState);
 
 
             if (_inputManager != null)
@@ -4360,20 +4443,20 @@ namespace Gameplay.Controllers.Player
                 _inputManager.OnJumpPressed += HandleJump;
             }
 
-            _stateMachine.TrySetState(_idleState);
+            StateMachine.TrySetState(_idleState);
         }
 
         private void HandleJump()
         {
             if (IsGrounded)
             {
-                _stateMachine.ForceSetState(_jumpingState);
+                StateMachine.ForceSetState(_jumpingState);
             }
         }
 
         private void HandleDeath(PlayerDeathEvent e)
         {
-            _stateMachine.ForceSetState(_deathState);
+            StateMachine.ForceSetState(_deathState);
         }
 
         #region Movement
@@ -4495,16 +4578,15 @@ namespace Gameplay.Controllers.Player
 }
 
 === Scripts\Gameplay\Controllers\Player\PlayerBrain.cs ===
-using System;
 using Core.Bootstrap;
 using Core.Events;
 using Core.Input;
 using Core.StateMachines;
 using Gameplay.Events;
+using Gameplay.StateMachines;
 using Gameplay.StateMachines.PlayerStates.PlayerBrainStates;
 using Reflex.Attributes;
 using Reflex.Core;
-using Reflex.Injectors;
 using UnityEngine;
 using Logger = Core.Utilities.Logger;
 
@@ -4521,7 +4603,7 @@ namespace Gameplay.Controllers.Player
 
         public void Init()
         {
-            _stateMachine = new StateMachine();
+            StateMachine = new StateMachine();
             _movement = GetComponent<MovementController>();
             _fight = GetComponent<FightController>();
             _abilities = GetComponent<AbilitiesController>();
@@ -4535,7 +4617,7 @@ namespace Gameplay.Controllers.Player
 
         private void Update()
         {
-            _stateMachine.Tick();
+            StateMachine.Tick();
         }
 
         private void InitStates()
@@ -4545,27 +4627,26 @@ namespace Gameplay.Controllers.Player
             var pauseState =  new PauseState(this,_movement, _fight);
             var endGameState = new EndGameState(this,_movement, _fight);
             
-            AttributeInjector.Inject(pauseState, _container);
-            AttributeInjector.Inject(defaultState, _container);
-            AttributeInjector.Inject(terminalState, _container);
-            AttributeInjector.Inject(endGameState, _container);
+            StateMachine.AddState(defaultState);
+            StateMachine.AddState(terminalState);
+            StateMachine.AddState(pauseState);
+            StateMachine.AddState(endGameState);
+            
+            StateMachineInjector.InjectStates(StateMachine, _container);
             
             terminalState.Init();
 
 
-            _states[typeof(DefaultState)] = defaultState;
-            _states[typeof(TerminalState)] = terminalState;
-            _states[typeof(PauseState)] = pauseState;
-            _states[typeof(EndGameState)] = endGameState;
+            
 
 
-            _stateMachine.AddManualTransition(defaultState, terminalState);
-            _stateMachine.AddManualTransition(terminalState, defaultState); 
-            _stateMachine.AddManualTransition(pauseState, defaultState);
+            StateMachine.AddManualTransition(defaultState, terminalState);
+            StateMachine.AddManualTransition(terminalState, defaultState); 
+            StateMachine.AddManualTransition(pauseState, defaultState);
 
             EventBus.Subscribe<GameEndedEvent>(HandleGameEnd);
             
-            _stateMachine.TrySetState(defaultState);
+            StateMachine.TrySetState(defaultState);
             Debug.Log($"{GetType().Name} States Initialized");
             
         }
@@ -4573,29 +4654,29 @@ namespace Gameplay.Controllers.Player
 
         private void HandleTerminal()
         {
-            if(_stateMachine.CurrentState != typeof(TerminalState)) ForceRequestState<TerminalState>();
-            else ForceRequestState<DefaultState>();
+            StateMachine.ForceToggleState<TerminalState,DefaultState>();
         }
         private void HandlePause()
         {
-            if(_stateMachine.CurrentState != typeof(PauseState)) ForceRequestState<PauseState>();
-            else ForcePreviousState();
+            if(StateMachine.CurrentState != typeof(PauseState)) StateMachine.ForceRequestState<PauseState>();
+            else StateMachine.ForcePreviousState();
             Logger.Trace();
         }
 
         private void HandleGameEnd(GameEndedEvent e)
         {
-            ForceRequestState<EndGameState>();
+            StateMachine.ForceRequestState<EndGameState>();
         }
 
         private void OnDestroy()
         {
-            ForceRequestState<DefaultState>();
             if (_input != null)
             {
                 _input.OnEscapePressed -= HandlePause;
                 _input.OnTerminalPressed -= HandleTerminal;
             }
+
+            //StateMachine.ForceRequestState<DefaultState>();
         }
     }
 }
@@ -4751,51 +4832,14 @@ namespace Gameplay.Controllers.Player
 }
 
 === Scripts\Gameplay\Controllers\Player\StateBehaviourController.cs ===
-﻿using System;
-using System.Collections.Generic;
-using Core.StateMachines;
+﻿using Core.StateMachines;
 using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
     public class StateBehaviourController : MonoBehaviour
     {
-        protected StateMachine _stateMachine;
-        protected Dictionary<Type, IState> _states = new();
-        
-        public bool TryRequestState<T>() where T : IState
-        {
-            if (_states.TryGetValue(typeof(T), out var state))
-            {
-                return _stateMachine.TrySetState(state);
-            }
-        
-            Debug.LogError($"Стейт {typeof(T).Name} не найден в {GetType().Name}!");
-            return false;
-        }
-        public void ForceRequestState<T>() where T : IState
-        {
-            if (_states.TryGetValue(typeof(T), out var state))
-            { 
-                _stateMachine.ForceSetState(state);
-                return;
-            }
-        
-            Debug.LogError($"Стейт {typeof(T).Name} не найден в {GetType().Name}!");
-        }
-
-        public void ForceRequestState(Type type)
-        {
-            if (_states.TryGetValue(type, out var state))
-            {
-                _stateMachine.ForceSetState(state);
-                return;
-            }
-
-            Debug.LogError($"Стейт {type.Name} не найден в {GetType().Name}!");
-        }
-
-        public void ForcePreviousState() => _stateMachine.ForcePreviousState();
+        public StateMachine StateMachine;
     }
 }
 
@@ -4823,11 +4867,9 @@ namespace Gameplay.Controllers.Player
 }
 
 === Scripts\Gameplay\Controllers\Player\WristTerminalController.cs ===
-using System;
 using Core.Bootstrap;
 using Gameplay.Core;
-using Gameplay.StateMachines.PlayerStates.PlayerBrainStates;
-using Gameplay.UI;
+using Gameplay.UI.Views.Gameplay.Terminal;
 using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using UnityEngine;
@@ -4840,7 +4882,7 @@ namespace Gameplay.Controllers.Player
         [Inject] private InputManager _inputManager;
         [Inject] private SyncEnergyManager _syncEnergyManager;
         [Inject] private PlayerBrain _brain;
-        [Inject] private GameplayWindow _gameplayWindow;
+        [Inject] private TerminalWindow _terminalWindow;
         private TerminalView _terminalView;
 
 
@@ -4848,7 +4890,7 @@ namespace Gameplay.Controllers.Player
 
         public void Init()
         {
-            _terminalView = _gameplayWindow.GetView<TerminalView>();
+            _terminalView = _terminalWindow.GetView<TerminalView>();
         }
 
 
@@ -4865,12 +4907,12 @@ namespace Gameplay.Controllers.Player
         {
             if (active)
             {
-                _terminalView.UpdateInfo(BranchManager.CurrentBranch);
-                _terminalView.Show();
+                
+                _terminalWindow.Show();
             }
             else
             {
-                _terminalView.Hide();
+                _terminalWindow.Hide();
             }
         }
     }
@@ -4973,7 +5015,7 @@ namespace Gameplay.Core
         }
 
         public float MaxEnergy { get; private set; } = 100f;
-        public float JumpCost { get; private set; } = 30f;
+        public float JumpCost { get; private set; } = 15f;
         public float CurrentEnergy { get; private set; }
 
         public void Init()
@@ -5599,8 +5641,7 @@ using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Controllers.Player;
 using Gameplay.Enemies.States;
 using Gameplay.Events;
-using Gameplay.UI.Views.Gameplay;
-
+using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
 using Reflex.Core;
 using Reflex.Injectors;
@@ -5667,7 +5708,7 @@ namespace Gameplay.Enemies
         private void GetComponents()
         {
             SwordCollider = _sword.GetComponent<BoxCollider>();
-            _stateMachine = new StateMachine();
+            StateMachine = new StateMachine();
             _abilitiesController = GetComponent<EnemySkillsController>();
             _enemyAnimator = GetComponent<EnemyAnimator>();
             _stabilitySystem = GetComponent<StabilitySystem>();
@@ -5717,7 +5758,7 @@ namespace Gameplay.Enemies
         private void OnEnable()
         {
             _animHandler.OnAnimationEnded += HandleAnimEnd;
-            ForceRequestState<IdleState>();
+            StateMachine.ForceRequestState<IdleState>();
             
         }
 
@@ -5746,7 +5787,7 @@ namespace Gameplay.Enemies
             }
 
             ChasingChecker();
-            _stateMachine.Tick();
+            StateMachine.Tick();
         }
 
         public void ApplyGlitchStun(float duration)
@@ -5812,37 +5853,39 @@ namespace Gameplay.Enemies
             
 
 
-            _stateMachine.AddAnyTransition(deathState, () => _stabilitySystem.Stability <= 0f);
+            StateMachine.AddAnyTransition(deathState, () => _stabilitySystem.Stability <= 0f);
 
             var stunState = new GlitchStunState(this, _enemyAnimator, _agent);
-            _states[typeof(IdleState)] = idleState;
-            _states[typeof(WalkState)] = walkState;
-            _states[typeof(FearState)] = fearState;
-            _states[typeof(DeathState)] = deathState;
-            _states[typeof(AttackState)] = attackState;
-            _states[typeof(GlitchStunState)] = stunState;
-
-            _stateMachine.AddAnyTransition(stunState, () => IsStunned);
-            _stateMachine.AddTransition(stunState, idleState, () => !IsStunned);
+            
+            StateMachine.AddState(idleState);
+            StateMachine.AddState(walkState);
+            StateMachine.AddState(fearState);
+            StateMachine.AddState(deathState);
+            StateMachine.AddState(attackState);
+            StateMachine.AddState(stunState);
+            
+            
+            StateMachine.AddAnyTransition(stunState, () => IsStunned);
+            StateMachine.AddTransition(stunState, idleState, () => !IsStunned);
 
             if (_isPeaceful)
             {
-                _stateMachine.AddTransition(idleState, fearState,
+                StateMachine.AddTransition(idleState, fearState,
                     () => _stabilitySystem.Stability / _stabilitySystem.MaxStability <= .3f);
             }
             else
             {
-                _stateMachine.AddTransition(idleState, walkState, () => IsChasing && !IsInAttackRange);
-                _stateMachine.AddTransition(idleState, attackState,
+                StateMachine.AddTransition(idleState, walkState, () => IsChasing && !IsInAttackRange);
+                StateMachine.AddTransition(idleState, attackState,
                     () => IsInAttackRange && AttackReady());
             }
 
 
-            _stateMachine.AddTransition(walkState, idleState, () => !IsChasing || IsInAttackRange);
-            _stateMachine.AddTransition(walkState, attackState, () => IsInAttackRange && AttackReady());
-            _stateMachine.AddTransition(attackState, idleState,
+            StateMachine.AddTransition(walkState, idleState, () => !IsChasing || IsInAttackRange);
+            StateMachine.AddTransition(walkState, attackState, () => IsInAttackRange && AttackReady());
+            StateMachine.AddTransition(attackState, idleState,
                 () => IsInAttackRange && _attackAnimEnded);
-            _stateMachine.AddTransition(attackState, walkState,
+            StateMachine.AddTransition(attackState, walkState,
                 () => !IsInAttackRange && _attackAnimEnded);
 
 
@@ -5852,7 +5895,7 @@ namespace Gameplay.Enemies
             // enemyStateMachine.AddTransition(spellState, walkState, () => !IsInCastRange && RangeAnimationEnded());
 
 
-            _stateMachine.TrySetState(idleState);
+            StateMachine.TrySetState(idleState);
         }
 
         private void ChasingChecker()
@@ -5896,7 +5939,7 @@ namespace Gameplay.Enemies
                 _stabilitySystem.IsInvincible = false;
                 _agent.enabled = true;
                 if (_hpCanvas != null) _hpCanvas.enabled = true;
-                ForceRequestState<IdleState>();
+                StateMachine.ForceRequestState<IdleState>();
             }
             else
             {
@@ -5946,7 +5989,7 @@ using Core.SaveLoad.Saveables;
 using Gameplay.Combat.Health;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Controllers.Player;
-using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
 using UnityEngine;
 using Object = UnityEngine.Object; 
@@ -6254,7 +6297,7 @@ namespace Gameplay.Enemies
 
 === Scripts\Gameplay\Enemies\StabilityUIBinder.cs ===
 ﻿using Gameplay.Combat.Health;
-using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Views.Gameplay.HUD;
 using UnityEngine;
 
 namespace Gameplay.Enemies
@@ -6756,7 +6799,7 @@ namespace Gameplay.Events
 ﻿using Core.Inventory;
 using Core.UI;
 using Gameplay.Core;
-using Gameplay.UI.Windows;
+using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Core;
 using Reflex.Enums;
 using UnityEngine;
@@ -6767,16 +6810,15 @@ namespace Gameplay.Installers
 {
     public class MainSceneInstaller : MonoBehaviour, IInstaller
     {
-        [SerializeField] private Window _mainWindow;
+        [SerializeField] private HUDWindow _hudWindow;
         [SerializeField] private WindowManager _windowManager;
         [SerializeField] private BranchManager _branchManager;
         [SerializeField] private Volume _postProcessVolume;
         [SerializeField] private InventoryManager _inventoryManager;
-        private AnimationClip _clip;
         
         public void InstallBindings(ContainerBuilder builder)
         {
-            builder.RegisterValue(_mainWindow, new []{typeof(Window), typeof(GameplayWindow)});
+            builder.RegisterValue(_hudWindow);
             builder.RegisterValue(_windowManager);
             builder.RegisterValue(_branchManager);
             builder.RegisterValue(_postProcessVolume);
@@ -6787,7 +6829,7 @@ namespace Gameplay.Installers
 }
 
 === Scripts\Gameplay\Installers\MenuInstaller.cs ===
-﻿using Core.UI;
+﻿using Gameplay.UI.Windows;
 using Reflex.Core;
 using UnityEngine;
 
@@ -6795,7 +6837,7 @@ namespace Gameplay.Installers
 {
     public class MenuInstaller : MonoBehaviour, IInstaller
     {
-        [SerializeField] private Window _window;
+        [SerializeField] private MenuWindow _window;
 
 
         public void InstallBindings(ContainerBuilder builder)
@@ -6852,9 +6894,12 @@ namespace Gameplay.Installers
 }
 
 === Scripts\Gameplay\Interactables\BuggableBase.cs ===
-﻿using DG.Tweening;
+﻿using Core.UI;
+using DG.Tweening;
 using ExternalAssets.QuickOutline.Scripts;
-using Gameplay.UI;
+using Gameplay.UI.Views.Gameplay.Terminal;
+using Gameplay.UI.Windows;
+using Reflex.Attributes;
 using UnityEngine;
 using static ExternalAssets.QuickOutline.Scripts.Outline;
 
@@ -6862,17 +6907,52 @@ namespace Gameplay.Interactables
 {
     public class BuggableBase : MonoBehaviour, IBuggable
     {
-        [SerializeField] protected PuzzleViewBase _puzzleView;
+        [Inject] protected WindowManager _windowManager;
+        
+        [SerializeField] private PuzzleViewBase _puzzleType;
+        protected PuzzleViewBase _puzzleView;
+        
         [SerializeField] protected Events.WorldBranch _requiredBranch = Events.WorldBranch.Alpha;
         [SerializeField] protected float _scannerVisibilityTime = 2f;
+        [SerializeField, TextArea] private string _bugInfo;
+        
         protected Outline _outline;
         protected Sequence _sequence;
+        private TerminalScannerView _terminalScannerView;
+        
+
+        private void Start()
+        {
+            _puzzleView = _windowManager.GetWindow<TerminalWindow>().GetView(_puzzleType.GetType()) as PuzzleViewBase;
+            print("Trying to Get TerminalWindow");
+            _terminalScannerView = _windowManager.GetWindow<TerminalWindow>().GetView<TerminalScannerView>();
+            OnStart();
+        }
+
+        protected virtual void OnStart()
+        {
+        }
 
         public bool IsBugged { get; protected set; } = true;
         public virtual bool IsInteractableInCurrentBranch(Events.WorldBranch branch)
         {
             return branch == _requiredBranch;
         }
+        public void Scan(bool isScanning)
+        {
+            if (isScanning)
+            {
+                _terminalScannerView.SetNameText(GetName());
+                _terminalScannerView.SetInfoText(GetInfo());
+            }
+            else
+            {
+                _terminalScannerView.SetNameText("-");
+                _terminalScannerView.SetInfoText("-");
+            }
+            OnScanned(isScanning);
+        }
+
         public virtual void OnScanned(bool isScanning)
         {
             
@@ -6907,16 +6987,20 @@ namespace Gameplay.Interactables
                 _sequence.Play();
             }
         }
+
+        public string GetName() => gameObject.name;
+
+        public string GetInfo() => _bugInfo;
     }
 }
 
 === Scripts\Gameplay\Interactables\BuggablePhysicsBox.cs ===
 using UnityEngine;
-
-using Core.UI;
 using Core.Input;
 using ExternalAssets.QuickOutline.Scripts;
-using Gameplay.UI;
+using Gameplay.UI.Views.Gameplay.HUD;
+using Gameplay.UI.Views.Gameplay.Terminal;
+using Gameplay.UI.Windows;
 using Reflex.Attributes;
 
 namespace Gameplay.Interactables
@@ -6924,10 +7008,9 @@ namespace Gameplay.Interactables
     [RequireComponent(typeof(Rigidbody))]
     public class BuggablePhysicsBox : BuggableBase
     {
-        [Inject] private Window _window;
+        
         [Inject] private InputManager _inputManager;
         private Rigidbody _rb;
-         // Опционально: компонент обводки
         private BugView _bugView;
 
         private void Awake()
@@ -6936,7 +7019,7 @@ namespace Gameplay.Interactables
             _outline = GetComponent<Outline>();
 
             if (_outline) _outline.enabled = false;
-            _bugView = _window.GetView<BugView>();
+            _bugView = _windowManager.GetWindow<HUDWindow>().GetView<BugView>();
             
             if (IsBugged)
             {
@@ -6967,7 +7050,7 @@ namespace Gameplay.Interactables
 
             Debug.Log("Открытие мини-игры Синхронизации Физики...");
 
-            if (_window == null)
+            if (_windowManager == null)
             {
                 Debug.LogError("ViewManager не внедрен (NULL)! Проверьте DI контейнер.");
                 return;
@@ -6980,7 +7063,7 @@ namespace Gameplay.Interactables
             }
             else
             {
-                var puzzleView = _window.GetView<PhysicsPuzzleView>();
+                var puzzleView = _windowManager.GetWindow<TerminalWindow>().GetView<SliderPuzzleView>();
                 if (puzzleView == null)
                 {
                     Debug.LogError("PhysicsPuzzleView не найден! Вы добавили его в список ViewManager?");
@@ -7029,9 +7112,9 @@ namespace Gameplay.Interactables
 === Scripts\Gameplay\Interactables\BuggableTerminal.cs ===
 ﻿
 using Core.Input;
-using Core.UI;
 using ExternalAssets.QuickOutline.Scripts;
-using Gameplay.UI;
+using Gameplay.UI.Views.Gameplay.Terminal;
+using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using UnityEngine;
 
@@ -7039,7 +7122,6 @@ namespace Gameplay.Interactables
 {
     public class BuggableTerminal: BuggableBase
     {
-        [Inject] private Window _window;
         [Inject] private InputManager _inputManager;
         [SerializeField] private GameObject bridgeObj;
         
@@ -7068,10 +7150,18 @@ namespace Gameplay.Interactables
         public override void OnInteract()
         {
             // Ищем наш новый PuzzleView
-            var puzzle = _puzzleView as TerminalPuzzleView; 
-            puzzle.ShowPuzzle(this);
+            if (_puzzleView != null)
+            {
+                _puzzleView.ShowPuzzle(this);
+            }
+            else
+            {
+                _puzzleView = _windowManager.GetWindow<TerminalWindow>().GetView<TerminalPuzzleView>();
+            }
+            
+            
         
-            // Отключаем управление игроком (как в BuggablePhysicsBox)
+            
             _inputManager.DisablePlayerInput();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -7127,10 +7217,13 @@ namespace Gameplay.Interactables
         bool IsBugged { get; }
         bool IsInteractableInCurrentBranch(Gameplay.Events.WorldBranch branch);
 
-        void OnScanned(bool isScanning); // Вызывается, когда сканер включен/выключен
+        void Scan(bool isScanning); // Вызывается, когда сканер включен/выключен
         void OnInteract();               // Вызывается при нажатии [E] на объект
         void FixBug();                   // Вызывается после прохождения мини-игры
-        public void Visualize();
+        void Visualize();
+        string GetName();
+        string GetInfo();
+    
     }
 }
 
@@ -7177,6 +7270,17 @@ namespace Gameplay.Interactables
     }
 }
 
+=== Scripts\Gameplay\Interactables\Puzzles\PuzzleBase.cs ===
+﻿using UnityEngine;
+
+namespace Gameplay.Interactables.Puzzles
+{
+    public class PuzzleBase :MonoBehaviour
+    {
+        
+    }
+}
+
 === Scripts\Gameplay\Interactables\SyncEnergyFragment.cs ===
 ﻿using Core.Audio;
 
@@ -7212,8 +7316,7 @@ namespace Gameplay.Interactables
 
 
 === Scripts\Gameplay\Misc\GunRotator.cs ===
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace Gameplay.Misc
 {
@@ -7256,8 +7359,8 @@ using Core.Extensions;
 using Core.Pause;
 using Core.SaveLoad.PlayerSaves;
 using Core.Scenes;
-using Core.UI;
 using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Views.Gameplay.HUD;
 using Gameplay.UI.Views.MainMenu;
 using Reflex.Attributes;
 using UnityEngine;
@@ -7266,7 +7369,7 @@ namespace Gameplay.Pause
 {
     public class PauseMenuController : MonoBehaviour, IInitializable
     {
-        [Inject] private Window _window;
+        [Inject] private HUDWindow _hudWindow;
         [Inject] private SceneLoader _sceneLoader;
         [Inject] private PlayerDataInteractor _playerDataInteractor;
     
@@ -7277,8 +7380,8 @@ namespace Gameplay.Pause
         {
             EventBus.Subscribe<GamePauseEvent>(OnPauseStateChanged).AddTo(gameObject);
         
-            _pauseView = _window.GetView<PauseView>();
-            _loadGameView = _window.GetView<LoadGameView>();
+            _pauseView = _hudWindow.GetView<PauseView>();
+            _loadGameView = _hudWindow.GetView<LoadGameView>();
 
             // Привязка кнопок
             /*_pauseView.SetMainMenuButtonListener(() => 
@@ -7300,7 +7403,7 @@ namespace Gameplay.Pause
                 _loadGameView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), LoadSelected);
             });*/
 
-            _loadGameView.SetBackButtonListener(() => _window.SwitchViews(_loadGameView, _pauseView));
+            _loadGameView.SetBackButtonListener(() => _hudWindow.SwitchViews(_loadGameView, _pauseView));
         }
 
         private void LoadSelected(string timestamp)
@@ -7321,7 +7424,6 @@ namespace Gameplay.Pause
 }
 
 === Scripts\Gameplay\Plot\TriggerZone.cs ===
-using System;
 using System.Collections;
 using Core.Events;
 using Core.Input;
@@ -7629,38 +7731,6 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
     }
 }
 
-
-=== Scripts\Gameplay\StateMachines\PlayerStates\FightStates\ScannerState.cs ===
-﻿using Core.Input;
-using Gameplay.Anims;
-using Gameplay.Combat.Offensive.Skills.Abilities;
-using Gameplay.Controllers.Player;
-using Reflex.Attributes;
-
-namespace Gameplay.StateMachines.PlayerStates.FightStates
-{
-    public class ScannerState : FightPlayerState
-    {
-        [Inject] private InputManager _input;
-
-        public ScannerState(FightController fight, AbilitiesController abilities, IPlayerAnimator animator) :
-            base(fight, abilities, animator)
-        {
-        }
-
-        public override void Enter()
-        {
-            base.Enter();
-            _input.OnInteractPressed += Abilities.TryGetSkill<ScannerSkill>().TryInteract;
-        }
-
-        public override void Exit()
-        {
-            base.Exit();
-            _input.OnInteractPressed -= Abilities.TryGetSkill<ScannerSkill>().TryInteract;
-        }
-    }
-}
 
 === Scripts\Gameplay\StateMachines\PlayerStates\FightStates\SheathedSwordState.cs ===
 ﻿using System.Collections;
@@ -7993,7 +8063,6 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 ﻿using Core.Input;
 using Gameplay.Controllers.Player;
 using Reflex.Attributes;
-using UnityEngine;
 
 namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 {
@@ -8044,6 +8113,7 @@ using Core.Scenes;
 using Core.UI;
 using Gameplay.Controllers.Player;
 using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Views.Gameplay.HUD;
 using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using UnityEngine;
@@ -8078,7 +8148,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         public override void Exit()
         {
             Unsub();
-            _windowManager.ShowOnly<GameplayWindow>();
+            _windowManager.ShowOnly<HUDWindow>();
             Movement.enabled = true;
             Fight.enabled = true;
             _input.EnablePlayerInput();
@@ -8102,65 +8172,230 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 
 
         private void HandleExit() => Application.Quit();
-        private void HandleResume() => Brain.ForcePreviousState();
+        private void HandleResume() => Brain.StateMachine.ForcePreviousState();
         private void HandleMenu() => _sceneLoader.LoadScene(SceneConstants.MainMenu);
     }
 }
 
 === Scripts\Gameplay\StateMachines\PlayerStates\PlayerBrainStates\TerminalState.cs ===
-﻿using System.Runtime.InteropServices;
-using Core.Input;
-using Core.UI;
+﻿using Core.Input;
+using Core.StateMachines;
 using Gameplay.Anims;
 using Gameplay.Combat.Offensive.Skills.Abilities;
 using Gameplay.Controllers.Player;
-using Gameplay.Core;
-using Gameplay.UI;
 using Reflex.Attributes;
+using Reflex.Core;
 
 namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 {
     public class TerminalState : BrainState
     {
         [Inject] private readonly AbilitiesController _abilities;
-        [Inject] private readonly InputManager _input;
+        
         [Inject] private WristTerminalController _terminalController;
         [Inject] private MockPlayerAnimator _animator;
-        
+        [Inject] private Container _container;
+        [Inject] private readonly InputManager _input;
+        public readonly StateMachine StateMachine;
 
-        public TerminalState(PlayerBrain brain, MovementController movement, FightController fight) : base(brain, movement, fight)
+
+        public TerminalState(PlayerBrain brain, MovementController movement, FightController fight) : base(brain,
+            movement, fight)
         {
-            
+            StateMachine = new StateMachine();
         }
 
         public void Init()
         {
+            var branchesState = new BranchesState(this);
+            var scannerState = new ScannerState(this);
+            var closedState = new ClosedState(this);
+            
+            StateMachine.AddState(branchesState);
+            StateMachine.AddState(scannerState);
+            StateMachine.AddState(closedState);
+            
+            StateMachineInjector.InjectStates(StateMachine, _container);
+
+
+
+            StateMachine.AddManualTransition(branchesState,scannerState);
+            StateMachine.AddManualTransition(branchesState,closedState);
+            StateMachine.AddManualTransition(scannerState,branchesState);
+            StateMachine.AddManualTransition(scannerState,closedState);
+            StateMachine.AddManualTransition(closedState,branchesState);
+            StateMachine.AddManualTransition(closedState,scannerState);
+
+            StateMachine.TrySetState(closedState);
         }
 
         public override void Enter()
         {
             Movement.enabled = true;
             Fight.enabled = false;
-
+            StateMachine.TryRequestState<BranchesState>();
             _terminalController.SetTerminal(true);
-            _input.OnInteractPressed += HandleInteract;
+            
+            _input.OnScannerPressed += HandleScannerPress;
             _animator.DoTerminal(true);
         }
 
+
         public override void Exit()
         {
-           _input.OnInteractPressed -= HandleInteract;
-           _terminalController.SetTerminal(false);
-           _animator.DoTerminal(false);
+            _input.OnScannerPressed -= HandleScannerPress;
+            _terminalController.SetTerminal(false);
+            _animator.DoTerminal(false);
+            StateMachine.ForceRequestState<ClosedState>();
+        }
+
+        private void HandleScannerPress()
+        {
+            if (_abilities.TryGetSkill<ScannerSkill>().TryCast())
+            {
+                StateMachine.RequestToggleState<ScannerState, BranchesState>();
+            }
+        }
+
+
+        
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\PlayerBrainStates\TerminalSubStates\BranchesState.cs ===
+﻿using Core.Input;
+using Gameplay.Combat.Offensive.Skills.Abilities;
+using Gameplay.Controllers.Player;
+using Gameplay.Core;
+using Gameplay.UI.Views.Gameplay.HUD;
+using Gameplay.UI.Views.Gameplay.Terminal;
+using Gameplay.UI.Windows;
+using Reflex.Attributes;
+
+namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
+{
+    public class BranchesState : TerminalSubState
+    {
+        [Inject] private AbilitiesController _abilities;
+        [Inject] private readonly InputManager _input;
+        [Inject] private TerminalWindow _terminalWindow;
+        [Inject] private PlayerBrain _brain;
+        public BranchesState(TerminalState terminalState) : base(terminalState)
+        {
+        }
+
+        public override void Enter()
+        {
+            _terminalWindow.ShowOnly<TerminalView>();
+            _terminalWindow.GetView<TerminalView>().UpdateInfo(BranchManager.CurrentBranch);
+            _input.OnInteractPressed += HandleInteract;
         }
         
-        
+        public override void Exit()
+        {
+            _input.OnInteractPressed -= HandleInteract;
+        }
 
         private void HandleInteract()
         {
             if (!_abilities.TryGetSkill<SwitchBranchSkill>().TryCast()) return;
             HudSwitcher.Instance?.ToggleTheme();
-            Brain.ForcePreviousState();
+            _brain.StateMachine.ForceRequestState<DefaultState>();
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\PlayerBrainStates\TerminalSubStates\ClosedState.cs ===
+﻿namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
+{
+    public class ClosedState : TerminalSubState
+    {
+        public ClosedState(TerminalState terminalState) : base(terminalState)
+        {
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\PlayerBrainStates\TerminalSubStates\ScannerState.cs ===
+﻿using Core.Input;
+using Gameplay.Combat.Offensive.Skills.Abilities;
+using Gameplay.Controllers.Player;
+using Gameplay.UI.Views.Gameplay.Terminal;
+using Gameplay.UI.Windows;
+using Reflex.Attributes;
+
+namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
+{
+    public class ScannerState : TerminalSubState
+    {
+        [Inject] private InputManager _input;
+        [Inject] private AbilitiesController _abilities;
+        [Inject] private TerminalWindow _terminalWindow;
+
+        public ScannerState(TerminalState terminalState) : base(terminalState)
+        {
+        }
+
+        public override void Enter()
+        {
+            _terminalWindow.ShowOnly<TerminalScannerView>();
+            _input.OnInteractPressed += _abilities.TryGetSkill<ScannerSkill>().TryInteract;
+        }
+
+        public override void Exit()
+        {
+            _input.OnInteractPressed -= _abilities.TryGetSkill<ScannerSkill>().TryInteract;
+            _abilities.TryGetSkill<ScannerSkill>().SetScanner(false);
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\PlayerStates\PlayerBrainStates\TerminalSubStates\TerminalSubState.cs ===
+﻿using Core.StateMachines;
+
+namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
+{
+    public abstract class TerminalSubState : IState
+    {
+        protected TerminalState _terminalState;
+
+        protected TerminalSubState(TerminalState terminalState)
+        {
+            _terminalState = terminalState;
+        }
+
+        public virtual void Enter()
+        {
+            
+        }
+
+        public virtual void Execute()
+        {
+            
+        }
+
+        public virtual void Exit()
+        {
+            
+        }
+    }
+}
+
+=== Scripts\Gameplay\StateMachines\StateMachineInjector.cs ===
+﻿using Core.StateMachines;
+using Reflex.Core;
+using Reflex.Injectors;
+
+namespace Gameplay.StateMachines
+{
+    public class StateMachineInjector
+    {
+        public static void InjectStates(StateMachine stateMachine, Container container)
+        {
+            foreach (var stateMachineState in stateMachine.States)
+            {
+                AttributeInjector.Inject(stateMachineState.Value, container);
+            }
         }
     }
 }
@@ -8182,10 +8417,325 @@ namespace Gameplay.Test
     }
 }
 
-=== Scripts\Gameplay\UI\BugView.cs ===
+=== Scripts\Gameplay\UI\Views\Gameplay\BarView.cs ===
+﻿using Core.UI;
+using Plugins.Demigiant.DOTween.Modules;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.Gameplay
+{
+    public class BarView : View
+    {
+        [SerializeField] private Image _barFront;
+        [SerializeField] private Image _barMiddle;
+        [SerializeField][Range(0,1)] private float _fill = 1f;
+
+        private void OnValidate()
+        {
+            ChangeValue(_fill,1);
+        }
+
+        public void ChangeValue(float hp, float maxHp)
+        {
+            float percent = Mathf.Clamp(hp / maxHp, 0f, 1f);
+            _barFront.fillAmount = percent;
+            _barMiddle.DOFillAmount(percent, .9f);
+        }
+
+        public void ChangeValue(float percent)
+        {
+            _barFront.fillAmount = percent;
+            _barMiddle.DOFillAmount(percent, .9f);
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\HUD\CooldownView.cs ===
+﻿using Core.UI;
+using UnityEngine;
+
+namespace Gameplay.UI.Views.Gameplay.HUD
+{
+    public class CooldownView : View
+    {
+        [SerializeField] private SkillView _slot1;
+        [SerializeField] private SkillView _slot2;
+        [SerializeField] private SkillView _slot3;
+        [SerializeField] private SkillView _slot4;
+
+
+        public void SetSlot1(SkillView view) => _slot1 = view;
+        public void SetSlot2(SkillView view) => _slot2 = view;
+        public void SetSlot3(SkillView view) => _slot3 = view;
+        public void SetSlot4(SkillView view) => _slot4 = view;
+        
+        public void SetSlot1FillAmount(float value) => _slot1.SetFill(value);
+        public void SetSlot2FillAmount(float value) => _slot2.SetFill(value);
+        public void SetSlot3FillAmount(float value) => _slot3.SetFill(value);
+        public void SetSlot4FillAmount(float value) => _slot4.SetFill(value);
+
+        public void ResetAll()
+        {
+            _slot1.SetFill(0);
+            _slot2.SetFill(0);
+            _slot3.SetFill(0);
+            _slot4.SetFill(0);
+        }
+
+
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\HUD\EndGameView.cs ===
+﻿using System;
+using Core.UI;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.Gameplay.HUD
+{
+    public class EndGameView : View
+    {
+        [SerializeField] private Button _menuButton;
+        [SerializeField] private Button _quitButton;
+
+        public event Action MenuClicked;
+
+        private void Awake()
+        {
+            _menuButton.onClick.AddListener(() => MenuClicked?.Invoke());
+            _quitButton.onClick.AddListener(Application.Quit);
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\HUD\EnergyBarView.cs ===
+﻿namespace Gameplay.UI.Views.Gameplay.HUD
+{
+    public class EnergyBarView : BarView
+    {
+        
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\HUD\HudSwitcher.cs ===
+﻿namespace Gameplay.UI.Views.Gameplay.HUD
+{
+    public class HudSwitcher
+    {
+        public static HudSwitcher Instance { get; private set; }
+        
+        private readonly PlayerHUDView _hudView; 
+        private bool _isCorrupt;
+
+        public HudSwitcher(PlayerHUDView hudView)
+        {
+            _hudView = hudView;
+            Instance = this;
+        }
+
+        public void SetCorruptMode(bool isCorrupt)
+        {
+            _hudView.ApplyTheme(isCorrupt);
+        }
+        public void ToggleTheme()
+        {
+            _isCorrupt = !_isCorrupt;
+            _hudView.ApplyTheme(_isCorrupt);
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\HUD\HUDWindow.cs ===
 ﻿using Core.UI;
 
-namespace Gameplay.UI
+namespace Gameplay.UI.Views.Gameplay.HUD
+{
+    public class HUDWindow : Window
+    {
+        
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\HUD\PlayerHUDView.cs ===
+using Core.UI;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.Gameplay.HUD
+{
+    public class PlayerHUDView : View
+    {
+        [SerializeField] private TextMeshProUGUI _blocksText;
+        
+        [Header("Images Resources")]
+
+        [SerializeField] private Material _mainMaterial;
+        [SerializeField] private Material _corruptMaterial;
+        [SerializeField] private Sprite _mainStablitityImage;
+        [SerializeField] private Sprite _corruptStablitityImage;
+        [SerializeField] private Sprite _corruptCrosshair;
+        [SerializeField] private Sprite _mainCrosshair;
+        [SerializeField] private Sprite _scannerAbilityMain;
+        [SerializeField] private Sprite _scannerAbilityCorrupt;
+        [SerializeField] private Sprite _branchAbilityMain;
+        [SerializeField] private Sprite _branchAbilityCorrupt;
+        [SerializeField] private Sprite _gunAbilityMain;
+        [SerializeField] private Sprite _gunAbilityCorrupt;
+        [SerializeField] private Sprite _meleeAbilityMain;
+        [SerializeField] private Sprite _meleeAbilityCorrupt;
+        [SerializeField] private TextMeshProUGUI[] _texts;
+        
+        [Header("Images References")]
+        [SerializeField] private Image _stabilityImage;
+        [SerializeField] private Image _crosshairImage;
+        [SerializeField] private Image _scannerImage;
+        [SerializeField] private Image _branchImage;
+        [SerializeField] private Image _gunImage;
+        [SerializeField] private Image _meleeImage;
+        public void UpdateBlocksCount(int count)
+        {
+            if (_blocksText != null)
+            {
+                _blocksText.text = $"{count}";
+            }
+        }
+
+        public void ApplyTheme(bool isCorrupt)
+        {
+            Material targetMat = isCorrupt ? _corruptMaterial : _mainMaterial;
+            foreach (var text in _texts)
+            {
+                if (text != null) 
+                {
+                    text.fontSharedMaterial = targetMat; 
+                }
+            }
+            if (_stabilityImage != null)
+                _stabilityImage.sprite = isCorrupt ? _corruptStablitityImage : _mainStablitityImage;
+
+            if (_crosshairImage != null)
+                _crosshairImage.sprite = isCorrupt ? _corruptCrosshair : _mainCrosshair;
+
+            if (_scannerImage != null)
+                _scannerImage.sprite = isCorrupt ? _scannerAbilityCorrupt : _scannerAbilityMain;
+            if (_branchImage != null)
+                _branchImage.sprite = isCorrupt ? _branchAbilityCorrupt : _branchAbilityMain;
+            if (_gunImage != null)
+                _gunImage.sprite = isCorrupt ? _gunAbilityCorrupt : _gunAbilityMain;
+            if (_meleeImage != null)
+                _meleeImage.sprite = isCorrupt ? _meleeAbilityCorrupt : _meleeAbilityMain;
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\HUD\ScannerView.cs ===
+using Core.UI;
+using Plugins.Demigiant.DOTween.Modules;
+using UnityEngine;
+
+namespace Gameplay.UI.Views.Gameplay.HUD
+{
+    public class ScannerView : View
+    {
+        [SerializeField] private RectTransform _mask;
+        [SerializeField] private float _fillDuration = .5f;
+        [SerializeField] private Vector2 _maskSize = new Vector2(2600, 2600);
+        public void FillIn()
+        {
+            _mask.DOSizeDelta(_maskSize, _fillDuration);
+        }
+
+        public void FillOut()
+        {
+            _mask.DOSizeDelta(Vector2.zero, _fillDuration);
+        }
+    }
+}
+
+
+=== Scripts\Gameplay\UI\Views\Gameplay\HUD\SkillView.cs ===
+﻿using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.Gameplay.HUD
+{
+    public class SkillView : MonoBehaviour
+    {
+        [SerializeField] private Image _mask;
+        [SerializeField] private Image _status;
+        
+        private readonly UnityEvent _updateSlot = new();
+
+        private void Update()
+        {
+            _mask.enabled = _status.fillAmount > 0;
+            if (_mask.enabled)
+            {
+                _updateSlot.Invoke();
+            }
+        }
+
+        public void SetFill(float value)
+        {
+            _status.fillAmount = value;
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\HUD\StabilityBarView.cs ===
+﻿namespace Gameplay.UI.Views.Gameplay.HUD
+{
+    public class StabilityBarView : BarView
+    {
+        
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\PauseView.cs ===
+﻿using System;
+using Core.UI;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.Gameplay
+{
+    public class PauseView : View
+    {
+        [SerializeField] private Button _saveButton;
+        [SerializeField] private Button _mainMenuButton;
+        [SerializeField] private Button _loadLastButton;
+        [SerializeField] private Button _toLoadChooseButton;
+        [SerializeField] private Button _exitButton;
+        [SerializeField] private Button _resumeButton;
+
+        public event Action SaveClick;
+        public event Action MainMenuClick;
+        public event Action LoadLastClick;
+        public event Action ToLoadChooseClick;
+        public event Action ExitClick;
+        public event Action ResumeClick;
+
+
+        private  void Awake()
+        {
+            _saveButton?.onClick.AddListener(() => SaveClick?.Invoke());
+            _mainMenuButton?.onClick.AddListener(() => MainMenuClick?.Invoke());
+            _loadLastButton?.onClick.AddListener(() => LoadLastClick?.Invoke());
+            _toLoadChooseButton?.onClick.AddListener(() => ToLoadChooseClick?.Invoke());
+            _exitButton?.onClick.AddListener(() => ExitClick?.Invoke());
+            _resumeButton?.onClick.AddListener(() => ResumeClick?.Invoke());
+        }
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\Terminal\BugView.cs ===
+﻿using Core.UI;
+
+namespace Gameplay.UI.Views.Gameplay.Terminal
 {
     public class BugView : WorldSpaceView
     {
@@ -8193,12 +8743,12 @@ namespace Gameplay.UI
     }
 }
 
-=== Scripts\Gameplay\UI\CommitPuzzleView.cs ===
-using UnityEngine;
+=== Scripts\Gameplay\UI\Views\Gameplay\Terminal\CommitPuzzleView.cs ===
 using Gameplay.Interactables;
+using UnityEngine;
 using UnityEngine.UI;
 
-namespace Gameplay.UI
+namespace Gameplay.UI.Views.Gameplay.Terminal
 {
     public class CommitPuzzleView : PuzzleViewBase
     {
@@ -8279,12 +8829,12 @@ namespace Gameplay.UI
 }
 
 
-=== Scripts\Gameplay\UI\DraggableCodeLine.cs ===
+=== Scripts\Gameplay\UI\Views\Gameplay\Terminal\DraggableCodeLine.cs ===
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-namespace Gameplay.UI
+namespace Gameplay.UI.Views.Gameplay.Terminal
 {
     [RequireComponent(typeof(CanvasGroup))]
     public class DraggableCodeLine : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
@@ -8332,7 +8882,11 @@ namespace Gameplay.UI
 
         public void OnDrag(PointerEventData eventData)
         {
-            transform.position = eventData.position;
+            // Корректный перевод координат экрана в мировые координаты (работает для WorldSpace, ScreenSpace Camera/Overlay)
+            if (RectTransformUtility.ScreenPointToWorldPointInRectangle((RectTransform)_parent, eventData.position, eventData.pressEventCamera, out Vector3 globalMousePos))
+            {
+                transform.position = globalMousePos;
+            }
 
             int newSiblingIndex = _parent.childCount - 1; // По умолчанию в конец
 
@@ -8342,8 +8896,8 @@ namespace Gameplay.UI
                 if (sibling == this.transform || sibling == _placeholder.transform) continue;
 
                 // Для VerticalLayoutGroup элементы идут сверху вниз (Y уменьшается)
-                // Если мышка выше (Y больше), чем центр элемента, ставим перед ним
-                if (eventData.position.y > sibling.position.y)
+                // Сравниваем в мировых координатах (так как transform.position теперь тоже в мировых)
+                if (transform.position.y > sibling.position.y)
                 {
                     newSiblingIndex = sibling.GetSiblingIndex();
                     // Корректируем индекс, если плейсхолдер уже стоит перед ним
@@ -8372,65 +8926,57 @@ namespace Gameplay.UI
 }
 
 
-=== Scripts\Gameplay\UI\EndGameView.cs ===
-﻿using System;
+=== Scripts\Gameplay\UI\Views\Gameplay\Terminal\PuzzleViewBase.cs ===
+using Core.Input;
 using Core.UI;
-using UnityEngine;
-using UnityEngine.UI;
-
-namespace Gameplay.UI
-{
-    public class EndGameView : View
-    {
-        [SerializeField] private Button _menuButton;
-        [SerializeField] private Button _quitButton;
-
-        public event Action MenuClicked;
-
-        private void Awake()
-        {
-            _menuButton.onClick.AddListener(() => MenuClicked?.Invoke());
-            _quitButton.onClick.AddListener(Application.Quit);
-        }
-    }
-}
-
-=== Scripts\Gameplay\UI\HudSwitcher.cs ===
-﻿namespace Gameplay.UI
-{
-    public class HudSwitcher
-    {
-        public static HudSwitcher Instance { get; private set; }
-        
-        private readonly PlayerHUDView _hudView; 
-        private bool _isCorrupt;
-
-        public HudSwitcher(PlayerHUDView hudView)
-        {
-            _hudView = hudView;
-            Instance = this;
-        }
-
-        public void SetCorruptMode(bool isCorrupt)
-        {
-            _hudView.ApplyTheme(isCorrupt);
-        }
-        public void ToggleTheme()
-        {
-            _isCorrupt = !_isCorrupt;
-            _hudView.ApplyTheme(_isCorrupt);
-        }
-    }
-}
-
-=== Scripts\Gameplay\UI\PhysicsPuzzleView.cs ===
-using UnityEngine;
-using UnityEngine.UI;
 using Gameplay.Interactables;
+using Gameplay.UI.Windows;
+using Reflex.Attributes;
+using UnityEngine;
 
-namespace Gameplay.UI
+namespace Gameplay.UI.Views.Gameplay.Terminal
 {
-    public class PhysicsPuzzleView : PuzzleViewBase
+    public abstract class PuzzleViewBase : View
+    {
+        [Inject] protected InputManager _inputManager;
+        [Inject] private WindowManager _windowManager;
+        protected IBuggable _currentTarget;
+
+        public virtual void ShowPuzzle(IBuggable target)
+        {
+            _currentTarget = target;
+            Show();
+            _windowManager.GetWindow<TerminalWindow>().GetView<TerminalScannerView>().Hide();
+        }
+
+        public virtual void ClosePuzzle()
+        {
+            Hide();
+            _windowManager.GetWindow<TerminalWindow>().GetView<TerminalScannerView>().Show();
+            _currentTarget = null;
+            
+            _inputManager.EnablePlayerInput();
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
+        protected void OnWin()
+        {
+            _currentTarget?.FixBug();
+            ClosePuzzle();
+        }
+    }
+}
+
+
+=== Scripts\Gameplay\UI\Views\Gameplay\Terminal\SliderPuzzleView.cs ===
+using Gameplay.Interactables;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Gameplay.UI.Views.Gameplay.Terminal
+{
+    public class SliderPuzzleView : PuzzleViewBase
     {
         [Header("UI Elements")]
         [SerializeField] private Slider[] _sliders;
@@ -8508,155 +9054,15 @@ namespace Gameplay.UI
 }
 
 
-=== Scripts\Gameplay\UI\PlayerHUDView.cs ===
-using Core.UI;
+=== Scripts\Gameplay\UI\Views\Gameplay\Terminal\TerminalPuzzleView.cs ===
+﻿using Core.Inventory;
+using Gameplay.Interactables;
+using Reflex.Attributes;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace Gameplay.UI
-{
-    public class PlayerHUDView : View
-    {
-        [SerializeField] private TextMeshProUGUI _blocksText;
-        
-        [Header("Images Resources")]
-
-        [SerializeField] private Material _mainMaterial;
-        [SerializeField] private Material _corruptMaterial;
-        [SerializeField] private Sprite _mainStablitityImage;
-        [SerializeField] private Sprite _corruptStablitityImage;
-        [SerializeField] private Sprite _corruptCrosshair;
-        [SerializeField] private Sprite _mainCrosshair;
-        [SerializeField] private Sprite _scannerAbilityMain;
-        [SerializeField] private Sprite _scannerAbilityCorrupt;
-        [SerializeField] private Sprite _branchAbilityMain;
-        [SerializeField] private Sprite _branchAbilityCorrupt;
-        [SerializeField] private Sprite _gunAbilityMain;
-        [SerializeField] private Sprite _gunAbilityCorrupt;
-        [SerializeField] private Sprite _meleeAbilityMain;
-        [SerializeField] private Sprite _meleeAbilityCorrupt;
-        [SerializeField] private TextMeshProUGUI[] _texts;
-        
-        [Header("Images References")]
-        [SerializeField] private Image _stabilityImage;
-        [SerializeField] private Image _crosshairImage;
-        [SerializeField] private Image _scannerImage;
-        [SerializeField] private Image _branchImage;
-        [SerializeField] private Image _gunImage;
-        [SerializeField] private Image _meleeImage;
-        public void UpdateBlocksCount(int count)
-        {
-            if (_blocksText != null)
-            {
-                _blocksText.text = $"{count}";
-            }
-        }
-
-        public void ApplyTheme(bool isCorrupt)
-        {
-            Material targetMat = isCorrupt ? _corruptMaterial : _mainMaterial;
-            foreach (var text in _texts)
-            {
-                if (text != null) 
-                {
-                    text.fontSharedMaterial = targetMat; 
-                }
-            }
-            if (_stabilityImage != null)
-                _stabilityImage.sprite = isCorrupt ? _corruptStablitityImage : _mainStablitityImage;
-
-            if (_crosshairImage != null)
-                _crosshairImage.sprite = isCorrupt ? _corruptCrosshair : _mainCrosshair;
-
-            if (_scannerImage != null)
-                _scannerImage.sprite = isCorrupt ? _scannerAbilityCorrupt : _scannerAbilityMain;
-            if (_branchImage != null)
-                _branchImage.sprite = isCorrupt ? _branchAbilityCorrupt : _branchAbilityMain;
-            if (_gunImage != null)
-                _gunImage.sprite = isCorrupt ? _gunAbilityCorrupt : _gunAbilityMain;
-            if (_meleeImage != null)
-                _meleeImage.sprite = isCorrupt ? _meleeAbilityCorrupt : _meleeAbilityMain;
-        }
-    }
-}
-
-=== Scripts\Gameplay\UI\PuzzleViewBase.cs ===
-using Core.UI;
-using Core.Input;
-
-using Gameplay.Interactables;
-using Reflex.Attributes;
-using UnityEngine;
-
-namespace Gameplay.UI
-{
-    public abstract class PuzzleViewBase : View
-    {
-        [Inject] protected InputManager _inputManager;
-        protected IBuggable _currentTarget;
-
-        public virtual void ShowPuzzle(IBuggable target)
-        {
-            _currentTarget = target;
-            Show();
-        }
-
-        public virtual void ClosePuzzle()
-        {
-            Hide();
-            _currentTarget = null;
-            
-            _inputManager.EnablePlayerInput();
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
-
-        protected void OnWin()
-        {
-            _currentTarget?.FixBug();
-            ClosePuzzle();
-        }
-    }
-}
-
-
-=== Scripts\Gameplay\UI\ScannerView.cs ===
-using Core.UI;
-using DG.Tweening;
-using Plugins.Demigiant.DOTween.Modules;
-using UnityEngine;
-
-namespace Gameplay.UI
-{
-    public class ScannerView : View
-    {
-        [SerializeField] private RectTransform _mask;
-        [SerializeField] private float _fillDuration = .5f;
-        [SerializeField] private Vector2 _maskSize = new Vector2(2600, 2600);
-        public void FillIn()
-        {
-            _mask.DOSizeDelta(_maskSize, _fillDuration);
-        }
-
-        public void FillOut()
-        {
-            _mask.DOSizeDelta(Vector2.zero, _fillDuration);
-        }
-    }
-}
-
-
-=== Scripts\Gameplay\UI\TerminalPuzzleView.cs ===
-﻿
-using Core.Inventory;
-using TMPro;
-using UnityEngine;
-using UnityEngine.UI;
-using Gameplay.Interactables;
-using Reflex.Attributes;
-
-namespace Gameplay.UI
+namespace Gameplay.UI.Views.Gameplay.Terminal
 {
     public class TerminalPuzzleView : PuzzleViewBase
     {   
@@ -8665,9 +9071,6 @@ namespace Gameplay.UI
         [SerializeField] private TextMeshProUGUI _blocksCountText;
         [SerializeField] private Button _repairButton;
         [SerializeField] private Button _closeButton;
-
-        // Внимание: Здесь нам нужно откуда-то знать, сколько блоков собрано.
-        // Используем InventoryManager (через синглтон или DI)
         [SerializeField] private int _requiredBlocks = 3; 
 
         public override void ShowPuzzle(IBuggable target)
@@ -8690,22 +9093,46 @@ namespace Gameplay.UI
     }
 }
 
-=== Scripts\Gameplay\UI\TerminalView.cs ===
-using Core.UI;
-using Gameplay.Events;
-using Gameplay.UI.Views.Gameplay;
+=== Scripts\Gameplay\UI\Views\Gameplay\Terminal\TerminalScannerView.cs ===
+﻿using Core.UI;
+using Gameplay.UI.Views.Gameplay.HUD;
 using TMPro;
 using UnityEngine;
 
-namespace Gameplay.UI
+namespace Gameplay.UI.Views.Gameplay.Terminal
+{
+    public class TerminalScannerView : View
+    {
+        [SerializeField] private SkillView _scannerSkillView;
+        public SkillView ScannerSkillView => _scannerSkillView;
+        [SerializeField] private TextMeshProUGUI _objectName;
+        [SerializeField] private TextMeshProUGUI _objectInfo;
+
+        public void SetNameText(string text) => _objectName.text = text;
+        public void SetInfoText(string text) => _objectInfo.text = text;
+    
+    }
+}
+
+=== Scripts\Gameplay\UI\Views\Gameplay\Terminal\TerminalView.cs ===
+using Core.UI;
+using Gameplay.Events;
+using Gameplay.UI.Views.Gameplay.HUD;
+using TMPro;
+using UnityEngine;
+
+namespace Gameplay.UI.Views.Gameplay.Terminal
 {
     public class TerminalView : View
     {
         [SerializeField] private TextMeshProUGUI _branchInfoText;
         [SerializeField] private TextMeshProUGUI _promptText;
         [SerializeField] private SkillView _switchBranchSkillView;
+        
 
         public SkillView SwitchBranchSkillView => _switchBranchSkillView;
+        
+
 
         public void UpdateInfo(WorldBranch currentBranch)
         {
@@ -8723,210 +9150,6 @@ namespace Gameplay.UI
     }
 }
 
-
-=== Scripts\Gameplay\UI\Views\Gameplay\BarView.cs ===
-﻿using Core.UI;
-using Plugins.Demigiant.DOTween.Modules;
-using UnityEngine;
-using UnityEngine.UI;
-
-namespace Gameplay.UI.Views.Gameplay
-{
-    public class BarView : View
-    {
-        [SerializeField] private Image _barFront;
-        [SerializeField] private Image _barMiddle;
-        [SerializeField][Range(0,1)] private float _fill = 1f;
-
-        private void OnValidate()
-        {
-            ChangeValue(_fill,1);
-        }
-
-        public void ChangeValue(float hp, float maxHp)
-        {
-            float percent = Mathf.Clamp(hp / maxHp, 0f, 1f);
-            _barFront.fillAmount = percent;
-            _barMiddle.DOFillAmount(percent, .9f);
-        }
-
-        public void ChangeValue(float percent)
-        {
-            _barFront.fillAmount = percent;
-            _barMiddle.DOFillAmount(percent, .9f);
-        }
-    }
-}
-
-=== Scripts\Gameplay\UI\Views\Gameplay\CooldownView.cs ===
-﻿using Core.UI;
-using UnityEngine;
-using UnityEngine.Events;
-using UnityEngine.UI;
-
-namespace Gameplay.UI.Views.Gameplay
-{
-    public class CooldownView : View
-    {
-        [SerializeField] private SkillView _slot1;
-        [SerializeField] private SkillView _slot2;
-        [SerializeField] private SkillView _slot3;
-        [SerializeField] private SkillView _slot4;
-
-
-        public void SetSlot1(SkillView view) => _slot1 = view;
-        public void SetSlot2(SkillView view) => _slot2 = view;
-        public void SetSlot3(SkillView view) => _slot3 = view;
-        public void SetSlot4(SkillView view) => _slot4 = view;
-        
-        public void SetSlot1FillAmount(float value) => _slot1.SetFill(value);
-        public void SetSlot2FillAmount(float value) => _slot2.SetFill(value);
-        public void SetSlot3FillAmount(float value) => _slot3.SetFill(value);
-        public void SetSlot4FillAmount(float value) => _slot4.SetFill(value);
-
-        public void ResetAll()
-        {
-            _slot1.SetFill(0);
-            _slot2.SetFill(0);
-            _slot3.SetFill(0);
-            _slot4.SetFill(0);
-        }
-
-
-    }
-}
-
-=== Scripts\Gameplay\UI\Views\Gameplay\EndGameView.cs ===
-﻿using System;
-using Core.UI;
-using UnityEngine;
-using UnityEngine.UI;
-
-namespace Gameplay.UI.Views.Gameplay
-{
-    public class EndGameView : View
-    {
-        [SerializeField] private Button restartButton;
-        
-        public void AddRestartButtonListener(Action callback)
-        {
-            restartButton.onClick.AddListener(callback.Invoke);
-        }
-    }
-}
-
-=== Scripts\Gameplay\UI\Views\Gameplay\EnergyBarView.cs ===
-﻿using UnityEngine;
-
-namespace Gameplay.UI.Views.Gameplay
-{
-    public class EnergyBarView : BarView
-    {
-        
-    }
-}
-
-=== Scripts\Gameplay\UI\Views\Gameplay\GameplayWindow.cs ===
-﻿using Core.UI;
-
-namespace Gameplay.UI.Windows
-{
-    public class GameplayWindow : Window
-    {
-        
-    }
-}
-
-=== Scripts\Gameplay\UI\Views\Gameplay\PauseView.cs ===
-﻿using System;
-using Core.UI;
-using UnityEngine;
-using UnityEngine.UI;
-
-namespace Gameplay.UI.Views.Gameplay
-{
-    public class PauseView : View
-    {
-        [SerializeField] private Button _saveButton;
-        [SerializeField] private Button _mainMenuButton;
-        [SerializeField] private Button _loadLastButton;
-        [SerializeField] private Button _toLoadChooseButton;
-        [SerializeField] private Button _exitButton;
-        [SerializeField] private Button _resumeButton;
-
-        public event Action SaveClick;
-        public event Action MainMenuClick;
-        public event Action LoadLastClick;
-        public event Action ToLoadChooseClick;
-        public event Action ExitClick;
-        public event Action ResumeClick;
-
-
-        private  void Awake()
-        {
-            _saveButton?.onClick.AddListener(() => SaveClick?.Invoke());
-            _mainMenuButton?.onClick.AddListener(() => MainMenuClick?.Invoke());
-            _loadLastButton?.onClick.AddListener(() => LoadLastClick?.Invoke());
-            _toLoadChooseButton?.onClick.AddListener(() => ToLoadChooseClick?.Invoke());
-            _exitButton?.onClick.AddListener(() => ExitClick?.Invoke());
-            _resumeButton?.onClick.AddListener(() => ResumeClick?.Invoke());
-        }
-    }
-}
-
-=== Scripts\Gameplay\UI\Views\Gameplay\PlayerInterfaceView.cs ===
-﻿using Core.UI;
-
-namespace Gameplay.UI.Views.Gameplay
-{
-    public class PlayerInterfaceView : View
-    {
-        
-    }
-}
-
-=== Scripts\Gameplay\UI\Views\Gameplay\SkillView.cs ===
-﻿using System;
-using UnityEditor.AdaptivePerformance.Editor;
-using UnityEngine;
-using UnityEngine.Events;
-using UnityEngine.UI;
-
-namespace Gameplay.UI.Views.Gameplay
-{
-    public class SkillView : MonoBehaviour
-    {
-        [SerializeField] private Image _mask;
-        [SerializeField] private Image _status;
-        
-        private readonly UnityEvent _updateSlot = new();
-
-        private void Update()
-        {
-            _mask.enabled = _status.fillAmount > 0;
-            if (_mask.enabled)
-            {
-                _updateSlot.Invoke();
-            }
-        }
-
-        public void SetFill(float value)
-        {
-            _status.fillAmount = value;
-        }
-    }
-}
-
-=== Scripts\Gameplay\UI\Views\Gameplay\StabilityBarView.cs ===
-﻿using UnityEngine;
-
-namespace Gameplay.UI.Views.Gameplay
-{
-    public class StabilityBarView : BarView
-    {
-        
-    }
-}
 
 === Scripts\Gameplay\UI\Views\MainMenu\LoadGameView.cs ===
 ﻿using System;
@@ -9064,11 +9287,21 @@ namespace Gameplay.UI.Views.MainMenu
 
 === Scripts\Gameplay\UI\Windows\MenuWindow.cs ===
 ﻿using Core.UI;
-using Gameplay.UI.Views.Gameplay;
 
 namespace Gameplay.UI.Windows
 {
     public class MenuWindow : Window
+    {
+        
+    }
+}
+
+=== Scripts\Gameplay\UI\Windows\TerminalWindow.cs ===
+﻿using Core.UI;
+
+namespace Gameplay.UI.Windows
+{
+    public class TerminalWindow : Window
     {
         
     }

@@ -15,12 +15,6 @@ namespace Gameplay.Bootstrap
         public void Boot()
         {
             _hudWindow.GetView<EndGameView>().MenuClicked += () => _ = _sceneLoader.LoadScene(SceneConstants.MainMenu);
-            EventBus.Subscribe<GameEndedEvent>(e =>
-            {
-                _hudWindow.ShowOnly<EndGameView>();
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }).AddTo(gameObject);
         }
     }
 }

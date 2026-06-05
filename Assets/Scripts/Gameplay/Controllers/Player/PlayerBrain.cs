@@ -32,6 +32,7 @@ namespace Gameplay.Controllers.Player
 
             _input.OnEscapePressed += HandlePause;
             _input.OnTerminalPressed += HandleTerminal;
+            EventBus.Subscribe<PlayerDeathEvent>(HandlePlayerDeath);
             Logger.Trace();
         }
 
@@ -55,9 +56,6 @@ namespace Gameplay.Controllers.Player
             StateMachineInjector.InjectStates(StateMachine, _container);
             
             terminalState.Init();
-
-
-            
 
 
             StateMachine.AddManualTransition(defaultState, terminalState);
@@ -84,6 +82,11 @@ namespace Gameplay.Controllers.Player
         }
 
         private void HandleGameEnd(GameEndedEvent e)
+        {
+            StateMachine.ForceRequestState<EndGameState>();
+        }
+        
+        private void HandlePlayerDeath(PlayerDeathEvent e)
         {
             StateMachine.ForceRequestState<EndGameState>();
         }
