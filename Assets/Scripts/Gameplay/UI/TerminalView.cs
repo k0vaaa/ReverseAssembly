@@ -14,14 +14,14 @@ namespace Gameplay.UI
         {
             if (_branchInfoText != null)
             {
-                _branchInfoText.text = $"CURRENT BRANCH: {currentBranch.ToString().ToUpper()}";
+                _branchInfoText.text = $"{currentBranch.ToString().ToUpper()}";
             }
 
-            if (_promptText != null)
-            {
-                WorldBranch targetBranch = currentBranch == WorldBranch.Main ? WorldBranch.Alpha : WorldBranch.Main;
-                _promptText.text = $"PRESS [E] TO JUMP TO {targetBranch.ToString().ToUpper()}";
-            }
+            // if (_promptText != null)
+            // {
+            //     WorldBranch targetBranch = currentBranch == WorldBranch.Main ? WorldBranch.Alpha : WorldBranch.Main;
+            //     _promptText.text = $"PRESS [E] TO JUMP TO {targetBranch.ToString().ToUpper()}";
+            // }
         }
     }
 }

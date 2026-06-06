@@ -19,12 +19,17 @@ namespace Gameplay.UI
         [SerializeField] private Sprite _mainCrosshair;
         [SerializeField] private Sprite _scannerAbilityMain;
         [SerializeField] private Sprite _scannerAbilityCorrupt;
-        [SerializeField] private Sprite _branchAbilityMain;
-        [SerializeField] private Sprite _branchAbilityCorrupt;
+        // [SerializeField] private Sprite _branchAbilityMain;
+        // [SerializeField] private Sprite _branchAbilityCorrupt;
         [SerializeField] private Sprite _gunAbilityMain;
         [SerializeField] private Sprite _gunAbilityCorrupt;
         [SerializeField] private Sprite _meleeAbilityMain;
         [SerializeField] private Sprite _meleeAbilityCorrupt;
+        [SerializeField] private Sprite _mainCodeblocks;
+        [SerializeField] private Sprite _corruptCodeblocks;
+
+        [SerializeField] private Sprite _corruptEnegry;
+        [SerializeField] private Sprite _mainEnegry;
         [SerializeField] private TextMeshProUGUI[] _texts;
         
         [Header("Images References")]
@@ -34,6 +39,9 @@ namespace Gameplay.UI
         [SerializeField] private Image _branchImage;
         [SerializeField] private Image _gunImage;
         [SerializeField] private Image _meleeImage;
+        [SerializeField] private Image _codeblocksImage;
+        [SerializeField] private Image _energyImage;
+
         public void UpdateBlocksCount(int count)
         {
             if (_blocksText != null)
@@ -60,12 +68,18 @@ namespace Gameplay.UI
 
             if (_scannerImage != null)
                 _scannerImage.sprite = isCorrupt ? _scannerAbilityCorrupt : _scannerAbilityMain;
-            if (_branchImage != null)
-                _branchImage.sprite = isCorrupt ? _branchAbilityCorrupt : _branchAbilityMain;
+            // if (_branchImage != null)
+            //     _branchImage.sprite = isCorrupt ? _branchAbilityCorrupt : _branchAbilityMain;
+            
             if (_gunImage != null)
                 _gunImage.sprite = isCorrupt ? _gunAbilityCorrupt : _gunAbilityMain;
             if (_meleeImage != null)
                 _meleeImage.sprite = isCorrupt ? _meleeAbilityCorrupt : _meleeAbilityMain;
+            
+            if (_codeblocksImage != null)
+                _codeblocksImage.sprite = isCorrupt ? _corruptCodeblocks : _mainCodeblocks;
+            if (_energyImage != null)
+                _energyImage.sprite = isCorrupt ? _corruptEnegry : _mainEnegry;
         }
     }
 }
