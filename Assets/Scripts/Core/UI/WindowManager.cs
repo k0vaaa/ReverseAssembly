@@ -39,5 +39,15 @@ namespace Core.UI
 
             GetWindow<TWindow>()?.Show();
         }
+
+        public void Show<TWindow>() where TWindow : Window
+        {
+            GetWindow<TWindow>()?.Show();
+        }
+        
+        public void Hide<TWindow>() where TWindow : Window
+        {
+            GetWindow<TWindow>()?.Hide();
+        }
     }
 }

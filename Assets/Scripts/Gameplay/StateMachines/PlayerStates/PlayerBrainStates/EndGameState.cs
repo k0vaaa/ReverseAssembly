@@ -1,4 +1,5 @@
 ﻿using Core.Input;
+using Core.Pause;
 using Gameplay.Controllers.Player;
 using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
@@ -17,7 +18,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 
         public override void Enter()
         {
-            
+            PauseManager.SetPause(true);
             _hudWindow.ShowOnly<EndGameView>();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;

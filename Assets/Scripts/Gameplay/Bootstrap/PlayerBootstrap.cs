@@ -121,6 +121,7 @@ namespace Gameplay.Bootstrap
 
         private void SetupContainer()
         {
+            var vfx = Player.GetComponent<VFXController>();
             _playerContainer = _container.Scope(builder =>
             {
                 builder.RegisterValue(_movementController);
@@ -131,6 +132,7 @@ namespace Gameplay.Bootstrap
                 builder.RegisterValue(_wristTerminalController);
                 builder.RegisterValue(_animator, new []{typeof(MockPlayerAnimator)});
                 builder.RegisterValue(_terminalWindow);
+                builder.RegisterValue(vfx);
             });
         }
 

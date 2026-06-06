@@ -30,7 +30,8 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
             Movement.enabled = false;
             Fight.enabled = false;
             _input.DisablePlayerInput();
-            _windowManager.ShowOnly<MenuWindow>();
+            _windowManager.Show<MenuWindow>();
+            _windowManager.Hide<HUDWindow>();
             _pauseView = _windowManager.GetWindow<MenuWindow>().GetView<PauseView>();
             Sub();
             
@@ -39,7 +40,8 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         public override void Exit()
         {
             Unsub();
-            _windowManager.ShowOnly<HUDWindow>();
+            _windowManager.Show<HUDWindow>();
+            _windowManager.Hide<MenuWindow>();
             Movement.enabled = true;
             Fight.enabled = true;
             _input.EnablePlayerInput();

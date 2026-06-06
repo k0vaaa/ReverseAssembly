@@ -1,4 +1,6 @@
-﻿namespace Gameplay.Interactables
+﻿using UnityEngine;
+
+namespace Gameplay.Interactables
 {
     public interface IBuggable
     {
@@ -11,6 +13,7 @@
         void Visualize();
         string GetName();
         string GetInfo();
-    
+        MeshFilter GetMesh();
+
     }
 }

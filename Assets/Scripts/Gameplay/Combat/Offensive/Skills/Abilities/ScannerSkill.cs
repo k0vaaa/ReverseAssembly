@@ -2,6 +2,7 @@
 using Gameplay.Core;
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.Skills.Definitions;
+using Gameplay.Controllers.Player;
 using Gameplay.Interactables;
 using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
@@ -15,6 +16,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         private readonly SkillContext _ctx;
 
         [Inject] private HUDWindow _hudWindow;
+        [Inject] private VFXController _vfx;
 
 
         private IBuggable _currentTarget;
@@ -66,6 +68,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
                         _currentTarget?.Scan(false);
                         _currentTarget = buggable;
                         _currentTarget.Scan(true);
+                        _vfx.SetProjection(_currentTarget.GetMesh());
                     }
                 }
                 else
@@ -136,6 +139,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
             {
                 _currentTarget.Scan(false);
                 _currentTarget = null;
+                _vfx.SetProjection(null);
             }
         }
     }

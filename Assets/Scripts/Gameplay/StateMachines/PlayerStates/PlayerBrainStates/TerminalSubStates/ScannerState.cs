@@ -12,6 +12,8 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         [Inject] private InputManager _input;
         [Inject] private AbilitiesController _abilities;
         [Inject] private TerminalWindow _terminalWindow;
+        [Inject] private VFXController _vfx;
+        
 
         public ScannerState(TerminalState terminalState) : base(terminalState)
         {
@@ -27,6 +29,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         {
             _input.OnInteractPressed -= _abilities.TryGetSkill<ScannerSkill>().TryInteract;
             _abilities.TryGetSkill<ScannerSkill>().SetScanner(false);
+            _vfx.SetProjection(null);
         }
     }
 }

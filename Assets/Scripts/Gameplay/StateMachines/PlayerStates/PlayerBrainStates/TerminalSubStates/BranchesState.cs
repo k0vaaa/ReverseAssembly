@@ -29,6 +29,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         public override void Exit()
         {
             _input.OnInteractPressed -= HandleInteract;
+            _terminalWindow.GetView<TerminalView>().UpdateInfo(BranchManager.CurrentBranch);
         }
 
         private void HandleInteract()

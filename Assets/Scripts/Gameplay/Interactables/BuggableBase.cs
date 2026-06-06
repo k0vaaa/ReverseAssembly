@@ -23,10 +23,11 @@ namespace Gameplay.Interactables
         protected Outline _outline;
         protected Sequence _sequence;
         private TerminalScannerView _terminalScannerView;
-        
+        private MeshFilter _mesh;
 
         private void Start()
         {
+            _mesh = GetComponent<MeshFilter>();
             _puzzleView = _windowManager.GetWindow<TerminalWindow>().GetView(_puzzleType.GetType()) as PuzzleViewBase;
             print("Trying to Get TerminalWindow");
             _terminalScannerView = _windowManager.GetWindow<TerminalWindow>().GetView<TerminalScannerView>();
@@ -95,5 +96,6 @@ namespace Gameplay.Interactables
         public string GetName() => gameObject.name;
 
         public string GetInfo() => _bugInfo;
+        public MeshFilter GetMesh() => _mesh;
     }
 }

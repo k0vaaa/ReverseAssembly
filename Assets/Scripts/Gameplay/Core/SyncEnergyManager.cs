@@ -11,6 +11,7 @@ namespace Gameplay.Core
         public SyncEnergyManager()
         {
             Init();
+            EventBus.Subscribe<CodeBlockCollectedEvent>(e => AddEnergy(e.Energy));
         }
 
         public float MaxEnergy { get; private set; } = 100f;
