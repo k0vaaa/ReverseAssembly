@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class EnemyBootstrap : MonoBehaviour, IBootstrapComponent
+    public class EnemyBootstrap : BootstrapComponent
     {
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SettingsInteractor _settingsInteractor;
@@ -23,7 +23,7 @@ namespace Gameplay.Bootstrap
 
         private CharacterController _playerController;
 
-        public void Boot()
+        protected override void OnBoot()
         {
             var enemyManager = new EnemyManager(
                 _settingsInteractor,

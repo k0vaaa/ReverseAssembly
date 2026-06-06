@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class GameSceneBootstrap : MonoBehaviour, IBootstrapComponent
+    public class GameSceneBootstrap : BootstrapComponent
     {
         [Inject] private HUDWindow _hudWindow;
         [Inject] private SceneLoader _sceneLoader;

@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class MainMenuBootstrap : MonoBehaviour, IBootstrapComponent
+    public class MainMenuBootstrap : BootstrapComponent
     {
         [Inject] private MenuWindow _menuWindow;
         [Inject] private SettingsInteractor _settingsInteractor;
@@ -17,7 +17,7 @@ namespace Gameplay.Bootstrap
         [Inject] private SceneLoader _sceneLoader;
        
 
-        public void Boot()
+        protected override void OnBoot()
         {
             _menuWindow.GetView<MainMenuView>().SetResumeAction(LoadGameScene);
             //InitializeSettings();

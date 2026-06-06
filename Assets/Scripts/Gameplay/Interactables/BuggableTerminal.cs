@@ -3,6 +3,7 @@ using Core.Input;
 using ExternalAssets.QuickOutline.Scripts;
 using Gameplay.UI.Views.Gameplay.Terminal;
 using Gameplay.UI.Windows;
+using Gameplay.VFX;
 using Reflex.Attributes;
 using UnityEngine;
 
@@ -59,7 +60,12 @@ namespace Gameplay.Interactables
         {
             Debug.Log("Терминал починен!");
             IsBugged = false;
-            if (bridgeObj != null) bridgeObj.SetActive(true);
+            if (bridgeObj != null)
+            {
+                bridgeObj.SetActive(true);
+                bridgeObj.GetComponent<BridgeMaterializer>().SetBridge(true, 2f);
+            }
+
             if (_outline)
             {
                 _outline.OutlineColor = Color.green; // Показываем, что починено

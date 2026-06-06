@@ -21,7 +21,7 @@ namespace Gameplay.Plot
 
         [SerializeField] private CanvasGroup _hintGroup;
         [SerializeField] private TextMeshProUGUI _hintText;
-        [SerializeField] private string _hintMessage;
+        [SerializeField, TextArea] private string _hintMessage;
         [SerializeField] private float _fadeDuration = 0.5f;
         [SerializeField] private float _displayDuration = 3f; // Сколько секунд висит подсказка
 
@@ -72,8 +72,7 @@ namespace Gameplay.Plot
         {
             if (_isFinalTrigger)
             {
-                _hud?.DOFade(0f, 2);
-                _input.DisablePlayerInput();
+                _hud?.DOFade(0f, 2).OnComplete(_input.DisablePlayerInput);
                 yield return new WaitForSeconds(_fadeDuration); // Ждем пока подсказка скроется
                 DOTween.To(() => _colorAdjustments.postExposure.value,
                     x => _colorAdjustments.postExposure.value = x,

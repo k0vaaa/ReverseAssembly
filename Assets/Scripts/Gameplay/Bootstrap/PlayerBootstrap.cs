@@ -16,11 +16,12 @@ using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using Reflex.Core;
 using Reflex.Injectors;
+using UnityEditor.AdaptivePerformance.Editor;
 using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class PlayerBootstrap : MonoBehaviour, IBootstrapComponent
+    public class PlayerBootstrap : BootstrapComponent
     {
         [HideInInspector] public GameObject Player;
 
@@ -35,13 +36,14 @@ namespace Gameplay.Bootstrap
         [SerializeField] private GameObject _playerPrefab;
         [SerializeField] private Camera _camera;
 
-        private CooldownView _cooldownView;
-        private StabilityBarView _stabilityBarView;
-        private EnergyBarView _energyBarView;
+
         private TerminalWindow _terminalWindow;
 
-        private StabilitySystem _playerStabilitySystem;
         private Container _playerContainer;
+
+        public Container PlayerContainer => _playerContainer;
+
+        private StabilitySystem _playerStabilitySystem;
         private AbilitiesController _abilitiesController;
         private MovementController _movementController;
         private FightController _fightController;
@@ -49,7 +51,7 @@ namespace Gameplay.Bootstrap
         private WristTerminalController _wristTerminalController;
         private IPlayerAnimator _animator;
 
-        public void Boot()
+        protected override void OnBoot()
         {
             SetupPlayer();
         }
@@ -70,21 +72,12 @@ namespace Gameplay.Bootstrap
             _fightController.Init();
             _wristTerminalController.Init();
 
-            _cooldownView = _hudWindow.GetView<CooldownView>();
-            _stabilityBarView = _hudWindow.GetView<StabilityBarView>();
-            _energyBarView = _hudWindow.GetView<EnergyBarView>();
 
-            EventBus.Subscribe<SyncEnergyChangedEvent>(e => _energyBarView.ChangeValue(e.EnergyPercent))
-                .AddTo(gameObject);
-
-            _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeValue);
 
             // TODO настроить сейвы
             _playerStabilitySystem.Init(1);
             _playerStabilitySystem.SetStability(100);
-
-
-            SetupCooldownListeners();
+            
             
             // TODO настроить сейвы
             var currentSave = _playerDataInteractor.CurrentSave;
@@ -127,6 +120,7 @@ namespace Gameplay.Bootstrap
                 builder.RegisterValue(_movementController);
                 builder.RegisterValue(_fightController);
                 builder.RegisterValue(_abilitiesController);
+                builder.RegisterValue(_playerStabilitySystem);
                 builder.RegisterValue(_camera);
                 builder.RegisterValue(_brain);
                 builder.RegisterValue(_wristTerminalController);
@@ -136,24 +130,7 @@ namespace Gameplay.Bootstrap
             });
         }
 
-        private void SetupCooldownListeners()
-        {
-            _cooldownView.SetSlot1(_terminalWindow.GetView<TerminalScannerView>().ScannerSkillView);
-            _cooldownView.SetSlot2(_terminalWindow.GetView<TerminalView>().SwitchBranchSkillView);
-            _cooldownView.ResetAll();
-            _abilitiesController.TryGetSkill<ScannerSkill>().OnCooldownTick += _cooldownView.SetSlot1FillAmount;
-            _abilitiesController.TryGetSkill<SwitchBranchSkill>().OnCooldownTick += _cooldownView.SetSlot2FillAmount;
-            _abilitiesController.TryGetSkill<MeleeSkill>().OnCooldownTick += _cooldownView.SetSlot3FillAmount;
-            _abilitiesController.TryGetSkill<ProjectileSkill>().OnCooldownTick += _cooldownView.SetSlot4FillAmount;
-        }
-
-        private void RemoveCooldownListeners()
-        {
-            _abilitiesController.TryGetSkill<ScannerSkill>().OnCooldownTick -= _cooldownView.SetSlot1FillAmount;
-            _abilitiesController.TryGetSkill<SwitchBranchSkill>().OnCooldownTick -= _cooldownView.SetSlot2FillAmount;
-            _abilitiesController.TryGetSkill<MeleeSkill>().OnCooldownTick -= _cooldownView.SetSlot3FillAmount;
-            _abilitiesController.TryGetSkill<ProjectileSkill>().OnCooldownTick -= _cooldownView.SetSlot4FillAmount;
-        }
+        
 
         private void SetPos()
         {
@@ -166,7 +143,6 @@ namespace Gameplay.Bootstrap
         private void OnDestroy()
         {
             _playerContainer?.Dispose();
-            RemoveCooldownListeners();
         }
     }
 }
