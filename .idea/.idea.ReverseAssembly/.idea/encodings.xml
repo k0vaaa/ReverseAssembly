@@ -2,5 +2,6 @@
 <project version="4">
   <component name="Encoding" addBOMForNewFiles="with BOM under Windows, with no BOM otherwise">
     <file url="file://$PROJECT_DIR$/Assets/Scripts/Gameplay/Enemies/States/DeathState.cs" charset="UTF-16" />
+    <file url="file://$PROJECT_DIR$/Assets/Scripts/Gameplay/Enemies/StatesEnemyConst.cs" charset="US-ASCII" />
   </component>
 </project>

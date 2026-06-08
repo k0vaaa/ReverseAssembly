@@ -11,7 +11,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
         {
         }
         
-        public override void Enter()
+        protected override void EnterAction()
         {
             Debug.Log("Entering Sheathed Sword");
             if (Fight.IsSheathed) return;
@@ -19,7 +19,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
             Fight.StartCoroutine(Sheath());
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
             Debug.Log("Exiting Sheathed Sword");
             //PlayerAnimator.DoWithdraw();

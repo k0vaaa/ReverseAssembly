@@ -4,16 +4,13 @@ namespace Gameplay.Enemies.States
 {
     public class GlitchStunState : StatesEnemyConst
     {
-        public GlitchStunState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent) 
-            : base(enemyController, animator, navMeshAgent) { }
+        public GlitchStunState(AIController controller, EnemyAnimator animator, EnemyMover mover) 
+            : base(controller, animator, mover) { }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
            
-            if (NavMeshAgent.isActiveAndEnabled && NavMeshAgent.isOnNavMesh && NavMeshAgent != null)
-            {
-                NavMeshAgent.isStopped = true; 
-            }
+            Mover.Stop();
             
             // Запускаем эффект глитча!
             if (EnemyAnimator != null)
@@ -22,17 +19,14 @@ namespace Gameplay.Enemies.States
             }
         }
 
-        public override void Execute()
+        protected  override void ExecuteAction()
         {
             
         }
 
-        public override void Exit()
+        protected  override void ExitAction()
         {
-            if (NavMeshAgent != null && NavMeshAgent.isOnNavMesh)
-            {
-                NavMeshAgent.isStopped = false;
-            }
+            Mover.Resume();
             
             // Выключаем эффект и возвращаем анимации в норму
             if (EnemyAnimator != null)

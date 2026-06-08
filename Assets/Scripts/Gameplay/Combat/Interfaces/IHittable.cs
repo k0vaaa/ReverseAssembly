@@ -4,6 +4,6 @@ namespace Gameplay.Combat.Interfaces
 {
     public interface IHittable
     {
-        public UnityEvent onHit { get; }
+        
     }
 }

@@ -24,7 +24,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             PauseManager.SetPause(true);
             Cursor.lockState = CursorLockMode.None;
@@ -39,7 +39,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
             
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
             Unsub();
             _windowManager.Show<HUDWindow>();

@@ -10,17 +10,17 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             Debug.Log("Entering Focus");
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
             
         }
         
-        public override void Exit()
+        protected override void ExitAction()
         {
             Debug.Log("Exiting Focus");
         }

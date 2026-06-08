@@ -1,39 +1,27 @@
-﻿using Gameplay.Controllers.Player;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace Gameplay.Enemies.BossStates
 {
     public class BossIdleState : StatesBossConst
     {
-        private AbilitiesController _abilitiesController;
-        public BossIdleState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent) : base(bossController, animator, navMeshAgent)
+        public BossIdleState(AIController controller, BossAnimator animator, EnemyMover mover) : base(controller, animator, mover)
         {
-            // _skillsController = skillsController;
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
-            BossAnimator.IdleEvent();
             Debug.Log("Entering BOSS Idle");
-            NavMeshAgent.isStopped = true;
+            BossAnimator.IdleEvent();
+            Mover.Stop();
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
+            Mover.RotateToPlayer();
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
-            
         }
-        
-        // private IEnumerator SwordColliderSwitch()
-        // {
-            // yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.3f, "attackTest"));
-            // EnemyController.SwordCollider.enabled = true;
-            // yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.53f, "attackTest"));
-            // EnemyController.SwordCollider.enabled = false;
-        // }
     }
 }

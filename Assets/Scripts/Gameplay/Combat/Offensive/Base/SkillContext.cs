@@ -1,4 +1,4 @@
-﻿using Gameplay.Controllers.Player;
+using Gameplay.Controllers.Player;
 using Gameplay.Enemies;
 using UnityEngine;
 
@@ -10,6 +10,6 @@ namespace Gameplay.Combat.Offensive.Base
         public VFXController VFXController;
         public SFXController SFXController;
         public GameObject Caster;
-        public EnemyController EnemyController;
+        public AIController EnemyController;
     }
 }

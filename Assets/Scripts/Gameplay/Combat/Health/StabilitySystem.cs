@@ -6,10 +6,8 @@ using UnityEngine.Events;
 
 namespace Gameplay.Combat.Health
 {
-    public class StabilitySystem : MonoBehaviour, IDamageable, IHittable, IKillable, IInitializable
+    public class StabilitySystem : MonoBehaviour, IDamageable, IKillable, IInitializable
     {
-        private ICharacterController _controller;
-
         public float Stability
         {
             get => _stability;
@@ -20,18 +18,19 @@ namespace Gameplay.Combat.Health
             }
         }
 
+
         [field:SerializeField] public float MaxStability { get; private set; } = 100f;
-        [field:SerializeField] public bool IsInvincible { get; set; }
-        
-        public UnityEvent<float, float> onStabilityChanged { get; } = new();
-
-        public UnityEvent OnDeath { get; } = new();
-
-        public UnityEvent onHit { get; } = new();
 
         [ContextMenuItem("meow", nameof(Die))]
         [SerializeField] private float _stability;
-        
+        public UnityEvent<float, float> onStabilityChanged { get; } = new();
+        [field:SerializeField] public bool IsInvincible { get; set; }
+
+        public UnityEvent OnDeath { get; } = new();
+        public UnityEvent onHit { get; } = new();
+
+        private ICharacterController _controller;
+
         public void Init()
         {
             TryGetComponent<ICharacterController>(out var controller);

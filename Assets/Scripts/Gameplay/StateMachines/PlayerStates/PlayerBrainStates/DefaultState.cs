@@ -11,7 +11,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             Movement.enabled = true;
             Fight.enabled = true;

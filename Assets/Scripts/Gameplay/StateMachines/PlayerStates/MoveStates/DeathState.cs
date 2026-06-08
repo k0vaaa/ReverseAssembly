@@ -10,18 +10,18 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             Debug.Log("Entering Death State");
             PlayerAnimator.DoDeath();
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
            
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
         }
     }

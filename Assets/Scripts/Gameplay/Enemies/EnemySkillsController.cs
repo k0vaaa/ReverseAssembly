@@ -14,7 +14,7 @@ namespace Gameplay.Enemies
         {
             var context = new SkillContext()
             {
-                EnemyController = GetComponent<EnemyController>(),
+                EnemyController = GetComponent<AIController>(),
                 Caster = gameObject
             };
             foreach (var skillDef in _abilitiesSet.SkillEntries)

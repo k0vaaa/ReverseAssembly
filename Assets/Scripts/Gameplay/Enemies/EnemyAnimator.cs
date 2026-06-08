@@ -1,9 +1,10 @@
 ﻿using System.Collections;
+using Core.Bootstrap;
 using UnityEngine;
 
 namespace Gameplay.Enemies
 {
-    public class EnemyAnimator : MonoBehaviour
+    public class EnemyAnimator : MonoBehaviour, IInitializable
     {
         private static readonly int Death = Animator.StringToHash("Death");
         private static readonly int Walk = Animator.StringToHash("IsWalking");

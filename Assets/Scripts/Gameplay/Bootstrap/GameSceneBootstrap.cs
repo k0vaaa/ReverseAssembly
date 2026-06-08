@@ -1,10 +1,6 @@
-﻿using Core.Events;
-using Core.Extensions;
-using Core.Scenes;
-using Gameplay.Events;
+﻿using Core.Scenes;
 using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
-using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {

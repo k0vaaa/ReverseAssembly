@@ -9,7 +9,6 @@ using Gameplay.Events;
 using Gameplay.UI.Views.MainMenu;
 using Gameplay.UI.Windows;
 using Reflex.Attributes;
-using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {

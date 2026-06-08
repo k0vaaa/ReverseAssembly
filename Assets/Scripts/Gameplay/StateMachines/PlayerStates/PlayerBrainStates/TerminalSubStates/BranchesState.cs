@@ -19,14 +19,14 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             _terminalWindow.ShowOnly<TerminalView>();
             _terminalWindow.GetView<TerminalView>().UpdateInfo(BranchManager.CurrentBranch);
             _input.OnInteractPressed += HandleInteract;
         }
         
-        public override void Exit()
+        protected override void ExitAction()
         {
             _input.OnInteractPressed -= HandleInteract;
             _terminalWindow.GetView<TerminalView>().UpdateInfo(BranchManager.CurrentBranch);

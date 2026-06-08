@@ -10,18 +10,18 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             Debug.Log("Entering Falling State");
             PlayerAnimator.DoFalling();
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
             MovementController.InertialMove();
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
             Debug.Log("Exiting Falling State");
             PlayerAnimator.DoLanding();

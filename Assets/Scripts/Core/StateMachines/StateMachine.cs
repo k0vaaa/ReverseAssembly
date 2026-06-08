@@ -102,6 +102,7 @@ namespace Core.StateMachines
 
             _currentState?.Exit();
 
+
             _previousState = _currentState;
             _currentState = nextState;
 

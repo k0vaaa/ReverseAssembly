@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Core.UI;
 using DG.Tweening;
 using ExternalAssets.QuickOutline.Scripts;
@@ -33,7 +33,6 @@ namespace Gameplay.Interactables
         {
             _mesh = GetComponent<MeshFilter>();
             _puzzleView = _windowManager.GetWindow<TerminalWindow>().GetView(_puzzleType.GetType()) as PuzzleViewBase;
-            print("Trying to Get TerminalWindow");
             _terminalScannerView = _windowManager.GetWindow<TerminalWindow>().GetView<TerminalScannerView>();
             OnStart();
         }

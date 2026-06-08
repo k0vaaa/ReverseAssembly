@@ -49,7 +49,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
             StateMachine.TrySetState(closedState);
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             Movement.enabled = true;
             Fight.enabled = false;
@@ -61,7 +61,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         }
 
 
-        public override void Exit()
+        protected override void ExitAction()
         {
             _input.OnScannerPressed -= HandleScannerPress;
             //_terminalController.SetTerminal(false);

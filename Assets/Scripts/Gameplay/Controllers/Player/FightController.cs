@@ -51,7 +51,7 @@ namespace Gameplay.Controllers.Player
             StateMachine = new StateMachine();
             _abilitiesController = GetComponent<AbilitiesController>();
             _playerAnimator = GetComponent<IPlayerAnimator>();
-            GetComponent<IHittable>().onHit.AddListener(_playerAnimator.DoHit);
+            GetComponent<IDamageable>().onHit.AddListener(_playerAnimator.DoHit);
         }
 
         private void Update()

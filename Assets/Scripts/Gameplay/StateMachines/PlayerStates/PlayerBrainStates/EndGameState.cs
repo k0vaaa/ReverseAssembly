@@ -16,7 +16,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
             
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             PauseManager.SetPause(true);
             _hudWindow.ShowOnly<EndGameView>();

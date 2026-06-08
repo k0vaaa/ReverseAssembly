@@ -9,22 +9,22 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
-            base.Enter();
+            
             if(!Fight.IsSheathed) return;
             Animator.DoWithdraw();
             Fight.IsSheathed = false;
 
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
-            base.Exit();
+            
         }
         
 

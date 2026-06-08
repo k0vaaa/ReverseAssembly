@@ -1,46 +1,39 @@
-﻿using System.Collections;
-using Gameplay.Controllers.Player;
+using System.Collections;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace Gameplay.Enemies.BossStates
 {
     public class BossDeathState : StatesBossConst
     {
-        private AbilitiesController _abilitiesController;
-        private readonly Canvas hpCanvas;
- 
-        public BossDeathState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent, Canvas hpCanvas) : base(bossController, animator, navMeshAgent)
+        private Canvas _hpCanvas;
+
+        public BossDeathState(AIController controller, BossAnimator animator, EnemyMover mover, Canvas hpCanvas) : base(controller, animator, mover)
         {
-            this.hpCanvas = hpCanvas;
+            _hpCanvas = hpCanvas;
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
-            
-            hpCanvas.enabled = false;
-            BossController.GetComponent<Collider>().enabled = false;
+            if (_hpCanvas != null) _hpCanvas.enabled = false;
+            Controller.GetComponent<Collider>().enabled = false;
             BossAnimator.DeathEvent();
-            NavMeshAgent.ResetPath();
-            NavMeshAgent.isStopped = true;
-            NavMeshAgent.angularSpeed = 0f;
-            BossController.StartCoroutine(Destroy());
-        }
-
-        public override void Execute()
-        {
-            BossController.RotateToPlayer();
-        }
-
-        public override void Exit()
-        {
+            Mover.Stop();
             
+            Controller.StartCoroutine(DestroyCoroutine());
         }
-        
-        public IEnumerator Destroy()
+
+        protected override void ExecuteAction()
         {
-            yield return new WaitUntil(()=>BossAnimator.CheckAnimationState(0, 0.99f, "BossDeath"));
-            Object.Destroy(BossController.gameObject);
+        }
+
+        protected override void ExitAction()
+        {
+        }
+
+        private IEnumerator DestroyCoroutine()
+        {
+            yield return new WaitUntil(() => BossAnimator.CheckAnimationState(0, 0.99f, "BossDeath"));
+            Object.Destroy(Controller.gameObject);
         }
     }
 }

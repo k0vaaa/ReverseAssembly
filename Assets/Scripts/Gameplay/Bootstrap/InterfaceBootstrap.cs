@@ -11,7 +11,6 @@ using Gameplay.UI.Views.Gameplay.HUD;
 using Gameplay.UI.Views.Gameplay.Terminal;
 using Gameplay.UI.Windows;
 using Reflex.Attributes;
-using Reflex.Injectors;
 using UnityEngine;
 
 namespace Gameplay.Bootstrap

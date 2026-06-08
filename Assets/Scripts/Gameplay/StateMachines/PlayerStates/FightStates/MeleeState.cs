@@ -14,9 +14,8 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
         }
         
 
-        public override void Enter()
+        protected override void EnterAction()
         {
-            base.Enter();
             
             Animator.DoAttack();
             _crowbarAnimator.DoAction();
@@ -24,11 +23,11 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
             Abilities.TryGetSkill<MeleeSkill>().ClearCollider();
             Debug.Log("Exiting Melee");

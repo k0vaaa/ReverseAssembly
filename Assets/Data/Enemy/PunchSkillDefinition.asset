@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PunchSkillDefinition
   m_EditorClassIdentifier: Assembly-CSharp::Gameplay.Combat.Offensive.Skills.Definitions.PunchSkillDefinition
   skillName: punch
-  cooldownTime: 0
+  cooldownTime: 2
   sprite: {fileID: 0}
   damage:
     Value: 10

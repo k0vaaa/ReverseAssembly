@@ -1,31 +1,53 @@
-﻿using Core.StateMachines;
+﻿using System;
+using Core.StateMachines;
 using UnityEngine.AI;
 
 namespace Gameplay.Enemies
 {
-    public abstract class StatesBossConst : IState
+    public abstract class StatesBossConst : State
     {
-        protected BossController BossController;
+        protected AIController Controller;
         protected BossAnimator BossAnimator;
-        protected NavMeshAgent NavMeshAgent;
-        
-        protected StatesBossConst(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent)
+        protected EnemyMover Mover;
+        private Action _onEnter;
+        private Action _onExecute;
+        private Action _onExit;
+
+        protected StatesBossConst(AIController controller, BossAnimator animator, EnemyMover mover)
         {
-            BossController = bossController;
+            Controller = controller;
             BossAnimator = animator;
-            NavMeshAgent = navMeshAgent;
+            Mover = mover;
         }
         
-        public virtual void Enter()
+        protected override void EnterAction()
         {
         }
 
-        public virtual void Execute()
+        protected override void ExecuteAction()
         {
         }
 
-        public virtual void Exit()
+        protected override void ExitAction()
         {
+        }
+
+        public Action OnEnter
+        {
+            get => _onEnter;
+            set => _onEnter = value;
+        }
+
+        public Action OnExecute
+        {
+            get => _onExecute;
+            set => _onExecute = value;
+        }
+
+        public Action OnExit
+        {
+            get => _onExit;
+            set => _onExit = value;
         }
     }
 }

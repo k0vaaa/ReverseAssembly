@@ -19,13 +19,13 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             _terminalWindow.ShowOnly<TerminalScannerView>();
             _input.OnInteractPressed += _abilities.TryGetSkill<ScannerSkill>().TryInteract;
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
             _input.OnInteractPressed -= _abilities.TryGetSkill<ScannerSkill>().TryInteract;
             _abilities.TryGetSkill<ScannerSkill>().SetScanner(false);

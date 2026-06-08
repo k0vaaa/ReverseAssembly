@@ -1,39 +1,39 @@
-﻿using Gameplay.Combat.Offensive.Skills;
+using Gameplay.Combat.Offensive.Skills;
+using Gameplay.Controllers.Player;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace Gameplay.Enemies.States
 {
     public class AttackState : StatesEnemyConst
     {
-        private readonly EnemySkillsController _abilitiesController;
+        private readonly AbilitiesController _abilitiesController;
 
-        public AttackState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent, EnemySkillsController abilitiesController) : base(enemyController, animator, navMeshAgent)
+        public AttackState(AIController controller, EnemyAnimator animator, EnemyMover mover, AbilitiesController abilitiesController) : base(controller, animator, mover)
         {
             _abilitiesController = abilitiesController;
         }
 
-        public override void Enter()
+        protected  override void EnterAction()
         {
             _abilitiesController.TryGetSkill<PunchSkill>().TryCast();
-            EnemyController.ResetAnim();
-            Debug.Log("Entering ENEMY ATTACK");
-            EnemyAnimator.DoAttack();
-            if (NavMeshAgent.isActiveAndEnabled && NavMeshAgent.isOnNavMesh)
+            Debug.Log("Entering ENEMY Attack");
+            Mover.Stop();
+            
+            // To trigger events from animations
+            if (Controller.TryGetComponent(out EnemyAnimator anim))
             {
-                NavMeshAgent.isStopped = true;
+                anim.DoAttack();
             }
         }
 
-        public override void Execute()
+        protected  override void ExecuteAction()
         {
-            EnemyController.RotateToPlayer();
+            Mover.RotateToPlayer();
         }
 
-        public override void Exit()
+        protected  override void ExitAction()
         {
             _abilitiesController.TryGetSkill<PunchSkill>().ClearCollider();
         }
-        
     }
 }

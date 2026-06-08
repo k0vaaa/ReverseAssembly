@@ -9,7 +9,7 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             
         }

@@ -1,29 +1,25 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.AI;
 
 namespace Gameplay.Enemies.States
 {
     public class IdleState : StatesEnemyConst
     {
-        public IdleState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent) : base(enemyController, animator, navMeshAgent)
+        public IdleState(AIController controller, EnemyAnimator animator, EnemyMover mover) : base(controller, animator, mover)
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             EnemyAnimator.IdleEvent();
-            Debug.Log("Entering ENEMY Idle");
-            if (NavMeshAgent.isActiveAndEnabled && NavMeshAgent.isOnNavMesh)
-            {
-                NavMeshAgent.isStopped = true;
-            }
+            Mover.Stop();
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
             
         }

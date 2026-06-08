@@ -1,18 +1,14 @@
 using System.Collections.Generic;
 using System.Linq;
-using Core.Bootstrap;
 using Core.Inventory;
-using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.SaveLoad.Saveables;
 using Gameplay.Combat.Health;
 using Gameplay.Controllers.Player;
-using Gameplay.Core;
 using Gameplay.Enemies;
 using Gameplay.Interactables;
 using Reflex.Attributes;
 using UnityEngine;
-using Logger = Core.Utilities.Logger;
 using ExternalAssets.Mini_First_Person_Controller.Scripts;
 
 namespace Gameplay.Core
@@ -26,7 +22,7 @@ namespace Gameplay.Core
         
         private StabilitySystem _playerStabilitySystem;
         private MovementController _movementController;
-        private EnemyManager _enemyManager;
+        private EnemySaveHandler _enemySaveHandler;
 
         public void SetPlayerSystems(StabilitySystem playerStabilitySystem, MovementController movementController)
         {
@@ -34,9 +30,9 @@ namespace Gameplay.Core
             _movementController = movementController;
         }
 
-        public void SetEnemyManager(EnemyManager enemyManager)
+        public void SetEnemySaveHandler(EnemySaveHandler enemySaveHandler)
         {
-            _enemyManager = enemyManager;
+            _enemySaveHandler = enemySaveHandler;
         }
 
         public void SaveGame()
@@ -47,8 +43,8 @@ namespace Gameplay.Core
                 return;
             }
 
-            var enemiesData = _enemyManager != null 
-                ? _enemyManager.GetEnemyData() 
+            var enemiesData = _enemySaveHandler != null 
+                ? _enemySaveHandler.GetSaveData() 
                 : _playerDataInteractor.CurrentSave?.Enemies ?? new List<EnemyData>();
 
             var playerData = new PlayerData

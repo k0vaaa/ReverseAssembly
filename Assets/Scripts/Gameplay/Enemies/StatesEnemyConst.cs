@@ -1,32 +1,24 @@
-﻿using Core.StateMachines;
-using UnityEngine.AI;
+using System;
+using Core.StateMachines;
 
 namespace Gameplay.Enemies
 {
-    public abstract class StatesEnemyConst : IState
+    public abstract class StatesEnemyConst : State
     {
-        protected EnemyController EnemyController;
+        protected AIController Controller;
         protected EnemyAnimator EnemyAnimator;
-        protected NavMeshAgent NavMeshAgent;
-  
-        
-        protected StatesEnemyConst(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent)
+        protected EnemyMover Mover;
+
+
+
+        protected StatesEnemyConst(AIController controller, EnemyAnimator animator, EnemyMover mover)
         {
-            EnemyController = enemyController;
+            Controller = controller;
             EnemyAnimator = animator;
-            NavMeshAgent = navMeshAgent;
-        }
-        
-        public virtual void Enter()
-        {
+            Mover = mover;
+
         }
 
-        public virtual void Execute()
-        {
-        }
 
-        public virtual void Exit()
-        {
-        }
     }
 }
