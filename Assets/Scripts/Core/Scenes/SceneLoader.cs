@@ -1,4 +1,6 @@
-﻿using Core.Pause;
+﻿using Core.Events;
+using Core.Pause;
+using Gameplay.Events;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -13,6 +15,7 @@ namespace Core.Scenes
         public async Awaitable LoadScene(string nextScene)
         {
             PauseManager.SetPause(true);
+            EventBus.Raise(new SceneLoadEvent());
             var loadingScene = SceneManager.LoadSceneAsync(SceneConstants.LoadingScene, LoadSceneMode.Additive);
             await loadingScene;
             await SceneManager.UnloadSceneAsync(_currentScene);

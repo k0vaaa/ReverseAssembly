@@ -1,4 +1,4 @@
-﻿using Core.Bootstrap;
+using Core.Bootstrap;
 
 using Core.Events;
 using Gameplay.Events;
@@ -42,6 +42,12 @@ namespace Gameplay.Core
             {
                 CurrentEnergy = MaxEnergy;
             }
+            RaiseEnergyChangedEvent();
+        }
+
+        public void SetEnergy(float energy)
+        {
+            CurrentEnergy = Mathf.Clamp(energy, 0, MaxEnergy);
             RaiseEnergyChangedEvent();
         }
 

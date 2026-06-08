@@ -58,5 +58,10 @@ namespace Core.SaveLoad.PlayerSaves
         {
             _playerDataRepository.Delete(PlayerDataKey);
         }
+
+        public void DeleteFile(string timestamp)
+        {
+            _playerDataRepository.DeleteByTimestamp(timestamp, PlayerDataKey);
+        }
     }
 }

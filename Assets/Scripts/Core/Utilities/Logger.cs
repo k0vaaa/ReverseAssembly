@@ -15,5 +15,10 @@ namespace Core.Utilities
         {
             Debug.Log($"{methodName} выполнен");
         }
+
+        public static void LogTagged(string message, string tag = "Default")
+        {
+            Debug.Log($"{tag.ToUpper()} | {message} | {tag.ToUpper()}");
+        }
     }
 }

@@ -6,5 +6,6 @@ namespace Core.SaveLoad.Repos
     {
         public T Load<T>(string key, string timestamp, T defaultValue = default);
         public List<string> GetAllTimestamps();
+        void DeleteByTimestamp(string timestamp, string key);
     }
 }

@@ -11,6 +11,7 @@ namespace Core.UI
     {
         [SerializeField] private SerializableDictionary<View> _views = new();
         private Stack<View> _stack = new();
+        private View _stackRoot;
 
         public void Init()
         {
@@ -61,7 +62,7 @@ namespace Core.UI
 
         public void Back()
         {
-            if (_stack.Count <= 0) return;
+            if (_stack.Count <= 1) return;
 
             if (_stack.TryPop(out var view))
             {
@@ -77,8 +78,11 @@ namespace Core.UI
         {
             var view = GetView<TView>();
             view.Show();
-            _stack.TryPeek(out var top);
-            top.Hide();
+            if (_stack.TryPeek(out var top))
+            {
+                top.Hide();
+            }
+
             _stack.Push(view);
         }
 
@@ -86,9 +90,18 @@ namespace Core.UI
         {
             var view = GetView(type);
             view.Show();
-            _stack.TryPeek(out var top);
-            top.Hide();
+            if (_stack.TryPeek(out var top))
+            {
+                top.Hide();
+            }
+
             _stack.Push(view);
+        }
+
+        public void SetStackRoot<T>() where T : View
+        {
+            _stackRoot = GetView<T>();
+            _stack.Push(_stackRoot);
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Gameplay.Events;
 using UnityEngine;
 
 namespace Core.SaveLoad.Saveables
@@ -8,8 +9,12 @@ namespace Core.SaveLoad.Saveables
     public class PlayerData
     {
         public float Health;
+        public float Energy;
         public Vector3 Position;
+        public Quaternion Rotation;
+        public WorldBranch CurrentBranch;
         public List<EnemyData> Enemies; 
+        public List<PuzzleData> Puzzles;
         public int CodeBlocks;
     }
 
@@ -22,5 +27,11 @@ namespace Core.SaveLoad.Saveables
         public int PrefabIndex;
         public bool IsBoss;
     }
-    
+
+    [Serializable]
+    public class PuzzleData
+    {
+        public string Id;
+        public bool IsBugged;
+    }
 }

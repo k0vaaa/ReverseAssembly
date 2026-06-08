@@ -35,7 +35,7 @@ namespace Gameplay.Combat.Offensive.Base
             {
                 IsReady = false;
                 timeUntilReady -= Time.deltaTime;
-                OnCooldownTick.Invoke(GetReadyPercent());
+                OnCooldownTick?.Invoke(GetReadyPercent());
             }
         }
 

@@ -6,5 +6,6 @@
         public T Load<T>(string key, T defaultValue = default);
         bool HasKey(string key);
         void Delete(string key);
+        
     }
 }

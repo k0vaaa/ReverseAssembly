@@ -107,7 +107,25 @@ namespace Gameplay.Interactables
         private void DisableOutline()
         {
             if (_outline) _outline.enabled = false;
-            _bugView.Hide();
+            if (_bugView) _bugView.Hide();
+        }
+
+        public override void LoadState(bool isBugged)
+        {
+            IsBugged = isBugged;
+            if (_rb == null) _rb = GetComponent<Rigidbody>();
+            if (!IsBugged)
+            {
+                _rb.isKinematic = false;
+                _rb.mass = 10f;
+                if (_outline) _outline.enabled = false;
+                if (_bugView) _bugView.Hide();
+            }
+            else
+            {
+                _rb.isKinematic = true;
+                _rb.mass = 9999f;
+            }
         }
     }
 }

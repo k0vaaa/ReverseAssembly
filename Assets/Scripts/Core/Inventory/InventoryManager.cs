@@ -14,11 +14,10 @@ namespace Core.Inventory
         [Inject] private PlayerDataInteractor _playerData;
         [Inject] private HUDWindow _hudWindow;
         [Inject] private InputManager _input;
-        
-        
-        
+
+
+        public int CodeBlocks;
         private PlayerHUDView _hudView;
-        public int _codeBlocks;
 
         public void Awake()
         {
@@ -38,18 +37,18 @@ namespace Core.Inventory
 
         private void OnBlockCollected(CodeBlockCollectedEvent data)
         {
-            _codeBlocks++;
+            CodeBlocks++;
             //_playerData.CurrentSave.CodeBlocks++;
             //Debug.Log($"Collected! Total blocks: {_playerData.CurrentSave.CodeBlocks}");
             
             UpdateHUD();
         }
 
-        private void UpdateHUD()
+        public void UpdateHUD()
         {
             if (_hudView != null)
             {
-                _hudView.UpdateBlocksCount(_codeBlocks);
+                _hudView.UpdateBlocksCount(CodeBlocks);
             }
         }
 

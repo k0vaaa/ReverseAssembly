@@ -1,4 +1,4 @@
-﻿using Core.Events;
+using Core.Events;
 using Core.Input;
 using Core.Pause;
 using Reflex.Attributes;
@@ -58,6 +58,15 @@ namespace ExternalAssets.Mini_First_Person_Controller.Scripts
             // Rotate camera up-down and controller left-right from velocity.
             transform.localRotation = Quaternion.AngleAxis(-velocity.y, Vector3.right);
             character.localRotation = Quaternion.AngleAxis(velocity.x, Vector3.up);
+        }
+
+        public void SetRotation(Quaternion rotation)
+        {
+            velocity.x = rotation.eulerAngles.y;
+            velocity.y = rotation.eulerAngles.x;
+            character.localRotation = Quaternion.AngleAxis(velocity.x, Vector3.up);
+            transform.localRotation = Quaternion.AngleAxis(-velocity.y, Vector3.right);
+            
         }
     }
 }

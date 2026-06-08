@@ -1,4 +1,4 @@
-﻿
+
 using Core.Input;
 using ExternalAssets.QuickOutline.Scripts;
 using Gameplay.UI.Views.Gameplay.Terminal;
@@ -19,9 +19,8 @@ namespace Gameplay.Interactables
             _outline = GetComponent<Outline>();
 
             if (_outline) _outline.enabled = false;
-            // Изначально мост скрыт
-            if (bridgeObj != null) bridgeObj.SetActive(false);
-            
+            // Изначально мост скрыт, только если баг не был исправлен загрузкой
+            if (IsBugged && bridgeObj != null) bridgeObj.SetActive(false);
         }
 
         public override void OnScanned(bool isScanning)
@@ -78,6 +77,20 @@ namespace Gameplay.Interactables
         private void DisableOutline()
         {
             if (_outline) _outline.enabled = false;
+        }
+
+        public override void LoadState(bool isBugged)
+        {
+            IsBugged = isBugged;
+            if (!IsBugged)
+            {
+                if (bridgeObj != null)
+                {
+                    bridgeObj.SetActive(true);
+                    bridgeObj.GetComponent<BridgeMaterializer>().SetBridge(true, 0f);
+                }
+                if (_outline) _outline.enabled = false;
+            }
         }
     }
 }

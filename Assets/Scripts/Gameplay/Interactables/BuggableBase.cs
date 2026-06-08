@@ -1,4 +1,5 @@
-﻿using Core.UI;
+using System;
+using Core.UI;
 using DG.Tweening;
 using ExternalAssets.QuickOutline.Scripts;
 using Gameplay.UI.Views.Gameplay.Terminal;
@@ -11,6 +12,9 @@ namespace Gameplay.Interactables
 {
     public class BuggableBase : MonoBehaviour, IBuggable
     {
+        [SerializeField, HideInInspector] private string _id;
+        public string Id => _id;
+
         [Inject] protected WindowManager _windowManager;
         
         [SerializeField] private PuzzleViewBase _puzzleType;
@@ -71,6 +75,24 @@ namespace Gameplay.Interactables
         public virtual void FixBug()
         {
             
+        }
+
+        public virtual void LoadState(bool isBugged)
+        {
+            IsBugged = isBugged;
+            if (!IsBugged)
+            {
+                FixBug(); // По умолчанию просто вызываем FixBug, если он был починен
+            }
+        }
+
+        private void OnValidate()
+        {
+            if (string.IsNullOrEmpty(_id))
+            {
+                _id = Guid.NewGuid().ToString();
+                UnityEditor.EditorUtility.SetDirty(this);
+            }
         }
 
         public void Visualize()

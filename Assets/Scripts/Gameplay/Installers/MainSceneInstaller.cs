@@ -1,4 +1,4 @@
-﻿using Core.Inventory;
+using Core.Inventory;
 using Core.UI;
 using Gameplay.Core;
 using Gameplay.UI.Views.Gameplay.HUD;
@@ -26,6 +26,7 @@ namespace Gameplay.Installers
             builder.RegisterValue(_postProcessVolume);
             builder.RegisterValue(_inventoryManager);
             builder.RegisterType(typeof(SyncEnergyManager), Lifetime.Singleton, Resolution.Eager);
+            builder.RegisterType(typeof(SaveManager), Lifetime.Singleton, Resolution.Eager);
         }
     }
 }

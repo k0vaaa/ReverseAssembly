@@ -413,6 +413,193 @@ namespace Core.Editor
     }
 }
 
+=== Scripts\Core\Editor\UIAnchorTools.cs ===
+﻿using UnityEditor;
+using UnityEngine;
+
+namespace Core.Editor
+{
+    public abstract class UIAnchorTools
+    {
+        // Хоткей: Ctrl + ] (или Cmd + ] на Mac)
+        [MenuItem("Tools/UI/Anchors to Corners %]")]
+        static void AnchorsToCorners()
+        {
+            foreach (Transform transform in Selection.transforms)
+            {
+                RectTransform t = transform as RectTransform;
+                RectTransform pt = transform.parent as RectTransform;
+
+                if (t == null || pt == null) continue;
+
+                // Регистрируем действие для Ctrl+Z (Отмена)
+                Undo.RecordObject(t, "Snap Anchors to Corners");
+
+                // Высчитываем новые позиции якорей
+                Vector2 newAnchorsMin = new Vector2(t.anchorMin.x + t.offsetMin.x / pt.rect.width,
+                    t.anchorMin.y + t.offsetMin.y / pt.rect.height);
+                Vector2 newAnchorsMax = new Vector2(t.anchorMax.x + t.offsetMax.x / pt.rect.width,
+                    t.anchorMax.y + t.offsetMax.y / pt.rect.height);
+
+                // Применяем якоря
+                t.anchorMin = newAnchorsMin;
+                t.anchorMax = newAnchorsMax;
+            
+                // Обнуляем отступы (теперь якоря держат объект)
+                t.offsetMin = t.offsetMax = new Vector2(0, 0);
+            }
+        }
+        [MenuItem("Tools/UI/Anchors to Center %[")]
+        static void AnchorsToCenter()
+        {
+            foreach (Transform transform in Selection.transforms)
+            {
+                if (transform is RectTransform t && t.parent is RectTransform pt)
+                {
+                    // Защита от деления на ноль, если родитель имеет нулевой размер
+                    if (pt.rect.width == 0 || pt.rect.height == 0) continue;
+
+                    Undo.RecordObject(t, "Anchors to Center");
+
+                    // 1. Находим геометрический центр нашего объекта в локальных координатах родителя
+                    Vector2 localCenter = (Vector2)t.localPosition + t.rect.center;
+
+                    // 2. Переводим этот центр в нормализованные координаты (от 0 до 1)
+                    Vector2 normalizedCenter = new Vector2(
+                        (localCenter.x - pt.rect.xMin) / pt.rect.width,
+                        (localCenter.y - pt.rect.yMin) / pt.rect.height
+                    );
+
+                    // 3. Схлопываем якоря ровно в высчитанный центр
+                    t.anchorMin = normalizedCenter;
+                    t.anchorMax = normalizedCenter;
+
+                    // 4. Жестко фиксируем старые размеры объекта (чтобы он не сжался)
+                    t.sizeDelta = new Vector2(t.rect.width, t.rect.height);
+
+                    // 5. САМОЕ ВАЖНОЕ: Компенсируем сдвиг. 
+                    // Так как якорь теперь находится ровно в геометрическом центре объекта,
+                    // смещение от якоря до Пивота (anchoredPosition) будет равно инвертированному центру.
+                    t.anchoredPosition = -t.rect.center;
+                }
+            }
+        }
+    }
+}
+
+=== Scripts\Core\Effects\HoloProjectorFitter.cs ===
+﻿using UnityEngine;
+using UnityEngine.VFX;
+
+namespace Core.Effects
+{
+    [ExecuteAlways]
+    [RequireComponent(typeof(VisualEffect))]
+    public class HoloProjectorFitter : MonoBehaviour
+    {
+        [Header("Настройки")]
+        [Tooltip("Перетащите сюда ваш экран (Canvas или Image)")]
+        public RectTransform targetScreen; 
+    
+        private VisualEffect _vfx;
+
+        private void OnEnable()
+        {
+            _vfx = GetComponent<VisualEffect>();
+        }
+
+        private void Update()
+        {
+        
+            if (targetScreen == null || _vfx == null || _vfx.visualEffectAsset.name != "ProjectionTargetable") return;
+
+            // 1. Находим мировые векторы нашего UI-экрана (с учетом его поворота и скейла)
+            // TransformVector превращает локальную ширину/высоту в реальное 3D-направление в мире
+            Vector3 worldCenter = targetScreen.position;
+            Vector3 worldRight = targetScreen.TransformVector(new Vector3(targetScreen.rect.width, 0, 0));
+            Vector3 worldUp = targetScreen.TransformVector(new Vector3(0, targetScreen.rect.height, 0));
+
+            // 2. Так как VFX Graph работает в своих локальных координатах, 
+            // переводим эти мировые векторы в локальную систему координат проектора
+            Vector3 localCenter = transform.InverseTransformPoint(worldCenter);
+            Vector3 localRight = transform.InverseTransformVector(worldRight);
+            Vector3 localUp = transform.InverseTransformVector(worldUp);
+
+            // 3. Отправляем эти 3 вектора в VFX Graph
+            _vfx.SetVector3("TargetCenter", localCenter);
+            _vfx.SetVector3("TargetRight", localRight);
+            _vfx.SetVector3("TargetUp", localUp);
+        }
+    }
+}
+
+=== Scripts\Core\Effects\MeshScanner.cs ===
+﻿using UnityEngine;
+using UnityEngine.VFX;
+
+namespace Core.Effects
+{
+    [ExecuteAlways]
+    [RequireComponent(typeof(VisualEffect))]
+    public class MeshScanner : MonoBehaviour
+    {
+        [Header("Что сканируем?")]
+        public MeshFilter targetObject; 
+
+        [Header("Настройки сканера")]
+        public float scanSpeed = 1f;       // Скорость (метров в секунду)
+        public float scanThickness = 0.1f;
+
+        private VisualEffect _vfx;
+        private Renderer _targetRenderer;
+
+        private void OnEnable()
+        {
+            _vfx = GetComponent<VisualEffect>();
+        }
+
+        public void UpdateRenderer()
+        {
+            if (targetObject == null) return;
+            _targetRenderer = targetObject.GetComponent<Renderer>();
+        }
+        private void Update()
+        {
+            if (targetObject == null || targetObject.sharedMesh == null || _vfx == null)
+            {
+                return;
+            }
+
+
+
+
+            _vfx.SetMesh("TargetMesh", targetObject.sharedMesh);
+
+            // 1. Матрица для правильного прилипания лучей (оставляем как было)
+            Matrix4x4 matrix = transform.worldToLocalMatrix * targetObject.transform.localToWorldMatrix;
+            _vfx.SetMatrix4x4("TargetMatrix", matrix);
+
+            // 2. Отправляем в VFX мировую матрицу объекта (чтобы найти его верх и низ)
+            _vfx.SetMatrix4x4("ObjectWorldMatrix", targetObject.transform.localToWorldMatrix);
+
+            // --- МИРОВЫЕ КООРДИНАТЫ СКАНЕРА ---
+        
+            // Renderer.bounds дает идеальную коробку вокруг объекта в Мировых координатах
+            Bounds worldBounds = _targetRenderer.bounds;
+            float minY = worldBounds.min.y;
+            float height = worldBounds.size.y;
+
+            // Линия ездит в мировых координатах
+            float currentScanY = Mathf.PingPong(Time.time * scanSpeed, height) + minY;
+        
+            _vfx.SetFloat("ScanLineY", currentScanY);
+        
+            // Больше не нужно делить толщину на Scale! В мировых координатах 0.1 это всегда 10 см.
+            _vfx.SetFloat("ScanLineThickness", scanThickness); 
+        }
+    }
+}
+
 === Scripts\Core\Events\DisposableTracker.cs ===
 ﻿using System;
 using System.Collections.Generic;
@@ -1389,7 +1576,9 @@ namespace Core.Scenes
 }
 
 === Scripts\Core\Scenes\SceneLoader.cs ===
-﻿using Core.Pause;
+﻿using Core.Events;
+using Core.Pause;
+using Gameplay.Events;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -1404,6 +1593,7 @@ namespace Core.Scenes
         public async Awaitable LoadScene(string nextScene)
         {
             PauseManager.SetPause(true);
+            EventBus.Raise(new SceneLoadEvent());
             var loadingScene = SceneManager.LoadSceneAsync(SceneConstants.LoadingScene, LoadSceneMode.Additive);
             await loadingScene;
             await SceneManager.UnloadSceneAsync(_currentScene);
@@ -1918,6 +2108,7 @@ namespace Core.UI
     {
         [SerializeField] private SerializableDictionary<View> _views = new();
         private Stack<View> _stack = new();
+        private View _stackRoot;
 
         public void Init()
         {
@@ -1968,7 +2159,7 @@ namespace Core.UI
 
         public void Back()
         {
-            if (_stack.Count <= 0) return;
+            if (_stack.Count <= 1) return;
 
             if (_stack.TryPop(out var view))
             {
@@ -1984,8 +2175,11 @@ namespace Core.UI
         {
             var view = GetView<TView>();
             view.Show();
-            _stack.TryPeek(out var top);
-            top.Hide();
+            if (_stack.TryPeek(out var top))
+            {
+                top.Hide();
+            }
+
             _stack.Push(view);
         }
 
@@ -1993,9 +2187,18 @@ namespace Core.UI
         {
             var view = GetView(type);
             view.Show();
-            _stack.TryPeek(out var top);
-            top.Hide();
+            if (_stack.TryPeek(out var top))
+            {
+                top.Hide();
+            }
+
             _stack.Push(view);
+        }
+
+        public void SetStackRoot<T>() where T : View
+        {
+            _stackRoot = GetView<T>();
+            _stack.Push(_stackRoot);
         }
     }
 }
@@ -2041,6 +2244,16 @@ namespace Core.UI
             }
 
             GetWindow<TWindow>()?.Show();
+        }
+
+        public void Show<TWindow>() where TWindow : Window
+        {
+            GetWindow<TWindow>()?.Show();
+        }
+        
+        public void Hide<TWindow>() where TWindow : Window
+        {
+            GetWindow<TWindow>()?.Hide();
         }
     }
 }
@@ -2653,8 +2866,30 @@ namespace Gameplay.Anims
     }
 }
 
+=== Scripts\Gameplay\Bootstrap\BootstrapComponent.cs ===
+﻿using System;
+using Core.Extensions;
+using UnityEngine;
+
+namespace Gameplay.Bootstrap
+{
+    public abstract class BootstrapComponent : MonoBehaviour
+    {
+        public event Action OnBooted;
+        public void Boot()
+        {
+            Debug.Log($"{this.TypeName()} started booting");
+            OnBoot();
+            Debug.Log($"{this.TypeName()} booted");
+            OnBooted?.Invoke();
+        }
+        protected virtual void OnBoot(){}
+    }
+}
+
 === Scripts\Gameplay\Bootstrap\BootstrapController.cs ===
 ﻿using System.Collections.Generic;
+using Core.Extensions;
 using Core.Utilities;
 using UnityEngine;
 
@@ -2662,15 +2897,25 @@ namespace Gameplay.Bootstrap
 {
     public class BootstrapController : MonoBehaviour
     {
-        [SerializeField] private List<InterfaceReference<IBootstrapComponent>> _bootstraps;
-
+        [SerializeField] private List<InterfaceReference<BootstrapComponent>> _bootstraps;
+        private List<BootstrapComponent> _queue = new ();
         public void Boot()
         {
             foreach (var bootstrap in _bootstraps)
             {
-                bootstrap.Value.Boot();
-                Debug.Log($"{bootstrap.Value.GetType().Name} booted");
+                _queue.Add(bootstrap.Value);
             }
+
+            for (var i = 0; i < _queue.Count - 1; i++)
+            {
+                _queue[i].OnBooted += _queue[i + 1].Boot;
+            }
+            _queue[0]?.Boot();
+            /*foreach (var bootstrap in _bootstraps)
+            {
+                bootstrap.Value.Boot();
+                bootstrap.Value.OnBooted += () => Debug.Log($"{bootstrap.Value.TypeName()} booted");
+            }*/
         }
     }
 }
@@ -2685,7 +2930,7 @@ using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class EnemyBootstrap : MonoBehaviour, IBootstrapComponent
+    public class EnemyBootstrap : BootstrapComponent
     {
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SettingsInteractor _settingsInteractor;
@@ -2701,7 +2946,7 @@ namespace Gameplay.Bootstrap
 
         private CharacterController _playerController;
 
-        public void Boot()
+        protected override void OnBoot()
         {
             var enemyManager = new EnemyManager(
                 _settingsInteractor,
@@ -2730,37 +2975,111 @@ using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class GameSceneBootstrap : MonoBehaviour, IBootstrapComponent
+    public class GameSceneBootstrap : BootstrapComponent
     {
         [Inject] private HUDWindow _hudWindow;
         [Inject] private SceneLoader _sceneLoader;
         public void Boot()
         {
             _hudWindow.GetView<EndGameView>().MenuClicked += () => _ = _sceneLoader.LoadScene(SceneConstants.MainMenu);
-            EventBus.Subscribe<GameEndedEvent>(e =>
-            {
-                _hudWindow.ShowOnly<EndGameView>();
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }).AddTo(gameObject);
         }
     }
 }
 
-=== Scripts\Gameplay\Bootstrap\IBootstrapComponent.cs ===
-﻿namespace Gameplay.Bootstrap
+=== Scripts\Gameplay\Bootstrap\InterfaceBootstrap.cs ===
+﻿using Core.Events;
+using Core.Extensions;
+using Core.UI;
+using Gameplay.Combat.Health;
+using Gameplay.Combat.Offensive.Skills;
+using Gameplay.Combat.Offensive.Skills.Abilities;
+using Gameplay.Controllers.Player;
+using Gameplay.Events;
+using Gameplay.UI.Views.Gameplay.HUD;
+using Gameplay.UI.Views.Gameplay.Terminal;
+using Gameplay.UI.Windows;
+using Reflex.Attributes;
+using Reflex.Injectors;
+using UnityEngine;
+
+namespace Gameplay.Bootstrap
 {
-    public interface IBootstrapComponent
+    [RequireComponent(typeof(PlayerBootstrap))]
+    public class InterfaceBootstrap :  BootstrapComponent
     {
-        public void Boot();
+        //Components
+        private StabilitySystem _playerStabilitySystem;
+        private AbilitiesController _abilitiesController;
+
+        [Inject] private WindowManager _windowManager;
+        [Inject] private HUDWindow _hudWindow;
+        private TerminalWindow _terminalWindow;
+        
+        //Views
+        private CooldownView _cooldownView;
+        private StabilityBarView _stabilityBarView;
+        private EnergyBarView _energyBarView;
+        private PlayerBootstrap _playerBootstrap;
+
+        protected override void OnBoot()
+        {
+            _playerBootstrap = GetComponent<PlayerBootstrap>();
+            
+            GetComponents();
+
+            EventBus.Subscribe<SyncEnergyChangedEvent>(e => _energyBarView.ChangeValue(e.EnergyPercent))
+                .AddTo(gameObject);
+
+            _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeValue);
+            
+            SetupCooldownListeners();
+        }
+
+        private void GetComponents()
+        {
+            _cooldownView = _hudWindow.GetView<CooldownView>();
+            _stabilityBarView = _hudWindow.GetView<StabilityBarView>();
+            _energyBarView = _hudWindow.GetView<EnergyBarView>();
+            _playerStabilitySystem = _playerBootstrap.Player.GetComponent<StabilitySystem>();
+            _abilitiesController = _playerBootstrap.Player.GetComponent<AbilitiesController>();
+            _terminalWindow = _windowManager.GetWindow<TerminalWindow>();
+        }
+
+        private void OnDestroy()
+        {
+            RemoveCooldownListeners();
+        }
+
+        private void SetupCooldownListeners()
+        {
+            _cooldownView.SetSlot1(_terminalWindow.GetView<TerminalScannerView>().ScannerSkillView);
+            _cooldownView.SetSlot2(_terminalWindow.GetView<TerminalView>().SwitchBranchSkillView);
+            _cooldownView.ResetAll();
+            _abilitiesController.TryGetSkill<ScannerSkill>().OnCooldownTick += _cooldownView.SetSlot1FillAmount;
+            _abilitiesController.TryGetSkill<SwitchBranchSkill>().OnCooldownTick += _cooldownView.SetSlot2FillAmount;
+            _abilitiesController.TryGetSkill<MeleeSkill>().OnCooldownTick += _cooldownView.SetSlot3FillAmount;
+            _abilitiesController.TryGetSkill<ProjectileSkill>().OnCooldownTick += _cooldownView.SetSlot4FillAmount;
+        }
+
+        private void RemoveCooldownListeners()
+        {
+            _abilitiesController.TryGetSkill<ScannerSkill>().OnCooldownTick -= _cooldownView.SetSlot1FillAmount;
+            _abilitiesController.TryGetSkill<SwitchBranchSkill>().OnCooldownTick -= _cooldownView.SetSlot2FillAmount;
+            _abilitiesController.TryGetSkill<MeleeSkill>().OnCooldownTick -= _cooldownView.SetSlot3FillAmount;
+            _abilitiesController.TryGetSkill<ProjectileSkill>().OnCooldownTick -= _cooldownView.SetSlot4FillAmount;
+        }
     }
 }
 
 === Scripts\Gameplay\Bootstrap\MainMenuBootstrap.cs ===
-﻿using Core.SaveLoad.Interactors;
+﻿using Core.Events;
+using Core.Extensions;
+using Core.Input;
+using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.SaveLoad.Saveables;
 using Core.Scenes;
+using Gameplay.Events;
 using Gameplay.UI.Views.MainMenu;
 using Gameplay.UI.Windows;
 using Reflex.Attributes;
@@ -2768,19 +3087,35 @@ using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class MainMenuBootstrap : MonoBehaviour, IBootstrapComponent
+    public class MainMenuBootstrap : BootstrapComponent
     {
         [Inject] private MenuWindow _menuWindow;
         [Inject] private SettingsInteractor _settingsInteractor;
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SceneLoader _sceneLoader;
+        [Inject] private InputManager _input;
        
 
-        public void Boot()
+        protected override void OnBoot()
         {
-            _menuWindow.GetView<MainMenuView>().SetResumeAction(LoadGameScene);
+            EventBus.Subscribe<SceneLoadEvent>(e => UnbindInput()).AddTo(gameObject);
+            _input.Init();
+            BindInput();
+            BindMenuButtons();
+            
+            _menuWindow.SetStackRoot<MainMenuView>();
             //InitializeSettings();
             //BindMenuButtons();
+        }
+
+        private void BindInput()
+        {
+            _input.OnEscapePressed += _menuWindow.Back;
+        }
+
+        private void UnbindInput()
+        {
+            _input.OnEscapePressed -= _menuWindow.Back;
         }
 
         private void LoadGameScene()
@@ -2800,11 +3135,12 @@ namespace Gameplay.Bootstrap
         private void BindMenuButtons()
         {
             var mainMenuView = _menuWindow.GetView<MainMenuView>();
-            var settingsView = _menuWindow.GetView<SettingsView>();
+            //var settingsView = _menuWindow.GetView<SettingsView>();
             var loadView = _menuWindow.GetView<LoadGameView>();
 
+            mainMenuView.SetResumeAction(LoadGameScene);
             // Кнопки главного меню
-            mainMenuView.SetNewGameAction(() =>
+            /*mainMenuView.SetNewGameAction(() =>
             {
                 _playerDataInteractor.StartNewGame();
                 _sceneLoader.LoadScene("GameScene"); // Укажите имя вашей игровой сцены
@@ -2824,20 +3160,20 @@ namespace Gameplay.Bootstrap
                 }
             });
 
-            mainMenuView.SetSettingsAction(() => _menuWindow.SwitchViews(mainMenuView, settingsView));
+            mainMenuView.SetSettingsAction(() => _menuWindow.Next<SettingsView>());*/
         
             mainMenuView.SetLoadAction(() =>
             {
-                _menuWindow.SwitchViews(mainMenuView, loadView);
-                loadView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), (timestamp) =>
+                _menuWindow.Next<LoadGameView>();
+                /*loadView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), (timestamp) =>
                 {
                     _playerDataInteractor.LoadByTimestamp(timestamp);
                     _sceneLoader.LoadScene("GameScene");
-                });
+                });*/
             });
 
             // Кнопка возврата из меню загрузки
-            loadView.SetBackButtonListener(() => _menuWindow.SwitchViews(loadView, mainMenuView));
+            loadView.SetBackButtonListener(() => _menuWindow.Back());
         }
     }
 }
@@ -2861,11 +3197,12 @@ using Gameplay.UI.Windows;
 using Reflex.Attributes;
 using Reflex.Core;
 using Reflex.Injectors;
+using UnityEditor.AdaptivePerformance.Editor;
 using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class PlayerBootstrap : MonoBehaviour, IBootstrapComponent
+    public class PlayerBootstrap : BootstrapComponent
     {
         [HideInInspector] public GameObject Player;
 
@@ -2880,13 +3217,14 @@ namespace Gameplay.Bootstrap
         [SerializeField] private GameObject _playerPrefab;
         [SerializeField] private Camera _camera;
 
-        private CooldownView _cooldownView;
-        private StabilityBarView _stabilityBarView;
-        private EnergyBarView _energyBarView;
+
         private TerminalWindow _terminalWindow;
 
-        private StabilitySystem _playerStabilitySystem;
         private Container _playerContainer;
+
+        public Container PlayerContainer => _playerContainer;
+
+        private StabilitySystem _playerStabilitySystem;
         private AbilitiesController _abilitiesController;
         private MovementController _movementController;
         private FightController _fightController;
@@ -2894,7 +3232,7 @@ namespace Gameplay.Bootstrap
         private WristTerminalController _wristTerminalController;
         private IPlayerAnimator _animator;
 
-        public void Boot()
+        protected override void OnBoot()
         {
             SetupPlayer();
         }
@@ -2915,21 +3253,12 @@ namespace Gameplay.Bootstrap
             _fightController.Init();
             _wristTerminalController.Init();
 
-            _cooldownView = _hudWindow.GetView<CooldownView>();
-            _stabilityBarView = _hudWindow.GetView<StabilityBarView>();
-            _energyBarView = _hudWindow.GetView<EnergyBarView>();
 
-            EventBus.Subscribe<SyncEnergyChangedEvent>(e => _energyBarView.ChangeValue(e.EnergyPercent))
-                .AddTo(gameObject);
-
-            _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeValue);
 
             // TODO настроить сейвы
             _playerStabilitySystem.Init(1);
             _playerStabilitySystem.SetStability(100);
-
-
-            SetupCooldownListeners();
+            
             
             // TODO настроить сейвы
             var currentSave = _playerDataInteractor.CurrentSave;
@@ -2966,37 +3295,23 @@ namespace Gameplay.Bootstrap
 
         private void SetupContainer()
         {
+            var vfx = Player.GetComponent<VFXController>();
             _playerContainer = _container.Scope(builder =>
             {
                 builder.RegisterValue(_movementController);
                 builder.RegisterValue(_fightController);
                 builder.RegisterValue(_abilitiesController);
+                builder.RegisterValue(_playerStabilitySystem);
                 builder.RegisterValue(_camera);
                 builder.RegisterValue(_brain);
                 builder.RegisterValue(_wristTerminalController);
                 builder.RegisterValue(_animator, new []{typeof(MockPlayerAnimator)});
                 builder.RegisterValue(_terminalWindow);
+                builder.RegisterValue(vfx);
             });
         }
 
-        private void SetupCooldownListeners()
-        {
-            _cooldownView.SetSlot1(_terminalWindow.GetView<TerminalScannerView>().ScannerSkillView);
-            _cooldownView.SetSlot2(_terminalWindow.GetView<TerminalView>().SwitchBranchSkillView);
-            _cooldownView.ResetAll();
-            _abilitiesController.TryGetSkill<ScannerSkill>().OnCooldownTick += _cooldownView.SetSlot1FillAmount;
-            _abilitiesController.TryGetSkill<SwitchBranchSkill>().OnCooldownTick += _cooldownView.SetSlot2FillAmount;
-            _abilitiesController.TryGetSkill<MeleeSkill>().OnCooldownTick += _cooldownView.SetSlot3FillAmount;
-            _abilitiesController.TryGetSkill<ProjectileSkill>().OnCooldownTick += _cooldownView.SetSlot4FillAmount;
-        }
-
-        private void RemoveCooldownListeners()
-        {
-            _abilitiesController.TryGetSkill<ScannerSkill>().OnCooldownTick -= _cooldownView.SetSlot1FillAmount;
-            _abilitiesController.TryGetSkill<SwitchBranchSkill>().OnCooldownTick -= _cooldownView.SetSlot2FillAmount;
-            _abilitiesController.TryGetSkill<MeleeSkill>().OnCooldownTick -= _cooldownView.SetSlot3FillAmount;
-            _abilitiesController.TryGetSkill<ProjectileSkill>().OnCooldownTick -= _cooldownView.SetSlot4FillAmount;
-        }
+        
 
         private void SetPos()
         {
@@ -3009,7 +3324,6 @@ namespace Gameplay.Bootstrap
         private void OnDestroy()
         {
             _playerContainer?.Dispose();
-            RemoveCooldownListeners();
         }
     }
 }
@@ -3515,6 +3829,7 @@ namespace Gameplay.Combat.Offensive.ScriptableObjects
 using Gameplay.Core;
 using Gameplay.Combat.Offensive.Base;
 using Gameplay.Combat.Offensive.Skills.Definitions;
+using Gameplay.Controllers.Player;
 using Gameplay.Interactables;
 using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
@@ -3528,6 +3843,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
         private readonly SkillContext _ctx;
 
         [Inject] private HUDWindow _hudWindow;
+        [Inject] private VFXController _vfx;
 
 
         private IBuggable _currentTarget;
@@ -3579,6 +3895,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
                         _currentTarget?.Scan(false);
                         _currentTarget = buggable;
                         _currentTarget.Scan(true);
+                        _vfx.SetProjection(_currentTarget.GetMesh());
                     }
                 }
                 else
@@ -3649,6 +3966,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
             {
                 _currentTarget.Scan(false);
                 _currentTarget = null;
+                _vfx.SetProjection(null);
             }
         }
     }
@@ -4612,6 +4930,7 @@ namespace Gameplay.Controllers.Player
 
             _input.OnEscapePressed += HandlePause;
             _input.OnTerminalPressed += HandleTerminal;
+            EventBus.Subscribe<PlayerDeathEvent>(HandlePlayerDeath);
             Logger.Trace();
         }
 
@@ -4635,9 +4954,6 @@ namespace Gameplay.Controllers.Player
             StateMachineInjector.InjectStates(StateMachine, _container);
             
             terminalState.Init();
-
-
-            
 
 
             StateMachine.AddManualTransition(defaultState, terminalState);
@@ -4664,6 +4980,11 @@ namespace Gameplay.Controllers.Player
         }
 
         private void HandleGameEnd(GameEndedEvent e)
+        {
+            StateMachine.ForceRequestState<EndGameState>();
+        }
+        
+        private void HandlePlayerDeath(PlayerDeathEvent e)
         {
             StateMachine.ForceRequestState<EndGameState>();
         }
@@ -4844,13 +5165,17 @@ namespace Gameplay.Controllers.Player
 }
 
 === Scripts\Gameplay\Controllers\Player\VFXController.cs ===
-﻿using UnityEngine;
+﻿using Core.Effects;
+using UnityEngine;
+using UnityEngine.VFX;
 
 namespace Gameplay.Controllers.Player
 {
     public class VFXController : MonoBehaviour
     {
         [SerializeField] private ParticleSystem _scannerEffect;
+        [SerializeField] private VisualEffect _projectionVFX;
+        [SerializeField] private MeshScanner _scannerProjection;
 
         public void PlayScanner(bool play = true)
         {
@@ -4863,6 +5188,15 @@ namespace Gameplay.Controllers.Player
                 _scannerEffect.Stop();
             }
         }
+        public void SetProjection(MeshFilter mesh)
+        {
+            if (_scannerProjection.targetObject == mesh) return;
+            _scannerProjection.targetObject = mesh;
+            _scannerProjection.enabled = mesh != null;
+            _scannerProjection.UpdateRenderer();
+            _projectionVFX.enabled = mesh != null;
+        }
+        
     }
 }
 
@@ -5012,6 +5346,7 @@ namespace Gameplay.Core
         public SyncEnergyManager()
         {
             Init();
+            EventBus.Subscribe<CodeBlockCollectedEvent>(e => AddEnergy(e.Energy));
         }
 
         public float MaxEnergy { get; private set; } = 100f;
@@ -6720,7 +7055,10 @@ using Core.Events;
 
 namespace Gameplay.Events
 {
-    public struct CodeBlockCollectedEvent : IEvent { }
+    public struct CodeBlockCollectedEvent : IEvent
+    {
+        public float Energy;
+    }
 }
 
 
@@ -6778,6 +7116,17 @@ namespace Gameplay.Events
     {
         public bool IsGlitched;
         public float StabilityPercent;
+    }
+}
+
+=== Scripts\Gameplay\Events\SceneLoadEvent.cs ===
+﻿using Core.Events;
+
+namespace Gameplay.Events
+{
+    public class SceneLoadEvent: IEvent
+    {
+        
     }
 }
 
@@ -6919,10 +7268,11 @@ namespace Gameplay.Interactables
         protected Outline _outline;
         protected Sequence _sequence;
         private TerminalScannerView _terminalScannerView;
-        
+        private MeshFilter _mesh;
 
         private void Start()
         {
+            _mesh = GetComponent<MeshFilter>();
             _puzzleView = _windowManager.GetWindow<TerminalWindow>().GetView(_puzzleType.GetType()) as PuzzleViewBase;
             print("Trying to Get TerminalWindow");
             _terminalScannerView = _windowManager.GetWindow<TerminalWindow>().GetView<TerminalScannerView>();
@@ -6991,6 +7341,7 @@ namespace Gameplay.Interactables
         public string GetName() => gameObject.name;
 
         public string GetInfo() => _bugInfo;
+        public MeshFilter GetMesh() => _mesh;
     }
 }
 
@@ -7115,6 +7466,7 @@ using Core.Input;
 using ExternalAssets.QuickOutline.Scripts;
 using Gameplay.UI.Views.Gameplay.Terminal;
 using Gameplay.UI.Windows;
+using Gameplay.VFX;
 using Reflex.Attributes;
 using UnityEngine;
 
@@ -7171,7 +7523,12 @@ namespace Gameplay.Interactables
         {
             Debug.Log("Терминал починен!");
             IsBugged = false;
-            if (bridgeObj != null) bridgeObj.SetActive(true);
+            if (bridgeObj != null)
+            {
+                bridgeObj.SetActive(true);
+                bridgeObj.GetComponent<BridgeMaterializer>().SetBridge(true, 2f);
+            }
+
             if (_outline)
             {
                 _outline.OutlineColor = Color.green; // Показываем, что починено
@@ -7197,11 +7554,15 @@ namespace Gameplay.Interactables
 {
     public class CodeBlockPickup : MonoBehaviour
     {
+        [SerializeField] private float _givenEnergy = 30f;
         private void OnTriggerEnter(Collider other)
         {
             if (other.CompareTag("Player"))
             {
-                EventBus.Raise(new CodeBlockCollectedEvent()); 
+                EventBus.Raise(new CodeBlockCollectedEvent
+                {
+                    Energy = _givenEnergy
+                }); 
                 Destroy(gameObject);
             }
         }
@@ -7210,7 +7571,9 @@ namespace Gameplay.Interactables
 
 
 === Scripts\Gameplay\Interactables\IBuggable.cs ===
-﻿namespace Gameplay.Interactables
+﻿using UnityEngine;
+
+namespace Gameplay.Interactables
 {
     public interface IBuggable
     {
@@ -7223,7 +7586,8 @@ namespace Gameplay.Interactables
         void Visualize();
         string GetName();
         string GetInfo();
-    
+        MeshFilter GetMesh();
+
     }
 }
 
@@ -7447,7 +7811,7 @@ namespace Gameplay.Plot
 
         [SerializeField] private CanvasGroup _hintGroup;
         [SerializeField] private TextMeshProUGUI _hintText;
-        [SerializeField] private string _hintMessage;
+        [SerializeField, TextArea] private string _hintMessage;
         [SerializeField] private float _fadeDuration = 0.5f;
         [SerializeField] private float _displayDuration = 3f; // Сколько секунд висит подсказка
 
@@ -7498,8 +7862,7 @@ namespace Gameplay.Plot
         {
             if (_isFinalTrigger)
             {
-                _hud?.DOFade(0f, 2);
-                _input.DisablePlayerInput();
+                _hud?.DOFade(0f, 2).OnComplete(_input.DisablePlayerInput);
                 yield return new WaitForSeconds(_fadeDuration); // Ждем пока подсказка скроется
                 DOTween.To(() => _colorAdjustments.postExposure.value,
                     x => _colorAdjustments.postExposure.value = x,
@@ -8084,24 +8447,36 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 
 === Scripts\Gameplay\StateMachines\PlayerStates\PlayerBrainStates\EndGameState.cs ===
 ﻿using Core.Input;
+using Core.Pause;
 using Gameplay.Controllers.Player;
+using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
+using UnityEngine;
 
 namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 {
     public class EndGameState : BrainState
     {
         [Inject] private InputManager _input;
+        [Inject] private HUDWindow _hudWindow;
         public EndGameState(PlayerBrain brain, MovementController movement, FightController fight) : base(brain, movement, fight)
         {
+            
         }
 
         public override void Enter()
         {
+            PauseManager.SetPause(true);
+            _hudWindow.ShowOnly<EndGameView>();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            
             Movement.enabled = false;
             Fight.enabled = false;
             _input.DisablePlayerInput();
             _input.DisableEsc();
+            
+            
         }
     }
 }
@@ -8139,7 +8514,8 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
             Movement.enabled = false;
             Fight.enabled = false;
             _input.DisablePlayerInput();
-            _windowManager.ShowOnly<MenuWindow>();
+            _windowManager.Show<MenuWindow>();
+            _windowManager.Hide<HUDWindow>();
             _pauseView = _windowManager.GetWindow<MenuWindow>().GetView<PauseView>();
             Sub();
             
@@ -8148,7 +8524,8 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         public override void Exit()
         {
             Unsub();
-            _windowManager.ShowOnly<HUDWindow>();
+            _windowManager.Show<HUDWindow>();
+            _windowManager.Hide<MenuWindow>();
             Movement.enabled = true;
             Fight.enabled = true;
             _input.EnablePlayerInput();
@@ -8234,7 +8611,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
             Movement.enabled = true;
             Fight.enabled = false;
             StateMachine.TryRequestState<BranchesState>();
-            _terminalController.SetTerminal(true);
+            //_terminalController.SetTerminal(true);
             
             _input.OnScannerPressed += HandleScannerPress;
             _animator.DoTerminal(true);
@@ -8244,7 +8621,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         public override void Exit()
         {
             _input.OnScannerPressed -= HandleScannerPress;
-            _terminalController.SetTerminal(false);
+            //_terminalController.SetTerminal(false);
             _animator.DoTerminal(false);
             StateMachine.ForceRequestState<ClosedState>();
         }
@@ -8294,6 +8671,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         public override void Exit()
         {
             _input.OnInteractPressed -= HandleInteract;
+            _terminalWindow.GetView<TerminalView>().UpdateInfo(BranchManager.CurrentBranch);
         }
 
         private void HandleInteract()
@@ -8331,6 +8709,8 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         [Inject] private InputManager _input;
         [Inject] private AbilitiesController _abilities;
         [Inject] private TerminalWindow _terminalWindow;
+        [Inject] private VFXController _vfx;
+        
 
         public ScannerState(TerminalState terminalState) : base(terminalState)
         {
@@ -8346,6 +8726,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
         {
             _input.OnInteractPressed -= _abilities.TryGetSkill<ScannerSkill>().TryInteract;
             _abilities.TryGetSkill<ScannerSkill>().SetScanner(false);
+            _vfx.SetProjection(null);
         }
     }
 }
@@ -9212,6 +9593,7 @@ namespace Gameplay.UI.Views.MainMenu
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Button _loadButton;
         [SerializeField] private Button _exitButton;
+        
 
         private void Awake()
         {
@@ -9304,5 +9686,63 @@ namespace Gameplay.UI.Windows
     public class TerminalWindow : Window
     {
         
+    }
+}
+
+=== Scripts\Gameplay\VFX\BridgeMaterializer.cs ===
+using DG.Tweening;
+using UnityEngine;
+
+namespace Gameplay.VFX
+{
+    public class BridgeMaterializer : MonoBehaviour
+    {
+        [Header("Shader Settings")]
+        [SerializeField]
+        private string _propertyName = "_Value";
+
+        [Header("Animation Settings")]
+        [SerializeField]
+        private float _delay = 3.0f;
+
+        [SerializeField] private float _duration = 2.0f;
+        [SerializeField] private Ease _ease = Ease.OutQuad;
+
+        private Renderer[] _renderers;
+        private MaterialPropertyBlock _propBlock;
+
+        private void Awake()
+        {
+            _renderers = GetComponentsInChildren<Renderer>();
+            _propBlock = new MaterialPropertyBlock();
+        }
+
+        private void SetDissolve(float val)
+        {
+            if (_renderers == null) return;
+
+            foreach (var r in _renderers)
+            {
+                if (r == null) continue;
+
+                r.GetPropertyBlock(_propBlock);
+                _propBlock.SetFloat(_propertyName, val);
+                r.SetPropertyBlock(_propBlock);
+            }
+        }
+
+        public void SetBridge(bool active, float duration, float delay = 0, Ease ease = Ease.InOutQuad)
+        {
+            float currentValue = active ? 1f : 0f;
+            float endValue = active ? 0f : 1f;
+            DOTween.To(() => currentValue, x =>
+                {
+                    currentValue = x;
+                    SetDissolve(currentValue);
+                }, endValue, duration)
+                .SetDelay(delay)
+                .SetEase(ease)
+                .OnKill(() => GetComponentInChildren<Collider>().enabled = active);
+        }
     }
 }

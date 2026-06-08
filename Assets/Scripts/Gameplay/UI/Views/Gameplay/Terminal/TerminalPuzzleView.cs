@@ -22,7 +22,7 @@ namespace Gameplay.UI.Views.Gameplay.Terminal
             
             
             // Получаем данные о блоках (можно передавать через DI или статик)
-            int currentBlocks = _inventoryManager._codeBlocks; 
+            int currentBlocks = _inventoryManager.CodeBlocks; 
             
             _blocksCountText.text = $"{currentBlocks}";
             

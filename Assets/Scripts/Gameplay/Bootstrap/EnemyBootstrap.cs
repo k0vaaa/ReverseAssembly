@@ -1,6 +1,6 @@
-﻿
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
+using Gameplay.Core;
 using Gameplay.Enemies;
 using Reflex.Attributes;
 using UnityEngine;
@@ -11,6 +11,7 @@ namespace Gameplay.Bootstrap
     {
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SettingsInteractor _settingsInteractor;
+        [Inject] private SaveManager _saveManager;
 
         [Header("Enemies")] [SerializeField] private GameObject[] _enemies;
         [SerializeField] private Vector2 _enemiesSpawnAreaExtents;
@@ -35,7 +36,13 @@ namespace Gameplay.Bootstrap
                 _bossSpawnPoint,
                 _playerController);
 
-            enemyManager.LoadEnemies(_playerDataInteractor.CurrentSave.Enemies);
+            _saveManager.SetEnemyManager(enemyManager);
+
+            var save = _playerDataInteractor.CurrentSave;
+            if (save != null && save.Enemies != null && save.Enemies.Count > 0)
+            {
+                enemyManager.LoadEnemies(save.Enemies);
+            }
         }
     }
 }

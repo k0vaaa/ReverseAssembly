@@ -12,6 +12,7 @@ namespace Gameplay.UI.Views.MainMenu
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Button _loadButton;
         [SerializeField] private Button _exitButton;
+        
 
         private void Awake()
         {

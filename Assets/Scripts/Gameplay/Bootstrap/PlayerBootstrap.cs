@@ -27,6 +27,7 @@ namespace Gameplay.Bootstrap
 
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SettingsInteractor _settingsInteractor;
+        [Inject] private SaveManager _saveManager;
         [Inject] private Container _container;
         [Inject] private SyncEnergyManager _energyManager;
         [Inject] private WindowManager _windowManager;
@@ -74,17 +75,11 @@ namespace Gameplay.Bootstrap
 
 
 
-            // TODO настроить сейвы
             _playerStabilitySystem.Init(1);
             _playerStabilitySystem.SetStability(100);
             
-            
-            // TODO настроить сейвы
-            var currentSave = _playerDataInteractor.CurrentSave;
-            if (currentSave != null && currentSave.Position != default)
-            {
-                Invoke(nameof(SetPos), 0.05f);
-            }
+            _saveManager.SetPlayerSystems(_playerStabilitySystem, _movementController);
+            _saveManager.LoadPlayerAndPuzzles(_playerStabilitySystem, _movementController);
 
             Player.SetActive(true);
 
@@ -128,16 +123,6 @@ namespace Gameplay.Bootstrap
                 builder.RegisterValue(_terminalWindow);
                 builder.RegisterValue(vfx);
             });
-        }
-
-        
-
-        private void SetPos()
-        {
-            if (Player != null && _playerDataInteractor != null)
-            {
-                Player.transform.position = _playerDataInteractor.CurrentSave.Position;
-            }
         }
 
         private void OnDestroy()

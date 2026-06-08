@@ -1,10 +1,11 @@
-﻿using Core.Events;
+using Core.Events;
 using Core.Extensions;
 using Core.UI;
 using Gameplay.Combat.Health;
 using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Combat.Offensive.Skills.Abilities;
 using Gameplay.Controllers.Player;
+using Gameplay.Core;
 using Gameplay.Events;
 using Gameplay.UI.Views.Gameplay.HUD;
 using Gameplay.UI.Views.Gameplay.Terminal;
@@ -24,6 +25,7 @@ namespace Gameplay.Bootstrap
 
         [Inject] private WindowManager _windowManager;
         [Inject] private HUDWindow _hudWindow;
+        [Inject] private SyncEnergyManager _syncEnergyManager;
         private TerminalWindow _terminalWindow;
         
         //Views
@@ -42,6 +44,9 @@ namespace Gameplay.Bootstrap
                 .AddTo(gameObject);
 
             _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeValue);
+            
+            _stabilityBarView.ChangeValue(_playerStabilitySystem.Stability, _playerStabilitySystem.MaxStability);
+            _energyBarView.ChangeValue(_syncEnergyManager.CurrentEnergy, _syncEnergyManager.MaxEnergy);
             
             SetupCooldownListeners();
         }

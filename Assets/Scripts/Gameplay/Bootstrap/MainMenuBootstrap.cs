@@ -1,7 +1,11 @@
-﻿using Core.SaveLoad.Interactors;
+﻿using Core.Events;
+using Core.Extensions;
+using Core.Input;
+using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.SaveLoad.Saveables;
 using Core.Scenes;
+using Gameplay.Events;
 using Gameplay.UI.Views.MainMenu;
 using Gameplay.UI.Windows;
 using Reflex.Attributes;
@@ -15,13 +19,29 @@ namespace Gameplay.Bootstrap
         [Inject] private SettingsInteractor _settingsInteractor;
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SceneLoader _sceneLoader;
+        [Inject] private InputManager _input;
        
 
         protected override void OnBoot()
         {
-            _menuWindow.GetView<MainMenuView>().SetResumeAction(LoadGameScene);
+            EventBus.Subscribe<SceneLoadEvent>(e => UnbindInput()).AddTo(gameObject);
+            _input.Init();
+            BindInput();
+            BindMenuButtons();
+            
+            _menuWindow.SetStackRoot<MainMenuView>();
             //InitializeSettings();
             //BindMenuButtons();
+        }
+
+        private void BindInput()
+        {
+            _input.OnEscapePressed += _menuWindow.Back;
+        }
+
+        private void UnbindInput()
+        {
+            _input.OnEscapePressed -= _menuWindow.Back;
         }
 
         private void LoadGameScene()
@@ -41,11 +61,12 @@ namespace Gameplay.Bootstrap
         private void BindMenuButtons()
         {
             var mainMenuView = _menuWindow.GetView<MainMenuView>();
-            var settingsView = _menuWindow.GetView<SettingsView>();
+            //var settingsView = _menuWindow.GetView<SettingsView>();
             var loadView = _menuWindow.GetView<LoadGameView>();
 
+            mainMenuView.SetResumeAction(LoadGameScene);
             // Кнопки главного меню
-            mainMenuView.SetNewGameAction(() =>
+            /*mainMenuView.SetNewGameAction(() =>
             {
                 _playerDataInteractor.StartNewGame();
                 _sceneLoader.LoadScene("GameScene"); // Укажите имя вашей игровой сцены
@@ -65,20 +86,23 @@ namespace Gameplay.Bootstrap
                 }
             });
 
-            mainMenuView.SetSettingsAction(() => _menuWindow.SwitchViews(mainMenuView, settingsView));
+            mainMenuView.SetSettingsAction(() => _menuWindow.Next<SettingsView>());*/
         
             mainMenuView.SetLoadAction(() =>
             {
-                _menuWindow.SwitchViews(mainMenuView, loadView);
-                loadView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), (timestamp) =>
+                _menuWindow.Next<LoadGameView>();
+                loadView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), timestamp =>
                 {
                     _playerDataInteractor.LoadByTimestamp(timestamp);
-                    _sceneLoader.LoadScene("GameScene");
+                    _ = _sceneLoader.LoadScene(SceneConstants.GameScene);
+                }, timestamp =>
+                {
+                   _playerDataInteractor.DeleteFile(timestamp);
                 });
             });
 
             // Кнопка возврата из меню загрузки
-            loadView.SetBackButtonListener(() => _menuWindow.SwitchViews(loadView, mainMenuView));
+            loadView.SetBackButtonListener(() => _menuWindow.Back());
         }
     }
 }
