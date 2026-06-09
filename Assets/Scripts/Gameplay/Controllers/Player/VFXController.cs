@@ -23,6 +23,7 @@ namespace Gameplay.Controllers.Player
         }
         public void SetProjection(MeshFilter mesh)
         {
+            Debug.Log("Projection Good");
             if (_scannerProjection.targetObject == mesh) return;
             _scannerProjection.targetObject = mesh;
             _scannerProjection.enabled = mesh != null;

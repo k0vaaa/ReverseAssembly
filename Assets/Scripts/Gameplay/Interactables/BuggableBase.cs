@@ -23,15 +23,16 @@ namespace Gameplay.Interactables
         [SerializeField] protected Events.WorldBranch _requiredBranch = Events.WorldBranch.Alpha;
         [SerializeField] protected float _scannerVisibilityTime = 2f;
         [SerializeField, TextArea] private string _bugInfo;
-        
+        [SerializeField] private MeshFilter _mesh;
+
         protected Outline _outline;
         protected Sequence _sequence;
         private TerminalScannerView _terminalScannerView;
-        private MeshFilter _mesh;
 
         private void Start()
         {
-            _mesh = GetComponent<MeshFilter>();
+            if(!_mesh) _mesh = GetComponent<MeshFilter>();
+            
             _puzzleView = _windowManager.GetWindow<TerminalWindow>().GetView(_puzzleType.GetType()) as PuzzleViewBase;
             _terminalScannerView = _windowManager.GetWindow<TerminalWindow>().GetView<TerminalScannerView>();
             OnStart();

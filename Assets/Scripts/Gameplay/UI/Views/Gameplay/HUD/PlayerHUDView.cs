@@ -25,6 +25,8 @@ namespace Gameplay.UI.Views.Gameplay.HUD
         [SerializeField] private Sprite _gunAbilityCorrupt;
         [SerializeField] private Sprite _meleeAbilityMain;
         [SerializeField] private Sprite _meleeAbilityCorrupt;
+        [SerializeField] private Sprite _codeBlocksMain;
+        [SerializeField] private Sprite _codeBlocksCorrupt;
         [SerializeField] private TextMeshProUGUI[] _texts;
         
         [Header("Images References")]
@@ -34,6 +36,7 @@ namespace Gameplay.UI.Views.Gameplay.HUD
         [SerializeField] private Image _branchImage;
         [SerializeField] private Image _gunImage;
         [SerializeField] private Image _meleeImage;
+        [SerializeField] private Image _codeBlocksImage;
         public void UpdateBlocksCount(int count)
         {
             if (_blocksText != null)
@@ -66,6 +69,8 @@ namespace Gameplay.UI.Views.Gameplay.HUD
                 _gunImage.sprite = isCorrupt ? _gunAbilityCorrupt : _gunAbilityMain;
             if (_meleeImage != null)
                 _meleeImage.sprite = isCorrupt ? _meleeAbilityCorrupt : _meleeAbilityMain;
+            if (_codeBlocksImage != null)
+                _codeBlocksImage.sprite = isCorrupt ? _codeBlocksCorrupt : _codeBlocksMain;
         }
     }
 }

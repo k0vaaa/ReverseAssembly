@@ -1,11 +1,12 @@
 using Core.StateMachines;
+using Gameplay.Combat.Interfaces;
 using Gameplay.Controllers.Player;
 using UnityEngine;
 using UnityEngine.AI;
 
 namespace Gameplay.Enemies
 {
-    public class EnemyBrain : StateBehaviourController
+    public class EnemyBrain : StateBehaviourController, IGlitchable
     {
         private Transform _playerTransform;
         private EnemyMover _mover;

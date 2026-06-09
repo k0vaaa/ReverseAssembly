@@ -33,7 +33,7 @@ namespace Gameplay.Combat.Offensive.Collision
             }
             
             // Снаряд должен уничтожаться в любом случае при столкновении с чем-либо (если это не сам стрелок)
-            if (damageable != _self)
+            if (damageable != _self && other.gameObject.layer != LayerMask.GetMask("Player","Weapon","Triggers"))
             {
                 Destroy(gameObject);
             }

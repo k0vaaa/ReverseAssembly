@@ -68,6 +68,7 @@ namespace Gameplay.Combat.Offensive.Skills.Abilities
                         _currentTarget?.Scan(false);
                         _currentTarget = buggable;
                         _currentTarget.Scan(true);
+                        
                         _vfx.SetProjection(_currentTarget.GetMesh());
                     }
                 }

@@ -7,14 +7,11 @@ namespace Gameplay.Misc
         [SerializeField] private Transform _camera;
         [SerializeField] private Transform _gun;
         [SerializeField] private float _smoothFactor = 1;
-        private int _layerMask;
+        [SerializeField] private LayerMask _layerMask;
         private RaycastHit _hitInfo;
         private Vector3 _currentLookAt;
 
-        private void Awake()
-        {
-            _layerMask = ~gameObject.layer;
-        }
+       
 
         private void FixedUpdate()
         {
