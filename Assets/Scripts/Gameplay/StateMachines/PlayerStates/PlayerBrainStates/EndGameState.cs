@@ -4,6 +4,7 @@ using Gameplay.Controllers.Player;
 using Gameplay.UI.Views.Gameplay.HUD;
 using Reflex.Attributes;
 using UnityEngine;
+using Logger = Core.Utilities.Logger;
 
 namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 {
@@ -18,6 +19,7 @@ namespace Gameplay.StateMachines.PlayerStates.PlayerBrainStates
 
         protected override void EnterAction()
         {
+            Logger.LogTagged("EndGameState", "states");
             PauseManager.SetPause(true);
             _hudWindow.ShowOnly<EndGameView>();
             Cursor.lockState = CursorLockMode.None;

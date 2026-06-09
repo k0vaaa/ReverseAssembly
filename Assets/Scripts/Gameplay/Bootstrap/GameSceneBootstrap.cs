@@ -8,7 +8,7 @@ namespace Gameplay.Bootstrap
     {
         [Inject] private HUDWindow _hudWindow;
         [Inject] private SceneLoader _sceneLoader;
-        public void Boot()
+        protected override void OnBoot()
         {
             _hudWindow.GetView<EndGameView>().MenuClicked += () => _ = _sceneLoader.LoadScene(SceneConstants.MainMenu);
         }

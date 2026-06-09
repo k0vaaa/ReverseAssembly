@@ -1,5 +1,6 @@
 using Core.Bootstrap;
 using Core.Events;
+using Core.Extensions;
 using Core.Input;
 using Core.StateMachines;
 using Gameplay.Events;
@@ -32,7 +33,7 @@ namespace Gameplay.Controllers.Player
 
             _input.OnEscapePressed += HandlePause;
             _input.OnTerminalPressed += HandleTerminal;
-            EventBus.Subscribe<PlayerDeathEvent>(HandlePlayerDeath);
+            EventBus.Subscribe<PlayerDeathEvent>(HandlePlayerDeath).AddTo(gameObject);
             Logger.Trace();
         }
 
@@ -62,7 +63,7 @@ namespace Gameplay.Controllers.Player
             StateMachine.AddManualTransition(terminalState, defaultState); 
             StateMachine.AddManualTransition(pauseState, defaultState);
 
-            EventBus.Subscribe<GameEndedEvent>(HandleGameEnd);
+            EventBus.Subscribe<GameEndedEvent>(HandleGameEnd).AddTo(gameObject);
             
             StateMachine.TrySetState(defaultState);
             Debug.Log($"{GetType().Name} States Initialized");

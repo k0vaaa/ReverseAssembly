@@ -1,5 +1,6 @@
 using System.Collections;
 using Core.Events;
+using Core.Extensions;
 using Core.Input;
 using DG.Tweening;
 using Gameplay.Events;
@@ -30,7 +31,7 @@ namespace Gameplay.Plot
 
         [SerializeField] private float _finalFadeDuration = 3.0f;
 
-        private Coroutine _fadeCoroutine;
+        private Sequence _fadeSequence;
         [Inject] private InputManager _input;
         private void Start()
         {
@@ -43,7 +44,7 @@ namespace Gameplay.Plot
         private void Awake()
         {
             if (_hintGroup != null) _hintGroup.alpha = 0f;
-            EventBus.Subscribe<BranchSwitchedEvent>(HandleBranchSwitch);
+            EventBus.Subscribe<BranchSwitchedEvent>(HandleBranchSwitch).AddTo(gameObject);
         }
 
         private void HandleBranchSwitch(BranchSwitchedEvent e)
@@ -60,32 +61,36 @@ namespace Gameplay.Plot
             {
                 if (_hintText != null) _hintText.text = _hintMessage;
 
-                if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
-
-                _fadeCoroutine = StartCoroutine(HandleTrigger());
+                _fadeSequence?.Kill();
+                HandleTrigger();
+                
             }
         }
 
         
 
-        private IEnumerator HandleTrigger()
+        private void HandleTrigger()
         {
+            _fadeSequence = DOTween.Sequence();
+            
+            _fadeSequence.Append(_hintGroup?.DOFade(1f, _fadeDuration))
+                .AppendInterval(_displayDuration)
+                .Append(_hintGroup?.DOFade(0f, _fadeDuration));
+            
+            
             if (_isFinalTrigger)
             {
-                _hud?.DOFade(0f, 2).OnComplete(_input.DisablePlayerInput);
-                yield return new WaitForSeconds(_fadeDuration); // Ждем пока подсказка скроется
-                DOTween.To(() => _colorAdjustments.postExposure.value,
-                    x => _colorAdjustments.postExposure.value = x,
-                    -10f,
-                    _finalFadeDuration).OnComplete(() => EventBus.Raise(new GameEndedEvent()));
-
+                GetComponent<Collider>().enabled = false;
+                _fadeSequence.AppendCallback(() => _input.DisablePlayerInput())
+                    .Append(_hud?.DOFade(0f, 2))
+                    .Append(DOTween.To(() => _colorAdjustments.postExposure.value,
+                        x => _colorAdjustments.postExposure.value = x,
+                        -10f,
+                        _finalFadeDuration));
+                _fadeSequence.OnKill(() => EventBus.Raise(new GameEndedEvent()));
             }
 
-            _hintGroup?.DOFade(1f, _fadeDuration);
-
-            yield return new WaitForSeconds(_displayDuration);
-
-            _hintGroup?.DOFade(0f, _fadeDuration);
+            _fadeSequence.Play();
         }
     }
 }
