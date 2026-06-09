@@ -118,7 +118,10 @@ namespace Gameplay.Interactables
             {
                 _rb.isKinematic = false;
                 _rb.mass = 10f;
-                if (_outline) _outline.enabled = false;
+                if (_outline)
+                {
+                    _outline.enabled = false;
+                }
                 if (_bugView) _bugView.Hide();
             }
             else

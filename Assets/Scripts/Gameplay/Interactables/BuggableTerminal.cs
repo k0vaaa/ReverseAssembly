@@ -89,7 +89,10 @@ namespace Gameplay.Interactables
                     bridgeObj.SetActive(true);
                     bridgeObj.GetComponent<BridgeMaterializer>().SetBridge(true, 0f);
                 }
-                if (_outline) _outline.enabled = false;
+                if (_outline)
+                {
+                    _outline.enabled = false;
+                }
             }
         }
     }

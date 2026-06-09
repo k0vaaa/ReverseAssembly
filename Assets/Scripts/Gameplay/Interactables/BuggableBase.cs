@@ -85,7 +85,7 @@ namespace Gameplay.Interactables
                 FixBug(); // По умолчанию просто вызываем FixBug, если он был починен
             }
         }
-
+#if UNITY_EDITOR
         private void OnValidate()
         {
             if (string.IsNullOrEmpty(_id))
@@ -94,12 +94,15 @@ namespace Gameplay.Interactables
                 UnityEditor.EditorUtility.SetDirty(this);
             }
         }
+#endif
+        
 
         public void Visualize()
         {
             if (_outline != null)
             {
                 var mode = _outline.OutlineMode;
+                _outline.OutlineColor = IsBugged ? Color.red : Color.green;
                 _outline.OutlineMode = Mode.OutlineAll;
                 _outline.enabled = true;
                 _sequence?.Kill();

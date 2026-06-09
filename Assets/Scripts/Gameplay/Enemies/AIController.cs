@@ -115,7 +115,7 @@ namespace Gameplay.Enemies
             if (Brain != null && Brain.StateMachine != null) 
                 Brain.StateMachine.ForceRequestState<States.IdleState>();
         }
-
+#if UNITY_EDITOR
         private void OnValidate()
         {
             if (string.IsNullOrEmpty(_uniqueId))
@@ -124,6 +124,8 @@ namespace Gameplay.Enemies
                 UnityEditor.EditorUtility.SetDirty(this);
             }
         }
+#endif
+        
 
         protected virtual void OnDestroy()
         {
