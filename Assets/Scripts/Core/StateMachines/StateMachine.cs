@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -25,7 +25,18 @@ namespace Core.StateMachines
 
         private HashSet<Transition> _emptyStates = new HashSet<Transition>(0);
         
-        
+        public void Clear()
+        {
+            _currentState?.Exit();
+            _currentState = null;
+            _previousState = null;
+            _states.Clear();
+            _transitions.Clear();
+            _antiStates.Clear();
+            _manualTransitions.Clear();
+            _currentStates.Clear();
+            _anyStates.Clear();
+        }
 
         public void Tick()
         {

@@ -28,6 +28,7 @@ namespace Gameplay.Enemies
 
         private void Start()
         {
+            if(!enabled) return;
             EventBus.Subscribe<BranchSwitchedEvent>(OnBranchSwitched).AddTo(gameObject);
         }
 
@@ -63,7 +64,7 @@ namespace Gameplay.Enemies
         
         private void OnBranchSwitched(BranchSwitchedEvent e)
         {
-            bool isMain = e.NewBranch == Gameplay.Events.WorldBranch.Main;
+            bool isMain = e.NewBranch == WorldBranch.Main;
             SetAggressiveMode(isMain);
         }
     }

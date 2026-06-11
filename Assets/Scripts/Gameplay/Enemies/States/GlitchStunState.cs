@@ -2,7 +2,7 @@ using UnityEngine.AI;
 
 namespace Gameplay.Enemies.States
 {
-    public class GlitchStunState : StatesEnemyConst
+    public class GlitchStunState : EnemyState
     {
         public GlitchStunState(AIController controller, EnemyAnimator animator, EnemyMover mover) 
             : base(controller, animator, mover) { }

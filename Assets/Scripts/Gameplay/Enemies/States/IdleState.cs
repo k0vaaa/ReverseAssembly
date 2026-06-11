@@ -3,7 +3,7 @@ using UnityEngine.AI;
 
 namespace Gameplay.Enemies.States
 {
-    public class IdleState : StatesEnemyConst
+    public class IdleState : EnemyState
     {
         public IdleState(AIController controller, EnemyAnimator animator, EnemyMover mover) : base(controller, animator, mover)
         {
@@ -21,7 +21,7 @@ namespace Gameplay.Enemies.States
 
         protected override void ExitAction()
         {
-            
+            Mover.Resume();
         }
     }
 }

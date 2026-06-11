@@ -2,6 +2,7 @@ using System;
 using Core.Bootstrap;
 using Core.Events;
 using Core.Extensions;
+using Core.StateMachines;
 using Gameplay.Combat.Health;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Skills;
@@ -53,6 +54,7 @@ namespace Gameplay.Enemies
         
         public virtual void Init()
         {
+            if(!enabled) return;
             GetComponents();
             _enemyContainer = _container.Scope(builder =>
             {
@@ -101,6 +103,19 @@ namespace Gameplay.Enemies
             {
                 Debug.LogWarning($"[AIController] No behavior strategy assigned to {gameObject.name}!");
             }
+        }
+
+        public void ChangeStrategy(EnemyBehaviorStrategy strat)
+        {
+            _behaviorStrategy = strat;
+            
+            if (Mover != null)
+                Mover.HardReset();
+
+            if (Brain.StateMachine != null)
+                Brain.StateMachine.Clear();
+            
+            strat.InitializeBehavior(Brain, this);
         }
 
         private void HandlePlayerSpawn(PlayerSpawnEvent e)

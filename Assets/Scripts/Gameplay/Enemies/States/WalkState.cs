@@ -3,7 +3,7 @@ using UnityEngine.AI;
 
 namespace Gameplay.Enemies.States
 {
-    public class WalkState : StatesEnemyConst
+    public class WalkState : EnemyState
     {
         public WalkState(AIController controller, EnemyAnimator animator, EnemyMover mover) : base(controller, animator, mover)
         {

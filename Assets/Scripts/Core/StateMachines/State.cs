@@ -1,4 +1,6 @@
 ﻿using System;
+using Core.Extensions;
+using Core.Utilities;
 
 namespace Core.StateMachines
 {
@@ -6,6 +8,7 @@ namespace Core.StateMachines
     {
         public void Enter()
         {
+            //Logger.LogTyped(GetType(),"Enter");
             EnterAction();
             OnEnter?.Invoke();
         }
@@ -18,6 +21,8 @@ namespace Core.StateMachines
 
         public void Exit()
         {
+            //Logger.LogTyped(GetType(),"Exit");
+            
             ExitAction();
             OnExit?.Invoke();
         }

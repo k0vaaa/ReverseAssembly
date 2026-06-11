@@ -3,7 +3,7 @@ using Core.StateMachines;
 
 namespace Gameplay.Enemies
 {
-    public abstract class StatesEnemyConst : State
+    public abstract class EnemyState : State
     {
         protected AIController Controller;
         protected EnemyAnimator EnemyAnimator;
@@ -11,7 +11,7 @@ namespace Gameplay.Enemies
 
 
 
-        protected StatesEnemyConst(AIController controller, EnemyAnimator animator, EnemyMover mover)
+        protected EnemyState(AIController controller, EnemyAnimator animator, EnemyMover mover)
         {
             Controller = controller;
             EnemyAnimator = animator;

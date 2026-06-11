@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8108616233588542591}
   - component: {fileID: 8478423475303839860}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Collider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -63,7 +63,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5204934231913618341}
   - component: {fileID: 6656738297953808256}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Projectile
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -122,9 +122,25 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5204934231913618341}
     m_Modifications:
+    - target: {fileID: 100000, guid: 034e51e6d8986d04795f48b487231687, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 100002, guid: 034e51e6d8986d04795f48b487231687, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
     - target: {fileID: 100004, guid: 034e51e6d8986d04795f48b487231687, type: 3}
       propertyPath: m_Name
       value: PowerUpContainerElectricSpark
+      objectReference: {fileID: 0}
+    - target: {fileID: 100004, guid: 034e51e6d8986d04795f48b487231687, type: 3}
+      propertyPath: m_Layer
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 100008, guid: 034e51e6d8986d04795f48b487231687, type: 3}
+      propertyPath: m_Layer
+      value: 9
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: 034e51e6d8986d04795f48b487231687, type: 3}
       propertyPath: m_LocalPosition.x

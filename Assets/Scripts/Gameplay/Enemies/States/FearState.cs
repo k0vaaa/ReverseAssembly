@@ -3,7 +3,7 @@ using UnityEngine.AI;
 
 namespace Gameplay.Enemies.States
 {
-    public class FearState : StatesEnemyConst
+    public class FearState : EnemyState
     {
         public FearState(AIController controller, EnemyAnimator animator, EnemyMover mover) : base(controller, animator, mover)
         {

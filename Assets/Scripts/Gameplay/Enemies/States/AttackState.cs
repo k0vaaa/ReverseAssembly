@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Gameplay.Enemies.States
 {
-    public class AttackState : StatesEnemyConst
+    public class AttackState : EnemyState
     {
         private readonly AbilitiesController _abilitiesController;
 

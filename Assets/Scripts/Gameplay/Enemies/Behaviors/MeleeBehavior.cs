@@ -26,6 +26,8 @@ namespace Gameplay.Enemies.Behaviors
             attackState.OnEnter += ResetAttackAnim;
             animEventsHandler.OnAnimationEnded += HandleAnimEnd;
 
+            controller.StabilitySystem.IsInvincible = false;
+            
             var idleState = new IdleState(controller, enemyAnimator, mover);
             var walkState = new WalkState(controller, enemyAnimator, mover);
             var fearState = new FearState(controller, enemyAnimator, mover);

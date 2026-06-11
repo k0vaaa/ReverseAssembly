@@ -13,7 +13,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
         protected override void EnterAction()
         {
             PlayerAnimator.DoIdleMove();
-            MonoBehaviour.print("Entering Idle State");
+            
         }
 
         protected override void ExecuteAction()
@@ -22,7 +22,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 
         protected override void ExitAction()
         {
-            MonoBehaviour.print("Exiting Idle State");
+            
         }
     }
 }

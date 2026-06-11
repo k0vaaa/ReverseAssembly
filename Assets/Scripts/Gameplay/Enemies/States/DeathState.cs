@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Gameplay.Enemies.States
 {  
-    public class DeathState : StatesEnemyConst
+    public class DeathState : EnemyState
     {   
         private readonly Canvas _hpCanvas;
 

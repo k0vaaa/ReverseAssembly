@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Gameplay.Enemies.States
 {
-    public class RangeAttackState : StatesEnemyConst
+    public class RangeAttackState : EnemyState
     {
         private readonly AbilitiesController _abilitiesController;
 

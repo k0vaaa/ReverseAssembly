@@ -1,6 +1,8 @@
 using Core.StateMachines;
+using Gameplay.Combat.Health;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Controllers.Player;
+using Gameplay.Enemies.VFX;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -12,6 +14,9 @@ namespace Gameplay.Enemies
         private EnemyMover _mover;
         private float _searchRadius;
         private float _attackRange;
+        private StabilitySystem _stabilitySystem;
+        private EnemyAnimator _animator;
+        private EnemyVFXController _vfx;
         
         public bool IsChasing { get; private set; }
         public bool IsInAttackRange { get; private set; }
@@ -28,6 +33,14 @@ namespace Gameplay.Enemies
             _searchRadius = searchRadius;
             _attackRange = attackRange;
             IsPeaceful = isPeaceful;
+            _stabilitySystem = GetComponent<StabilitySystem>();
+            _animator = GetComponent<EnemyAnimator>();
+            _vfx = GetComponent<EnemyVFXController>();
+            _stabilitySystem.onHit.AddListener(() =>
+            {
+                _animator.DoHitEvent();
+                _vfx.PlayGlitch();
+            });
         }
 
         private void Update()
@@ -49,6 +62,7 @@ namespace Gameplay.Enemies
 
         public void ApplyGlitchStun(float duration)
         {
+            if (_stabilitySystem.IsInvincible) return;
             IsStunned = true;
             _stunEndTime = Time.time + duration;
         }

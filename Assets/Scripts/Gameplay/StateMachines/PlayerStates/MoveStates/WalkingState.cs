@@ -12,7 +12,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 
         protected override void EnterAction()
         {
-            MonoBehaviour.print("Entering Walking State");
+            
             PlayerAnimator.DoWalk();
             MovementController.CurrentMoveSpeed = MovementController.WalkSpeed;
         }
@@ -24,7 +24,7 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
 
         protected override void ExitAction()
         {
-            MonoBehaviour.print("Exiting Walking State");
+            
             
         }
     }
