@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using Logger = Core.Utilities.Logger;
 
 namespace Core.SaveLoad.Repos
 {
@@ -21,8 +22,8 @@ namespace Core.SaveLoad.Repos
         public void Save<T>(string key, T data)
         {
             // Формируем имя файла с таймстемпом (например, player_data_20250414123045.json)
-            //string timestamp = DateTime.Now.ToString("dd.MM.yyyy-HH_mm_ss");
-            string timestamp = "01.01.2025-00_00_00";
+            string timestamp = DateTime.Now.ToString("dd.MM.yyyy-HH_mm_ss");
+            //string timestamp = "01.01.2025-00_00_00";
             string filePath = Path.Combine(Application.persistentDataPath, $"{_filePrefix}_{timestamp}.json");
 
             // Создаем или обновляем словарь
@@ -34,7 +35,8 @@ namespace Core.SaveLoad.Repos
             try
             {
                 // Записываем данные в новый файл
-                File.WriteAllText(filePath, JsonConvert.SerializeObject(dataDict, Formatting.Indented));
+                var settings = new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore };
+                File.WriteAllText(filePath, JsonConvert.SerializeObject(dataDict, Formatting.Indented, settings));
                 Debug.Log($"Saved data to {filePath}");
             }
             catch (Exception ex)
@@ -54,7 +56,7 @@ namespace Core.SaveLoad.Repos
             string filePath = timestamp != null
                 ? Path.Combine(Application.persistentDataPath, $"{_filePrefix}_{timestamp}.json")
                 : GetLatestFile();
-
+            Logger.LogTagged(filePath,"Saves");
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
             {
                 Debug.Log($"No file found: {filePath}");
@@ -63,7 +65,8 @@ namespace Core.SaveLoad.Repos
 
             try
             {
-                var dataDict = JsonConvert.DeserializeObject<SerializableDictionary>(File.ReadAllText(filePath));
+                var data = File.ReadAllText(filePath);
+                var dataDict = JsonConvert.DeserializeObject<SerializableDictionary>(data);
                 if (dataDict != null && dataDict.ContainsKey(key))
                 {
                     if (dataDict[key] is JObject jObject)
@@ -136,12 +139,32 @@ namespace Core.SaveLoad.Repos
                 if (dataDict != null && dataDict.ContainsKey(key))
                 {
                     dataDict.Remove(key);
-                    File.WriteAllText(latestFile, JsonConvert.SerializeObject(dataDict));
+                    var settings = new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore };
+                    File.WriteAllText(latestFile, JsonConvert.SerializeObject(dataDict, Formatting.Indented, settings));
                 }
             }
             catch (Exception ex)
             {
                 Debug.LogError($"Failed to delete key from {latestFile}: {ex.Message}");
+            }
+        }
+
+        public void DeleteByTimestamp(string timestamp, string key)
+        {
+            string filePath = Path.Combine(Application.persistentDataPath, $"{_filePrefix}_{timestamp}.json");
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            {
+                Debug.Log($"No file found: {filePath}");
+                return ;
+            }
+
+            try
+            {
+                File.Delete(filePath);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to delete {filePath}: {ex.Message}");
             }
         }
 

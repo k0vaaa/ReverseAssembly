@@ -1,13 +1,13 @@
 using System;
 using LineworkLite.Common.Utils;
-using LineworkLite.Editor.Common.Utils;
+using LineworkLite.Editor.Editor.Common.Utils;
 using UnityEditor;
 using UnityEngine;
 using Outline = LineworkLite.FreeOutline.Outline;
 using Resolution = LineworkLite.Common.Utils.Resolution;
 using Scaling = LineworkLite.FreeOutline.Scaling;
 
-namespace LineworkLite.Editor.FreeOutline
+namespace LineworkLite.Editor.Editor.FreeOutline
 {
     [CustomEditor(typeof(Outline))]
     public class OutlineEditor : UnityEditor.Editor

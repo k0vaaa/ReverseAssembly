@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55ac9c5349f9425b934ae9111c44800e, type: 3}
+  m_Name: ProjectileSkillDefinition
+  m_EditorClassIdentifier: Assembly-CSharp::Gameplay.Combat.Offensive.ScriptableObjects.SpellSkillData
+  skillName: Stun
+  cooldownTime: 1
+  sprite: {fileID: 0}
+  damage:
+    Value: 15
+    Type: 1
+  ProjectilePrefab: {fileID: 7866276813319260117, guid: 1c5cea82d4eeb7447adb1a08380b9884, type: 3}
+  Velocity: 10

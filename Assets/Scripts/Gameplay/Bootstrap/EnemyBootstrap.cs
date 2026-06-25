@@ -1,61 +1,68 @@
-﻿using Core.DI;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
+using Gameplay.Core;
 using Gameplay.Enemies;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class EnemyBootstrap
+    public class EnemyBootstrap : BootstrapComponent
     {
-        private SettingsInteractor _settingsInteractor;
-        private PlayerDataInteractor _playerDataInteractor;
+        [Inject] private PlayerDataInteractor _playerDataInteractor;
+        [Inject] private SettingsInteractor _settingsInteractor;
+        [Inject] private SaveManager _saveManager;
 
-        private readonly GameObject[] _enemies;
-        private readonly Vector2 _enemiesSpawnAreaExtents;
-        private readonly int _enemiesCount;
-        private readonly Transform _enemiesSpawnPoint;
-        
-        private readonly GameObject _bossPrefab;
-        private readonly Vector3 _bossSpawnPoint;
-        private readonly CharacterController _playerController;
+        [Header("Enemies")] [SerializeField] private GameObject[] _enemies;
+        [SerializeField] private Vector2 _enemiesSpawnAreaExtents;
+        [SerializeField] private int _enemiesCount;
+        [SerializeField] private Transform _enemiesSpawnPoint;
 
-        public EnemyBootstrap(
-            SettingsInteractor settingsInteractor,
-            PlayerDataInteractor playerDataInteractor,
-            GameObject[] enemies,
-            Vector2 enemiesSpawnAreaExtents,
-            int enemiesCount,
-            Transform enemiesSpawnPoint,
-            GameObject bossPrefab,
-            Vector3 bossSpawnPoint,
-            CharacterController playerController)
+        [Header("Boss")] 
+        [SerializeField] private GameObject _bossPrefab;
+        [SerializeField] private Vector3 _bossSpawnPoint;
+
+        private CharacterController _playerController;
+
+        protected override void OnBoot()
         {
-            _settingsInteractor = settingsInteractor;
-            _playerDataInteractor = playerDataInteractor;
-            _enemies = enemies;
-            _enemiesSpawnAreaExtents = enemiesSpawnAreaExtents;
-            _enemiesCount = enemiesCount;
-            _enemiesSpawnPoint = enemiesSpawnPoint;
-            _bossPrefab = bossPrefab;
-            _bossSpawnPoint = bossSpawnPoint;
-            _playerController = playerController;
-
-        }
-
-        public void SetupEnemies()
-        {
-            var enemyManager = new EnemyManager(
-                _settingsInteractor,
-                _enemiesSpawnAreaExtents,
-                _enemies,
-                _enemiesSpawnPoint.position,
-                _enemiesCount,
+            _playerController = GetComponent<PlayerBootstrap>().Player.GetComponent<CharacterController>();
+            var registry = new EnemyRegistry();
+            var spawner = new EnemySpawner(
+                registry, 
+                _settingsInteractor, 
+                _playerController, 
+                _enemies, 
+                _enemiesSpawnAreaExtents, 
+                _enemiesSpawnPoint.position, 
                 _bossPrefab, 
-                _bossSpawnPoint,
-                _playerController);
+                _bossSpawnPoint);
+            var bossDirector = new BossDirector(registry, spawner);
+            var saveHandler = new EnemySaveHandler(registry, spawner, bossDirector, _settingsInteractor, _playerController);
 
-            enemyManager.LoadEnemies(_playerDataInteractor.CurrentSave.Enemies);
+            // Ищем уже существующих на сцене врагов и регистрируем их
+            var preplacedEnemies = FindObjectsByType<AIController>(FindObjectsSortMode.None);
+            foreach (var enemy in preplacedEnemies)
+            {
+                enemy.PrefabIndex = -1; // -1 means it's manually placed
+                enemy.Init(_settingsInteractor.LoadSettings().PeaceMode, _playerController.transform);
+                enemy.StabilitySystem.Init(_settingsInteractor.LoadSettings().EnemiesPower);
+                registry.Register(enemy);
+            }
+
+            var save = _playerDataInteractor.CurrentSave;
+            if (save != null && save.Position != default && save.Enemies != null)
+            {
+                saveHandler.RestoreFromSave(save.Enemies);
+            }
+            else
+            {
+                // Если нет сейва, просто спавним заданное количество
+                spawner.SpawnRandomEnemies(_enemiesCount);
+            }
+
+            // Передаем новый SaveHandler в SaveManager
+            _saveManager.SetEnemySaveHandler(saveHandler);
         }
     }
 }

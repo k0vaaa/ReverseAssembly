@@ -1,40 +1,28 @@
-﻿using Gameplay.Controllers.Player;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace Gameplay.Enemies.BossStates
 {
     public class BossWalkState : StatesBossConst
     {
-        private SkillsController _skillsController;
-        public BossWalkState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent) : base(bossController, animator, navMeshAgent)
+        public BossWalkState(AIController controller, BossAnimator animator, EnemyMover mover) : base(controller, animator, mover)
         {
-            // _skillsController = skillsController;
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             Debug.Log("Entering BOSS WALK");
             BossAnimator.WalkEvent();
-            NavMeshAgent.isStopped = false;
+            Mover.Resume();
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
-            BossController.RotateToPlayer();
+            Mover.RotateToPlayer();
+            Mover.SetFollowPlayer();
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
-            
         }
-        
-        // private IEnumerator SwordColliderSwitch()
-        // {
-        //     yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.3f, "attackTest"));
-        //     EnemyController.SwordCollider.enabled = true;
-        //     yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.53f, "attackTest"));
-        //     EnemyController.SwordCollider.enabled = false;
-        // }
     }
 }

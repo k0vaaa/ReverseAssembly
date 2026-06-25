@@ -4,7 +4,7 @@ using LineworkLite.FreeOutline;
 using UnityEditor;
 using UnityEngine;
 
-namespace LineworkLite.Editor.FreeOutline
+namespace LineworkLite.Editor.Editor.FreeOutline
 {
     public class SmoothNormalsMeshImporter : AssetPostprocessor
     {

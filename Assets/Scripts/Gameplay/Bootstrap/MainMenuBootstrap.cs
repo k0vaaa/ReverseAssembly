@@ -1,26 +1,52 @@
-﻿using Core.Bootstrap;
-using Core.DI;
+﻿using Core.Events;
+using Core.Extensions;
+using Core.Input;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
 using Core.SaveLoad.Saveables;
 using Core.Scenes;
-using Core.UI;
+using Gameplay.Events;
 using Gameplay.UI.Views.MainMenu;
-using UnityEngine;
+using Gameplay.UI.Windows;
+using Reflex.Attributes;
 
 namespace Gameplay.Bootstrap
 {
-    public class MainMenuBootstrap : MonoBehaviour, IInjectable, IInitializable
+    public class MainMenuBootstrap : BootstrapComponent
     {
-        [Inject] private ViewManager _viewManager;
+        [Inject] private MenuWindow _menuWindow;
         [Inject] private SettingsInteractor _settingsInteractor;
         [Inject] private PlayerDataInteractor _playerDataInteractor;
         [Inject] private SceneLoader _sceneLoader;
+        [Inject] private InputManager _input;
+       
 
-        public void Init()
+        protected override void OnBoot()
         {
-            InitializeSettings();
+            EventBus.Subscribe<SceneLoadEvent>(e => UnbindInput()).AddTo(gameObject);
+            _input.Init();
+            BindInput();
             BindMenuButtons();
+            
+            _menuWindow.SetStackRoot<MainMenuView>();
+            //InitializeSettings();
+            //BindMenuButtons();
+        }
+
+        private void BindInput()
+        {
+            _input.OnEscapePressed += _menuWindow.Back;
+        }
+
+        private void UnbindInput()
+        {
+            _input.OnEscapePressed -= _menuWindow.Back;
+        }
+
+        private void LoadGameScene()
+        {
+            print(1);
+            _ = _sceneLoader.LoadScene(SceneConstants.GameScene);
         }
 
         private void InitializeSettings()
@@ -33,12 +59,13 @@ namespace Gameplay.Bootstrap
 
         private void BindMenuButtons()
         {
-            var mainMenuView = _viewManager.GetView<MainMenuView>();
-            var settingsView = _viewManager.GetView<SettingsView>();
-            var loadView = _viewManager.GetView<LoadGameView>();
+            var mainMenuView = _menuWindow.GetView<MainMenuView>();
+            //var settingsView = _menuWindow.GetView<SettingsView>();
+            var loadView = _menuWindow.GetView<LoadGameView>();
 
+            mainMenuView.SetResumeAction(LoadGameScene);
             // Кнопки главного меню
-            mainMenuView.SetNewGameAction(() =>
+            /*mainMenuView.SetNewGameAction(() =>
             {
                 _playerDataInteractor.StartNewGame();
                 _sceneLoader.LoadScene("GameScene"); // Укажите имя вашей игровой сцены
@@ -58,20 +85,23 @@ namespace Gameplay.Bootstrap
                 }
             });
 
-            mainMenuView.SetSettingsAction(() => _viewManager.SwitchViews(mainMenuView, settingsView));
+            mainMenuView.SetSettingsAction(() => _menuWindow.Next<SettingsView>());*/
         
             mainMenuView.SetLoadAction(() =>
             {
-                _viewManager.SwitchViews(mainMenuView, loadView);
-                loadView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), (timestamp) =>
+                _menuWindow.Next<LoadGameView>();
+                loadView.ShowLoadGameMenu(_playerDataInteractor.GetAllSaves(), timestamp =>
                 {
                     _playerDataInteractor.LoadByTimestamp(timestamp);
-                    _sceneLoader.LoadScene("GameScene");
+                    _ = _sceneLoader.LoadScene(SceneConstants.GameScene);
+                }, timestamp =>
+                {
+                   _playerDataInteractor.DeleteFile(timestamp);
                 });
             });
 
             // Кнопка возврата из меню загрузки
-            loadView.SetBackButtonListener(() => _viewManager.SwitchViews(loadView, mainMenuView));
+            loadView.SetBackButtonListener(() => _menuWindow.Back());
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Core.UI;
+using Gameplay.UI.Views.Components;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -18,8 +19,8 @@ namespace Gameplay.UI.Views.MainMenu
         {
             _goBackButton.onClick.AddListener(callback.Invoke);
         }
-        
-        public void ShowLoadGameMenu(List<string> timestamps, Action<string> callback)
+
+        public void ShowLoadGameMenu(List<string> timestamps, Action<string> loadAction, Action<string> deleteAction)
         {
             // Очищаем старые кнопки
             foreach (Transform child in _saveContainer)
@@ -28,16 +29,21 @@ namespace Gameplay.UI.Views.MainMenu
             // Создаем кнопку для каждого сохранения
             foreach (string timestamp in timestamps)
             {
-                Button saveButton = Instantiate(_buttonPrefab, _saveContainer);
+                LoadButton saveButton = Instantiate(_buttonPrefab, _saveContainer).GetComponent<LoadButton>();
                 string formattedTime = FormatTimestamp(timestamp); // Форматируем для читаемости
                 saveButton.GetComponentInChildren<TextMeshProUGUI>().text = $"Save {formattedTime}";
-                saveButton.onClick.AddListener(() => callback.Invoke(timestamp));
+                saveButton.OnClick += () => loadAction.Invoke(timestamp);
+                saveButton.OnDeleteClick += () =>
+                {
+                    deleteAction.Invoke(timestamp);
+                    Destroy(saveButton.gameObject);
+                };
             }
         }
         
         private string FormatTimestamp(string timestamp)
         {
-            DateTime dateTime = DateTime.ParseExact(timestamp, "yyyyMMddHHmmss", null);
+            DateTime dateTime = DateTime.ParseExact(timestamp, "dd.MM.yyyy-HH_mm_ss", null);
             return dateTime.ToString("yyyy-MM-dd HH:mm:ss");
         }
     }

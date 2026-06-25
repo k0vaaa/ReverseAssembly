@@ -10,19 +10,19 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             PlayerAnimator.DoIdleMove();
-            MonoBehaviour.print("Entering Idle State");
+            
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
-            MonoBehaviour.print("Exiting Idle State");
+            
         }
     }
 }

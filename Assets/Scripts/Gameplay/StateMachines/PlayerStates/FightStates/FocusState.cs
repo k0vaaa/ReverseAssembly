@@ -6,21 +6,21 @@ namespace Gameplay.StateMachines.PlayerStates.FightStates
 {
     public class FocusState : FightPlayerState
     {
-        public FocusState(FightController fightController, SkillsController skillsController, IPlayerAnimator animator) : base(fightController, skillsController, animator)
+        public FocusState(FightController fight, AbilitiesController abilities, IPlayerAnimator animator) : base(fight, abilities, animator)
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             Debug.Log("Entering Focus");
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
             
         }
         
-        public override void Exit()
+        protected override void ExitAction()
         {
             Debug.Log("Exiting Focus");
         }

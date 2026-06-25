@@ -11,14 +11,19 @@ namespace Core.Input
         private InputSystemActions _inputSystemActions;
         private PlayerActions _playerActions;
         private UIActions _uiActions;
+        private bool _isInitialized;
 
         public event Action OnEscapePressed;
         public event Action OnJumpPressed;
         public event Action OnRightClick;
+        public event Action OnLeftClick;
         
         public event Action OnInteractPressed;
         public event Action OnScannerPressed;
-        public event Action OnBranchTogglePressed;
+        public event Action OnTerminalPressed;
+
+        public event Action OnSlotOnePressed;
+        public event Action OnSlotTwoPressed;
 
         public Vector2 MoveInput { get; private set; }
         public Vector2 MouseInput { get; private set; }
@@ -31,6 +36,7 @@ namespace Core.Input
 
         public void Init()
         {
+            if (_isInitialized) return;
             _inputSystemActions = new InputSystemActions();
             _playerActions = _inputSystemActions.Player;
             _uiActions = _inputSystemActions.UI;
@@ -39,6 +45,7 @@ namespace Core.Input
             _uiActions.Enable();
             Subscribe();
             SubscribePlayerActions();
+            _isInitialized = true;
         }
 
         private void Subscribe()
@@ -47,9 +54,12 @@ namespace Core.Input
             
             _playerActions.Jump.performed += OnJumpPress;
             _playerActions.RightClick.performed += OnRightClickPress;
-            _playerActions.Interact.performed += ctx => OnInteractPressed?.Invoke();
-            _playerActions.Scanner.performed += ctx => OnScannerPressed?.Invoke();
-            _playerActions.BranchToggle.performed += ctx => OnBranchTogglePressed?.Invoke();
+            _playerActions.Interact.performed += OnInteractPress;
+            _playerActions.Scanner.performed += OnScannerPress;
+            _playerActions.Terminal.performed += OnTerminalPress;
+            _playerActions.SlotOne.performed += OnSlotOnePress;
+            _playerActions.SlotTwo.performed += OnSlotTwoPress;
+            _playerActions.LeftClick.performed += OnLeftClickPress;
         }
 
         private void SubscribePlayerActions()
@@ -60,8 +70,8 @@ namespace Core.Input
             _playerActions.Look.canceled += ctx => MouseInput = Vector2.zero;
             _playerActions.Sprint.performed += ctx => SprintInput = true;
             _playerActions.Sprint.canceled += ctx => SprintInput = false;
-            _playerActions.Attack.performed += ctx => MeleeInput = true;
-            _playerActions.Attack.canceled += ctx => MeleeInput = false;
+            _playerActions.LeftClick.performed += ctx => MeleeInput = true;
+            _playerActions.LeftClick.canceled += ctx => MeleeInput = false;
             //_playerActions.Spell.performed += ctx => SpellInput = true;
             //_playerActions.Spell.canceled += ctx => SpellInput = false;
             _playerActions.RightClick.performed += ctx => RMBInput = true;
@@ -71,6 +81,14 @@ namespace Core.Input
 
         private void OnJumpPress(CallbackContext ctx) => OnJumpPressed?.Invoke();
         private void OnRightClickPress(CallbackContext ctx) => OnRightClick?.Invoke();
+        private void OnLeftClickPress(CallbackContext ctx) => OnLeftClick?.Invoke();
+        private void OnInteractPress(CallbackContext ctx) => OnInteractPressed?.Invoke();
+        private void OnScannerPress(CallbackContext ctx) => OnScannerPressed?.Invoke();
+        private void OnTerminalPress(CallbackContext ctx) => OnTerminalPressed?.Invoke();
+        private void OnSlotOnePress(CallbackContext ctx) => OnSlotOnePressed?.Invoke();
+        private void OnSlotTwoPress(CallbackContext ctx) => OnSlotTwoPressed?.Invoke();
+
+
 
         public void DisablePlayerInput()
         {
@@ -83,10 +101,11 @@ namespace Core.Input
         {
             _playerActions.Enable();
         }
-        
-        public void Dispose()
+
+        public void DisableEsc()
         {
-            _inputSystemActions.Dispose();
+            _inputSystemActions.UI.Cancel.Disable();
         }
+        
     }
 }

@@ -3,27 +3,18 @@ using UnityEngine.AI;
 
 namespace Gameplay.Enemies.States
 {
-    public class FearState : StatesEnemyConst
+    public class FearState : EnemyState
     {
-        public FearState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent) : base(enemyController, animator, navMeshAgent)
+        public FearState(AIController controller, EnemyAnimator animator, EnemyMover mover) : base(controller, animator, mover)
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             Debug.Log("Entering ENEMY Fear");
             EnemyAnimator.WalkEvent();
-            NavMeshAgent.isStopped = false;
+            Mover.Resume();
         }
-
-        public override void Execute()
-        {
-            EnemyController.SetRunFromPlayer();
-        }
-
-        public override void Exit()
-        {
-            
-        }
+        
     }
 }

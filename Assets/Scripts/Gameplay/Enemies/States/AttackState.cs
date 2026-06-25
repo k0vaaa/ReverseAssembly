@@ -1,44 +1,39 @@
-﻿using System.Collections;
-using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Controllers.Player;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace Gameplay.Enemies.States
 {
-    public class AttackState : StatesEnemyConst
+    public class AttackState : EnemyState
     {
-        private SkillsController _skillsController;
-        public AttackState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent, SkillsController skillsController) : base(enemyController, animator, navMeshAgent)
+        private readonly AbilitiesController _abilitiesController;
+
+        public AttackState(AIController controller, EnemyAnimator animator, EnemyMover mover, AbilitiesController abilitiesController) : base(controller, animator, mover)
         {
-            _skillsController = skillsController;
+            _abilitiesController = abilitiesController;
         }
 
-        public override void Enter()
+        protected  override void EnterAction()
         {
-            _skillsController.Skills[SkillType.Melee].Cast();
-            EnemyAnimator.StartCoroutine(SwordColliderSwitch());
-            Debug.Log("Entering ENEMY ATTACK");
-            EnemyAnimator.DoAttack();
-            NavMeshAgent.isStopped = true;
-        }
-
-        public override void Execute()
-        {
-            EnemyController.RotateToPlayer();
-        }
-
-        public override void Exit()
-        {
+            _abilitiesController.TryGetSkill<PunchSkill>().TryCast();
+            Debug.Log("Entering ENEMY Attack");
+            Mover.Stop();
             
+            // To trigger events from animations
+            if (Controller.TryGetComponent(out EnemyAnimator anim))
+            {
+                anim.DoAttack();
+            }
         }
-        
-        private IEnumerator SwordColliderSwitch()
+
+        protected  override void ExecuteAction()
         {
-            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.33f, "attackTest"));
-            EnemyController.SwordCollider.enabled = true;
-            yield return new WaitUntil(()=>EnemyAnimator.CheckAnimationState(0, 0.63f, "attackTest"));
-            EnemyController.SwordCollider.enabled = false;
+            Mover.RotateToPlayer();
+        }
+
+        protected  override void ExitAction()
+        {
+            _abilitiesController.TryGetSkill<PunchSkill>().ClearCollider();
         }
     }
 }

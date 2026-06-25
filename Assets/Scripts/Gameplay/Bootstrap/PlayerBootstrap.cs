@@ -1,110 +1,128 @@
-﻿using Core.DI;
 using Core.Events;
 using Core.SaveLoad.Interactors;
 using Core.SaveLoad.PlayerSaves;
+using Core.UI;
+using Gameplay.Anims;
 using Gameplay.Combat.Health;
-using Gameplay.Combat.Offensive.Base;
 using Gameplay.Controllers.Player;
+using Gameplay.Core;
 using Gameplay.Events;
-using Gameplay.UI.Views.Gameplay;
+using Gameplay.UI.Views.Gameplay.HUD;
+using Gameplay.UI.Windows;
+using Reflex.Attributes;
+using Reflex.Core;
+using Reflex.Injectors;
 using UnityEngine;
 
 namespace Gameplay.Bootstrap
 {
-    public class PlayerBootstrap
+    public class PlayerBootstrap : BootstrapComponent
     {
-        private PlayerDataInteractor _playerDataInteractor;
+        [HideInInspector] public GameObject Player;
 
-        private readonly DIContainer _diContainer;
-        private readonly Transform _playerSpawnPoint;
-        private readonly GameObject _playerPrefab;
-        private  Camera _camera;
-        private readonly CooldownView _cooldownView;
-        private readonly StabilityBarView _stabilityBarView;
+        [Inject] private PlayerDataInteractor _playerDataInteractor;
+        [Inject] private SettingsInteractor _settingsInteractor;
+        [Inject] private SaveManager _saveManager;
+        [Inject] private Container _container;
+        [Inject] private SyncEnergyManager _energyManager;
+        [Inject] private WindowManager _windowManager;
+        [Inject] private HUDWindow _hudWindow;
 
-        private GameObject _player;
+        [SerializeField] private Transform _playerSpawnPoint;
+        [SerializeField] private GameObject _playerPrefab;
+        [SerializeField] private Camera _camera;
+
+
+        private TerminalWindow _terminalWindow;
+
+        private Container _playerContainer;
+
+        public Container PlayerContainer => _playerContainer;
+
         private StabilitySystem _playerStabilitySystem;
+        private AbilitiesController _abilitiesController;
+        private MovementController _movementController;
+        private FightController _fightController;
+        private PlayerBrain _brain;
+        private WristTerminalController _wristTerminalController;
+        private IPlayerAnimator _animator;
 
-        public PlayerBootstrap(
-            PlayerDataInteractor playerDataInteractor,
-            Transform playerSpawnPoint,
-            GameObject playerPrefab,
-            Camera camera,
-            CooldownView cooldownView,
-            StabilityBarView stabilityBarView,
-            DIContainer diContainer)
+        protected override void OnBoot()
         {
-            _playerDataInteractor = playerDataInteractor;
-            _playerSpawnPoint = playerSpawnPoint;
-            _playerPrefab = playerPrefab;
-            _cooldownView = cooldownView;
-            _stabilityBarView = stabilityBarView;
-            _diContainer = diContainer;
+            SetupPlayer();
         }
 
-        public GameObject SetupPlayer()
+        private void SetupPlayer()
         {
-            _player = Object.Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
-            _camera = _player.GetComponentInChildren<Camera>();
-            
-            _playerStabilitySystem = _player.GetComponent<StabilitySystem>();
-            var movementController = _player.GetComponent<MovementController>();
-            var fightController = _player.GetComponent<FightController>();
-            var skillsController = _player.GetComponent<SkillsController>();
-            var scannerController = _player.GetComponent<ScannerController>();
-            var terminalController = _player.GetComponent<PlayerTerminalController>();
-            
-            _diContainer.Inject(movementController);
-            _diContainer.Inject(fightController);
-            _diContainer.Inject(skillsController);
-            _diContainer.Inject(scannerController);
-            _diContainer.Inject(terminalController);
-            _diContainer.Inject(_player.GetComponentInChildren<FirstPersonLook>());
-            
-            scannerController.Init();
-            terminalController.Init();
-            
-            _playerStabilitySystem.onStabilityChanged.AddListener(_stabilityBarView.ChangeHp);
-            // TODO настроить сейвы
+            Player = Instantiate(_playerPrefab, _playerSpawnPoint.position, Quaternion.identity);
+
+            GetComponents();
+
+            SetupContainer();
+
+            GameObjectInjector.InjectRecursive(Player, _playerContainer);
+
+            _brain.Init();
+            _abilitiesController.Init();
+            _movementController.Init();
+            _fightController.Init();
+            _wristTerminalController.Init();
+
+
+
             _playerStabilitySystem.Init(1);
             _playerStabilitySystem.SetStability(100);
-
-
             
-            movementController.Init(_camera);
-            skillsController.Init(_camera);
-            SetupCooldownListeners(skillsController);
-            // TODO настроить сейвы
-            var currentSave = _playerDataInteractor.CurrentSave;
-            if (currentSave != null && currentSave.Position != default)
+            _saveManager.SetPlayerSystems(_playerStabilitySystem, _movementController);
+            _saveManager.LoadPlayerAndPuzzles(_playerStabilitySystem, _movementController);
+
+            Player.SetActive(true);
+
+            EventBus.Raise(new PlayerSpawnEvent
             {
-                // Запускаем корутину или просто меняем позицию через задержку.
-                // Так как это не MonoBehaviour, используем сам Player для корутины или Invoke.
-                var monoBehaviour = _player.GetComponent<MonoBehaviour>();
-                monoBehaviour.Invoke(nameof(SetPos), 0.05f);
-            }
-            EventBus.Raise(new PlayerSpawnEvent()
-            {
-                PlayerTransform = _player.transform,
+                PlayerTransform = Player.transform,
                 Camera = _camera
             });
-            return _player;
         }
 
-        private void SetupCooldownListeners(SkillsController skillsController)
+        private void GetComponents()
         {
-            _cooldownView.SetSlot1Listener(() =>
-                _cooldownView.SetSlot1FillAmount(skillsController.Skills[SkillType.BranchSwitch].GetReadyPercent()));
-            _cooldownView.SetSlot2Listener(() =>
-                _cooldownView.SetSlot2FillAmount(skillsController.Skills[SkillType.Scanner].GetReadyPercent()));
+            _ = new HudSwitcher(_hudWindow.GetView<PlayerHUDView>());
+            _playerStabilitySystem = Player.GetComponent<StabilitySystem>();
+            _abilitiesController = Player.GetComponent<AbilitiesController>();
+            _movementController = Player.GetComponent<MovementController>();
+            _fightController = Player.GetComponent<FightController>();
+            _brain = Player.GetComponent<PlayerBrain>();
+            _camera = Player.GetComponentInChildren<Camera>();
+            _wristTerminalController = Player.GetComponent<WristTerminalController>();
+            _animator = Player.GetComponent<IPlayerAnimator>();
+            _terminalWindow = Player.GetComponentInChildren<TerminalWindow>(true);
+            _windowManager.TryAdd(_terminalWindow);
+            print("TerminalWindow Added to WindowManager");
+
         }
 
-        private void SetPos()
+        private void SetupContainer()
         {
-            if (_player != null && _playerDataInteractor != null)
+            var vfx = Player.GetComponent<VFXController>();
+            _playerContainer = _container.Scope(builder =>
             {
-                _player.transform.position = _playerDataInteractor.CurrentSave.Position;
-            }
+                builder.RegisterValue(_movementController);
+                builder.RegisterValue(_fightController);
+                builder.RegisterValue(_abilitiesController);
+                builder.RegisterValue(_playerStabilitySystem);
+                builder.RegisterValue(_camera);
+                builder.RegisterValue(_brain);
+                builder.RegisterValue(_wristTerminalController);
+                builder.RegisterValue(_animator, new []{typeof(MockPlayerAnimator)});
+                builder.RegisterValue(_terminalWindow);
+                builder.RegisterValue(vfx);
+            });
+        }
+
+        private void OnDestroy()
+        {
+            _playerContainer?.Dispose();
         }
     }
 }

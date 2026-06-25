@@ -20,7 +20,13 @@ namespace Core.SaveLoad.Interactors
 
         public GameSettings LoadSettings()
         {
-            return _playerPrefsRepository.Load(SettingsKey,new GameSettings());
+            //todo Прикрутить настройки
+            //return _playerPrefsRepository.Load(SettingsKey,new GameSettings());
+            return new GameSettings
+            {
+                EnemiesPower = 1,
+                PeaceMode = false
+            };
         }
 
         public bool HasSettings()

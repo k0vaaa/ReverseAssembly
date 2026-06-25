@@ -1,6 +1,5 @@
-using System;
 using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Core.Extensions;
 using Gameplay.Events;
@@ -8,7 +7,7 @@ using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class PlayerGlitchController : MonoBehaviour, IInjectable, IInitializable
+    public class PlayerGlitchController : MonoBehaviour, IInitializable
     {
         [Header("Visuals")]
         [SerializeField] private SkinnedMeshRenderer _playerRenderer;

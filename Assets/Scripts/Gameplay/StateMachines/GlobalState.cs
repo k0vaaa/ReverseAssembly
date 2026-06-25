@@ -1,32 +1,55 @@
-﻿using Core.Gameplay;
+﻿using System;
+using Core.Gameplay;
+using Core.StateMachines;
 using Core.UI;
 
 namespace Gameplay.StateMachines
 {
-    public abstract class GlobalState : IState
+    public abstract class GlobalState : State
     {
         private GameplayManager _gameplayManager;
-        private ViewManager _viewManager;
+        private Window _window;
+        private Action _onEnter;
+        private Action _onExecute;
+        private Action _onExit;
 
-        protected GlobalState(GameplayManager gameplayManager, ViewManager viewManager)
+        protected GlobalState(GameplayManager gameplayManager, Window window)
         {
             _gameplayManager = gameplayManager;
-            _viewManager = viewManager;
+            _window = window;
         }
 
-        public virtual void Enter()
+        protected override void EnterAction()
         {
             
         }
 
-        public virtual void Execute()
+        protected override void ExecuteAction()
         {
             
         }
 
-        public virtual void Exit()
+        protected override void ExitAction()
         {
             
+        }
+
+        public Action OnEnter
+        {
+            get => _onEnter;
+            set => _onEnter = value;
+        }
+
+        public Action OnExecute
+        {
+            get => _onExecute;
+            set => _onExecute = value;
+        }
+
+        public Action OnExit
+        {
+            get => _onExit;
+            set => _onExit = value;
         }
     }
 }

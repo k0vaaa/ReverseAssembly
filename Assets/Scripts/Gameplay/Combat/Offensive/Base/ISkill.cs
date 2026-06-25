@@ -1,10 +1,13 @@
-﻿namespace Gameplay.Combat.Offensive.Base
+﻿using System;
+
+namespace Gameplay.Combat.Offensive.Base
 {
     public interface ISkill
     {
-        public bool _isReady { get;}
+        public bool IsReady { get;}
         float GetReadyPercent();
-        void Cast();
+        bool TryCast();
         void Tick();
+        public Action<float> OnCooldownTick { get; }
     }
 }

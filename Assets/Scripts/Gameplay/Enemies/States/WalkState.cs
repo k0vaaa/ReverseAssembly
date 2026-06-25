@@ -1,27 +1,27 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.AI;
 
 namespace Gameplay.Enemies.States
 {
-    public class WalkState : StatesEnemyConst
+    public class WalkState : EnemyState
     {
-        public WalkState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent) : base(enemyController, animator, navMeshAgent)
+        public WalkState(AIController controller, EnemyAnimator animator, EnemyMover mover) : base(controller, animator, mover)
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             Debug.Log("Entering ENEMY WALK");
             EnemyAnimator.WalkEvent();
-            NavMeshAgent.isStopped = false;
+            Mover.Resume();
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
-            EnemyController.SetFollowPlayer();
+            Mover.SetFollowPlayer();
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
             
         }

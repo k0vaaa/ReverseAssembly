@@ -1,19 +1,19 @@
-using System;
 using UnityEngine;
-using Core.DI;
-using Core.UI;
 using Core.Input;
-using Gameplay.UI;
+using ExternalAssets.QuickOutline.Scripts;
+using Gameplay.UI.Views.Gameplay.HUD;
+using Gameplay.UI.Views.Gameplay.Terminal;
+using Gameplay.UI.Windows;
+using Reflex.Attributes;
 
 namespace Gameplay.Interactables
 {
     [RequireComponent(typeof(Rigidbody))]
-    public class BuggablePhysicsBox : BuggableBase, IInjectable
+    public class BuggablePhysicsBox : BuggableBase
     {
-        [Inject] private ViewManager _viewManager;
+        
         [Inject] private InputManager _inputManager;
         private Rigidbody _rb;
-        private Outline _outline; // Опционально: компонент обводки
         private BugView _bugView;
 
         private void Awake()
@@ -22,7 +22,7 @@ namespace Gameplay.Interactables
             _outline = GetComponent<Outline>();
 
             if (_outline) _outline.enabled = false;
-            _bugView = _viewManager.GetView<BugView>();
+            _bugView = _windowManager.GetWindow<HUDWindow>().GetView<BugView>();
             
             if (IsBugged)
             {
@@ -53,7 +53,7 @@ namespace Gameplay.Interactables
 
             Debug.Log("Открытие мини-игры Синхронизации Физики...");
 
-            if (_viewManager == null)
+            if (_windowManager == null)
             {
                 Debug.LogError("ViewManager не внедрен (NULL)! Проверьте DI контейнер.");
                 return;
@@ -66,7 +66,7 @@ namespace Gameplay.Interactables
             }
             else
             {
-                var puzzleView = _viewManager.GetView<PhysicsPuzzleView>();
+                var puzzleView = _windowManager.GetWindow<TerminalWindow>().GetView<SliderPuzzleView>();
                 if (puzzleView == null)
                 {
                     Debug.LogError("PhysicsPuzzleView не найден! Вы добавили его в список ViewManager?");
@@ -107,7 +107,28 @@ namespace Gameplay.Interactables
         private void DisableOutline()
         {
             if (_outline) _outline.enabled = false;
-            _bugView.Hide();
+            if (_bugView) _bugView.Hide();
+        }
+
+        public override void LoadState(bool isBugged)
+        {
+            IsBugged = isBugged;
+            if (_rb == null) _rb = GetComponent<Rigidbody>();
+            if (!IsBugged)
+            {
+                _rb.isKinematic = false;
+                _rb.mass = 10f;
+                if (_outline)
+                {
+                    _outline.enabled = false;
+                }
+                if (_bugView) _bugView.Hide();
+            }
+            else
+            {
+                _rb.isKinematic = true;
+                _rb.mass = 9999f;
+            }
         }
     }
 }

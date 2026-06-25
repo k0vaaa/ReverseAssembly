@@ -1,25 +1,27 @@
-using System;
-using Core.DI;
+using Core.Bootstrap;
+using Core.Events;
+using Core.Extensions;
 using Core.Input;
+using Core.StateMachines;
 using Gameplay.Anims;
-using Gameplay.Combat.Interfaces;
-using Gameplay.StateMachines;
 using Gameplay.StateMachines.PlayerStates.MoveStates;
 using Gameplay.Combat.Health;
+using Gameplay.Events;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class MovementController : MonoBehaviour, IInjectable
+    public class MovementController : StateBehaviourController, IInitializable
     {
         [Inject] private InputManager _inputManager;
-        private StateMachine _moveStateMachine;
         private IPlayerAnimator _playerAnimator;
         private CharacterController _controller;
         private Camera _camera;
         private StabilitySystem _stabilitySystem;
 
-        public bool CanSprint => _stabilitySystem == null || (_stabilitySystem.Stability / _stabilitySystem.MaxStability) > 0.3f;
+        public bool CanSprint => _stabilitySystem == null ||
+                                 (_stabilitySystem.Stability / _stabilitySystem.MaxStability) > 0.3f;
 
 
         public float WalkSpeed = 2f;
@@ -37,7 +39,7 @@ namespace Gameplay.Controllers.Player
         [SerializeField] private LayerMask _groundCheckLayerMask;
         private float _groundCheckDistance;
 
-        private bool _death;
+        private bool _isDead;
 
         private Vector3 _inertialMoveDirection;
 
@@ -52,15 +54,28 @@ namespace Gameplay.Controllers.Player
         [SerializeField] private Transform _root;
 
 
+        #region States
+
+        private JumpingState _jumpingState;
+        private DeathState _deathState;
+        private FallingState _fallingState;
+        private SprintingState _sprintingState;
+        private WalkingState _walkingState;
+        private IdleState _idleState;
+
+        #endregion
+
+
         private void Awake()
         {
-            _moveStateMachine = new StateMachine();
+            StateMachine = new StateMachine();
             _playerAnimator = GetComponent<IPlayerAnimator>();
             _controller = GetComponent<CharacterController>();
             _stabilitySystem = GetComponent<StabilitySystem>();
+            _camera = GetComponentInChildren<Camera>();
         }
 
-        public void Init(Camera camera)
+        /*public void Init(Camera camera)
         {
             if (camera == null)
             {
@@ -70,9 +85,9 @@ namespace Gameplay.Controllers.Player
             {
                 _camera = camera;
             }
-        }
+        }*/
 
-        private void Start()
+        public void Init()
         {
             _groundCheckDistance = (_controller.height * transform.lossyScale.y / 2) + .1f;
 
@@ -81,34 +96,37 @@ namespace Gameplay.Controllers.Player
 
         private void Update()
         {
-            _moveStateMachine.Tick();
+            StateMachine.Tick();
             //SetControllerParams();
             //Rotate();
+        }
+
+        private void FixedUpdate()
+        {
             ApplyGravity();
             CheckGround();
         }
 
         private void MoveStatesInit()
         {
-            var idleState = new IdleState(this, _playerAnimator);
-            var jumpingState = new JumpingState(this, _playerAnimator);
-            var walkingState = new WalkingState(this, _playerAnimator);
-            var sprintingState = new SprintingState(this, _playerAnimator);
-            var fallingState = new FallingState(this, _playerAnimator);
-            var deathState = new DeathState(this, _playerAnimator);
-            gameObject.GetComponent<IKillable>().OnDeath.AddListener(value => _death = value);
+            _idleState = new IdleState(this, _playerAnimator);
+            _jumpingState = new JumpingState(this, _playerAnimator);
+            _walkingState = new WalkingState(this, _playerAnimator);
+            _sprintingState = new SprintingState(this, _playerAnimator);
+            _fallingState = new FallingState(this, _playerAnimator);
+            _deathState = new DeathState(this, _playerAnimator);
+            EventBus.Subscribe<PlayerDeathEvent>(HandleDeath).AddTo(gameObject);
 
-            _moveStateMachine.AddTransition(idleState, walkingState, () => _inputManager.MoveInput != Vector2.zero);
-            _moveStateMachine.AddTransition(idleState, sprintingState, () => _inputManager.SprintInput && CanSprint);
-            _moveStateMachine.AddTransition(walkingState, idleState, () => _inputManager.MoveInput == Vector2.zero);
-            _moveStateMachine.AddTransition(walkingState, sprintingState, () => _inputManager.SprintInput && CanSprint);
-            _moveStateMachine.AddTransition(walkingState, fallingState, () => !IsGrounded);
-            _moveStateMachine.AddTransition(sprintingState, walkingState, () => !_inputManager.SprintInput || !CanSprint);
-            _moveStateMachine.AddTransition(sprintingState, fallingState, () => !IsGrounded);
-            _moveStateMachine.AddTransition(jumpingState, fallingState, () => !IsGrounded);
-            _moveStateMachine.AddTransition(jumpingState, idleState, () => IsGrounded);
-            _moveStateMachine.AddTransition(fallingState, idleState, () => IsGrounded);
-            _moveStateMachine.AddAntiState(fallingState, jumpingState);
+            StateMachine.AddTransition(_idleState, _walkingState, () => _inputManager.MoveInput != Vector2.zero);
+            StateMachine.AddTransition(_idleState, _sprintingState, () => _inputManager.SprintInput && CanSprint);
+            StateMachine.AddTransition(_walkingState, _idleState, () => _inputManager.MoveInput == Vector2.zero);
+            StateMachine.AddTransition(_walkingState, _sprintingState, () => _inputManager.SprintInput && CanSprint);
+            StateMachine.AddTransition(_walkingState, _fallingState, () => !IsGrounded);
+            StateMachine.AddTransition(_sprintingState, _walkingState, () => !_inputManager.SprintInput || !CanSprint);
+            StateMachine.AddTransition(_sprintingState, _fallingState, () => !IsGrounded);
+            StateMachine.AddTransition(_jumpingState, _fallingState, () => !IsGrounded);
+            StateMachine.AddTransition(_fallingState, _idleState, () => IsGrounded);
+            StateMachine.AddAntiState(_fallingState, _jumpingState);
 
 
             if (_inputManager != null)
@@ -116,25 +134,30 @@ namespace Gameplay.Controllers.Player
                 _inputManager.OnJumpPressed += HandleJump;
             }
 
-            _moveStateMachine.AddAnyTransition(deathState, () => _death);
-
-            _moveStateMachine.SetState(idleState);
+            StateMachine.TrySetState(_idleState);
         }
 
         private void HandleJump()
         {
             if (IsGrounded)
             {
-                _moveStateMachine.SetState(new JumpingState(this, _playerAnimator));
+                StateMachine.ForceSetState(_jumpingState);
             }
         }
+
+        private void HandleDeath(PlayerDeathEvent e)
+        {
+            StateMachine.ForceSetState(_deathState);
+        }
+
+        #region Movement
 
         private void ApplyGravity()
         {
             if (!_controller.isGrounded)
             {
-                _velocityVertical -= 15f * Time.deltaTime;
-                _controller.Move(Vector3.up * (_velocityVertical * Time.deltaTime));
+                _velocityVertical -= 15f * Time.fixedDeltaTime;
+                _controller.Move(Vector3.up * (_velocityVertical * Time.fixedDeltaTime));
             }
             else
             {
@@ -202,9 +225,12 @@ namespace Gameplay.Controllers.Player
         private void CheckGround()
         {
             Ray ray = new Ray(transform.TransformPoint(_controller.center), Vector3.down);
-            IsGrounded = Physics.SphereCast(ray, _controller.radius*transform.lossyScale.x, _groundCheckDistance,
+            var radius = _controller.radius * transform.lossyScale.x;
+            IsGrounded = Physics.SphereCast(ray, radius, _groundCheckDistance - radius,
                 _groundCheckLayerMask);
         }
+
+        #endregion
 
         private void OnDestroy()
         {
@@ -216,17 +242,18 @@ namespace Gameplay.Controllers.Player
             if (_controller == null) return;
 
             Vector3 origin = transform.TransformPoint(_controller.center);
-            float maxDistance = (_controller.height * transform.lossyScale.y / 2) + 0.1f;
+            var radius = _controller.radius * transform.lossyScale.x;
+            float maxDistance = (_controller.height * transform.lossyScale.y / 2) + 0.1f - radius;
             //float maxDistance = 5;
 
             // Зеленый цвет, если на земле, красный если в воздухе
             Gizmos.color = Color.green;
 
             // Отрисовка SphereCast
-            Gizmos.DrawWireSphere(origin, _controller.radius * transform.lossyScale.x); // Стартовая сфера (внутри тела)
+            Gizmos.DrawWireSphere(origin, radius); // Стартовая сфера (внутри тела)
             Gizmos.color = IsGrounded ? Color.green : Color.red;
             Gizmos.DrawWireSphere(origin + Vector3.down * maxDistance,
-                _controller.radius * transform.lossyScale.x); // Конечная сфера (возле ног)
+                radius); // Конечная сфера (возле ног)
 
             // Линии, соединяющие сферы для имитации "капсулы" каста
             Gizmos.DrawLine(origin + Vector3.left * _controller.radius,

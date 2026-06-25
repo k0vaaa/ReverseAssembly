@@ -1,29 +1,30 @@
-using Core.Bootstrap;
-using Core.DI;
 using Core.Events;
 using Core.Extensions;
+using Core.Input;
 using Core.SaveLoad.PlayerSaves;
-using Core.UI;
 using Gameplay.Events;
-using Gameplay.UI;
+using Gameplay.UI.Views.Gameplay.HUD;
+using Reflex.Attributes;
 using UnityEngine;
 
 namespace Core.Inventory
 {
-    public class InventoryManager : MonoBehaviour, IInjectable, IInitializable
+    public class InventoryManager : MonoBehaviour
     {
         [Inject] private PlayerDataInteractor _playerData;
-        [Inject] private ViewManager _viewManager;
+        [Inject] private HUDWindow _hudWindow;
+        [Inject] private InputManager _input;
 
+
+        public int CodeBlocks;
         private PlayerHUDView _hudView;
-        private int _codeBlocks;
 
-        public void Init()
+        public void Awake()
         {
             EventBus.Subscribe<CodeBlockCollectedEvent>(OnBlockCollected).AddTo(gameObject);
             
             // Получаем HUD и обновляем сразу
-            _hudView = _viewManager.GetView<PlayerHUDView>();
+            _hudView = _hudWindow.GetView<PlayerHUDView>();
             if (_hudView != null)
             {
                 // Показываем HUD если он скрыт
@@ -32,21 +33,25 @@ namespace Core.Inventory
             }
         }
 
+       
+
         private void OnBlockCollected(CodeBlockCollectedEvent data)
         {
-            _codeBlocks++;
+            CodeBlocks++;
             //_playerData.CurrentSave.CodeBlocks++;
             //Debug.Log($"Collected! Total blocks: {_playerData.CurrentSave.CodeBlocks}");
             
             UpdateHUD();
         }
 
-        private void UpdateHUD()
+        public void UpdateHUD()
         {
             if (_hudView != null)
             {
-                _hudView.UpdateBlocksCount(_codeBlocks);
+                _hudView.UpdateBlocksCount(CodeBlocks);
             }
         }
+
+        
     }
 }

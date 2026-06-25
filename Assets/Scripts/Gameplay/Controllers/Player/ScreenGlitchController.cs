@@ -1,14 +1,15 @@
 using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using Core.Extensions;
 using Gameplay.Events;
+using Reflex.Attributes;
 using UnityEngine;
 using UnityEngine.Rendering;
 
 namespace Gameplay.Controllers.Player
 {
-    public class ScreenGlitchController : MonoBehaviour, IInjectable, IInitializable
+    public class ScreenGlitchController : MonoBehaviour, IInitializable
     {
         [Inject] private Volume _postProcessVolume;
         

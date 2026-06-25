@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace IgniteCoders.Simple_Water_Shader.Resources
+namespace ExternalAssets.IgniteCoders.Simple_Water_Shader.Resources
 {
     public class WaterReflection : MonoBehaviour
     {

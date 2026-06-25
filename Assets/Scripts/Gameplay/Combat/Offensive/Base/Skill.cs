@@ -1,36 +1,41 @@
-﻿using Gameplay.Combat.Offensive.ScriptableObjects;
+﻿using System;
+using Gameplay.Combat.Offensive.ScriptableObjects;
 using UnityEngine;
 
 namespace Gameplay.Combat.Offensive.Base
 {
     public abstract class Skill : ISkill
     {
-        private SkillData SkillData;
-        public SkillType SkillType { get; private set; }
-        public Damage Damage { get; private set; }
+        protected Damage Damage { get; private set; }
         private float _cooldownTime;
+        
+        public Action<float> OnCooldownTick { get; set; }
         private float timeUntilReady { get; set; } = 0f;
-        public bool _isReady { get; private set; }
+        public bool IsReady { get; private set; }
 
-        protected Skill(SkillData skillData)
+        protected Skill(AbilityDefinition abilityDefinition)
         {
-            Damage = skillData.damage;
-            SkillData = skillData;
-            SkillType = SkillData.skillType;
-            _cooldownTime = SkillData.cooldownTime;
+            Damage = abilityDefinition.damage;
+            _cooldownTime = abilityDefinition.cooldownTime;
+        }
+
+        public virtual void Init()
+        {
+            
         }
 
         private void CheckCooldown()
         {
             if (timeUntilReady <= 0)
             {
-                _isReady = true;
+                IsReady = true;
                 timeUntilReady = 0;
             }
             else
             {
-                _isReady = false;
+                IsReady = false;
                 timeUntilReady -= Time.deltaTime;
+                OnCooldownTick?.Invoke(GetReadyPercent());
             }
         }
 
@@ -40,25 +45,28 @@ namespace Gameplay.Combat.Offensive.Base
         public void Tick()
         {
             CheckCooldown();
+            OnTick();
         }
 
 
-        public virtual void Cast()
+        protected abstract void OnTick();
+
+
+        public bool TryCast()
         {
-            if(!_isReady) return;
-            timeUntilReady = _cooldownTime;
+            if(!IsReady) return false;
             
-        }
-    }
+            if (CastAction())
+            {
+                timeUntilReady = _cooldownTime;
+                return true;
+            }
 
-    public enum SkillType
-    {   
-        Melee,
-        Fireball,
-        Punch,
-        Heavy,
-        Meteor,
-        Scanner,
-        BranchSwitch
+            return false;
+
+
+        }
+
+        protected abstract bool CastAction();
     }
 }

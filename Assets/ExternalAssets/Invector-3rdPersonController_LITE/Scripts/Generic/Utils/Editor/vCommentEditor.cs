@@ -1,7 +1,7 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-namespace Invector_3rdPersonController_LITE.Scripts.Generic.Utils.Editor
+namespace ExternalAssets.Invector_3rdPersonController_LITE.Scripts.Generic.Utils.Editor
 {
     [CustomEditor(typeof(vComment))]
     public class vCommentEditor : UnityEditor.Editor

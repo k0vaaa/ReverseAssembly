@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using Core.Input;
-using Gameplay.Anims;
+﻿using Gameplay.Anims;
 using Gameplay.Controllers.Player;
 using UnityEngine;
 
@@ -12,20 +10,20 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             MonoBehaviour.print("Entering Jumping State");
             //MovementController.StartCoroutine(JumpRoutine());
             MovementController.Jump();
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
             MovementController.CurrentMoveSpeed -= MovementController.WalkSpeed * Time.deltaTime;
             MovementController.Move();
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {   
             MonoBehaviour.print("Exiting Jumping State");
             

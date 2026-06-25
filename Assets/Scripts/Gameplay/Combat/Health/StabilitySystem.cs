@@ -1,17 +1,13 @@
 using Core.Bootstrap;
-using Core.Events;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
-using Gameplay.Events;
 using UnityEngine;
 using UnityEngine.Events;
 
 namespace Gameplay.Combat.Health
 {
-    public class StabilitySystem : MonoBehaviour, IDamageable, IHealthChange, IHittable, IKillable, IInitializable
+    public class StabilitySystem : MonoBehaviour, IDamageable, IKillable, IInitializable
     {
-        private ICharacterController _controller;
-
         public float Stability
         {
             get => _stability;
@@ -19,28 +15,22 @@ namespace Gameplay.Combat.Health
             {
                 _stability = value;
                 onStabilityChanged?.Invoke(_stability, MaxStability);
-                if (_controller == null)
-                {
-                    EventBus.Raise(new PlayerStabilityChangedEvent()
-                    {
-                        IsGlitched = (_stability / MaxStability) < 0.3f,
-                        StabilityPercent = _stability / MaxStability
-                    });
-                }
             }
         }
 
+
         [field:SerializeField] public float MaxStability { get; private set; } = 100f;
-        
-        public UnityEvent<float, float> onStabilityChanged { get; } = new();
-
-        public UnityEvent<bool> OnDeath { get; } = new();
-
-        public UnityEvent onHit { get; } = new();
 
         [ContextMenuItem("meow", nameof(Die))]
         [SerializeField] private float _stability;
-        
+        public UnityEvent<float, float> onStabilityChanged { get; } = new();
+        [field:SerializeField] public bool IsInvincible { get; set; }
+
+        public UnityEvent OnDeath { get; } = new();
+        public UnityEvent onHit { get; } = new();
+
+        private ICharacterController _controller;
+
         public void Init()
         {
             TryGetComponent<ICharacterController>(out var controller);
@@ -70,6 +60,7 @@ namespace Gameplay.Combat.Health
 
         public void TakeDamage(Damage damage)
         {
+            if (IsInvincible) return;
             if (Stability - damage.Value <= 0)
             {
                 if (_controller != null)
@@ -89,7 +80,7 @@ namespace Gameplay.Combat.Health
 
         public void Die()
         {
-            OnDeath?.Invoke(true);
+            OnDeath?.Invoke();
         }
     }
 

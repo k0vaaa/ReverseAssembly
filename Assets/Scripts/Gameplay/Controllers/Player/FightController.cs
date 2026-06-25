@@ -1,120 +1,154 @@
-﻿using Core.DI;
+using Core.Bootstrap;
+using Core.Extensions;
 using Core.Input;
+using Core.StateMachines;
 using Gameplay.Anims;
 using Gameplay.Combat.Interfaces;
 using Gameplay.Combat.Offensive.Base;
-using Gameplay.StateMachines;
-using Gameplay.StateMachines.PlayerStates.AbilityStates;
+using Gameplay.Combat.Offensive.Skills;
+using Gameplay.Combat.Offensive.Skills.Abilities;
 using Gameplay.StateMachines.PlayerStates.FightStates;
+using Reflex.Attributes;
+using Reflex.Core;
+using Reflex.Injectors;
 using UnityEngine;
 
 namespace Gameplay.Controllers.Player
 {
-    public class FightController : MonoBehaviour, IInjectable
+    public class FightController : StateBehaviourController, IInitializable
     {
-        private StateMachine _fightStateMachine;
         private IPlayerAnimator _playerAnimator;
-        private SkillsController _skillsController;
-        [Inject] private InputManager _inputManager;
+        private AbilitiesController _abilitiesController;
+        [Inject] private InputManager _input;
+
+        [SerializeField] private AnimationEventsHandler _crowbarAnimHandler;
+        [SerializeField] private AnimationEventsHandler _gunAnimHandler;
 
         [HideInInspector] public bool IsSheathed;
-
-        [SerializeField] public GameObject swordGameObject;
-
         [SerializeField] public GameObject hipSwordGameObject;
+        [Inject] private Container _container;
 
-        #region States
-
-        private AttackState _attackState;
-        private SpellState _spellState;
-        private IdleAttackState _idleAttackState;
-        private SheathedSwordState _sheathState;
-        private SwitchBranchAbilityState _switchBranchState;
-        private ScannerAbilityState _scannerState;
-
-        #endregion
-
-        //public Sword Sword { get; private set; }
-        public Collider SwordCollider { get; private set; }
+        [SerializeField] private GameObject _crowbar;
+        [SerializeField] private GameObject _pistol;
+        private Skill _currentAttackSkill;
+        private bool _isInitialized;
 
 
-        private void Awake()
+        public void Init()
         {
-            _fightStateMachine = new StateMachine();
-            _skillsController = GetComponent<SkillsController>();
-            _playerAnimator = GetComponent<IPlayerAnimator>();
-            gameObject.GetComponent<IHittable>().onHit.AddListener(_playerAnimator.DoHit);
-            SwordCollider = swordGameObject.GetComponent<BoxCollider>();
+            GetComponents();
+            AttackStatesInit();
+            EquipCrowbar();
+            
+            _crowbarAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
+            _gunAnimHandler.OnAnimationEnded += HandleAttackAnimEnd;
+            _isInitialized = true;
+            enabled = true;
         }
 
-
-        private void Start()
+        private void GetComponents()
         {
-            AttackStatesInit();
+            StateMachine = new StateMachine();
+            _abilitiesController = GetComponent<AbilitiesController>();
+            _playerAnimator = GetComponent<IPlayerAnimator>();
+            GetComponent<IDamageable>().onHit.AddListener(_playerAnimator.DoHit);
         }
 
         private void Update()
         {
-            _fightStateMachine.Tick();
+            StateMachine.Tick();
         }
 
         private void AttackStatesInit()
         {
-            //_attackState = new AttackState(this, _skillsController, _playerAnimator);
-            //_spellState = new SpellState(this, _skillsController, _playerAnimator);
-            //_sheathState = new SheathedSwordState(this, _skillsController, _playerAnimator);
-            _idleAttackState = new IdleAttackState(this, _skillsController, _playerAnimator);
-            _switchBranchState = new SwitchBranchAbilityState(this, _skillsController, _playerAnimator);
-            _scannerState = new ScannerAbilityState(this, _skillsController, _playerAnimator);
-
-
-            //bool MeleeAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Attack");
-            //bool MeleeAnimationEnded() => _attackState.IsFinished;
-            //bool SpellAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Spell");
-            //bool SheathAnimationEnded() => _playerAnimator.CheckAnimationState((int)LayerNames.Fight, 0.99f, "Sheath");
-
-
-            //_fightStateMachine.AddTransition(idleAttackState,sheathState, () => _inputManager.IsSheathed);
-            //_fightStateMachine.AddTransition(sheathState,idleAttackState, () => !_inputManager.IsSheathed);
-
-            //_fightStateMachine.AddTransition(idleAttackState, attackState, () => _inputManager.MeleeInput && _skillsController.Skills[SkillType.Melee]._isReady);
-            //TODO подумать над реализацией сканера через стейты
-            _inputManager.OnScannerPressed += HandleScannerPress;
-            _inputManager.OnInteractPressed += HandleInteractPress;
+            var meleeState = new MeleeState(this, _abilitiesController, _playerAnimator);
+            var rangedState = new RangedSkillState(this, _abilitiesController, _playerAnimator);
+            var idleAttackState = new IdleAttackState(this, _abilitiesController, _playerAnimator);
             
-            //_fightStateMachine.AddTransition(idleAttackState, spellState,() => _inputManager.MeleeInput && _skillsController.Skills[SkillType.Fireball]._isReady);
-            
-            //_fightStateMachine.AddTransition(_attackState, _idleAttackState, MeleeAnimationEnded);
-            _fightStateMachine.AddTransition(_switchBranchState, _idleAttackState, () => _switchBranchState.IsFinished);
-            _fightStateMachine.AddTransition(_scannerState, _idleAttackState, () => _scannerState.IsFinished);
-            
-            //_fightStateMachine.AddTransition(spellState,idleAttackState, SpellAnimationEnded);
 
-            //_fightStateMachine.AddTransition(sheathState,spellState, () => _inputManager.RMBInput && _inputManager.SpellInput && _skillsController.Skills[SkillType.Fireball]._isReady);
+            AttributeInjector.Inject(meleeState, _container);
 
-            _fightStateMachine.SetState(_idleAttackState);
+            StateMachine.AddState(idleAttackState);
+            StateMachine.AddState(meleeState);
+            StateMachine.AddState(rangedState);
+            
+            StateMachine.AddManualTransition(idleAttackState, meleeState);
+            StateMachine.AddManualTransition(idleAttackState, rangedState);
+
+            StateMachine.AddManualTransition(meleeState, idleAttackState);
+            StateMachine.AddManualTransition(rangedState, idleAttackState);
+
+
+            StateMachine.TrySetState(idleAttackState);
         }
 
-        private void HandleScannerPress()
+        private void OnEnable()
         {
-            if (_skillsController.Skills[SkillType.Scanner]._isReady)
-            {
-                _fightStateMachine.SetState(_scannerState);
-            }
+            BindInput();
         }
         
-        private void HandleInteractPress()
+        private void OnDisable()
         {
-            if (_skillsController.Skills[SkillType.BranchSwitch]._isReady)
+            UnbindInput();
+        }
+
+
+        private void BindInput()
+        {
+            
+            _input.OnLeftClick += HandleAttack;
+            _input.OnSlotOnePressed += EquipCrowbar;
+            _input.OnSlotTwoPressed += EquipPistol;
+        }
+
+        private void UnbindInput()
+        {
+            
+            _input.OnLeftClick -= HandleAttack;
+            _input.OnSlotOnePressed -= EquipCrowbar;
+            _input.OnSlotTwoPressed -= EquipPistol;
+        }
+
+        private void HandleAttackAnimEnd()
+        {
+            StateMachine.TryRequestState<IdleAttackState>();
+        }
+
+        
+
+        private void HandleAttack()
+        {
+            _currentAttackSkill?.TryCast();
+        }
+
+        private void EquipCrowbar()
+        {
+            if (!_abilitiesController.TryGetSkill<ScannerSkill>().IsScannerActive)
             {
-                _fightStateMachine.SetState(_switchBranchState);
+                StateMachine.TryRequestState<IdleAttackState>();
             }
+            _crowbar.transform.GetChild(0).LocalResetAll();
+            _crowbar.SetActive(true);
+            _pistol.SetActive(false);
+            _currentAttackSkill = _abilitiesController.TryGetSkill<MeleeSkill>();
+        }
+
+        private void EquipPistol()
+        {
+            if (!_abilitiesController.TryGetSkill<ScannerSkill>().IsScannerActive)
+            {
+                StateMachine.TryRequestState<IdleAttackState>();
+            }
+            _pistol.transform.GetChild(0).LocalResetAll();
+            _crowbar.SetActive(false);
+            _pistol.SetActive(true);
+            _currentAttackSkill = _abilitiesController.TryGetSkill<ProjectileSkill>();
         }
 
         private void OnDestroy()
         {
-            _inputManager.OnScannerPressed -= HandleScannerPress;
-            _inputManager.OnInteractPressed -= HandleInteractPress;
+            if (_crowbarAnimHandler != null) _crowbarAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
+            if (_gunAnimHandler != null) _gunAnimHandler.OnAnimationEnded -= HandleAttackAnimEnd;
         }
     }
 }

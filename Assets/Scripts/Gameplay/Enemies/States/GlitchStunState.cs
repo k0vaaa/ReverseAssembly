@@ -2,37 +2,36 @@ using UnityEngine.AI;
 
 namespace Gameplay.Enemies.States
 {
-    public class GlitchStunState : StatesEnemyConst
+    public class GlitchStunState : EnemyState
     {
-        public GlitchStunState(EnemyController enemyController, EnemyAnimator animator, NavMeshAgent navMeshAgent) 
-            : base(enemyController, animator, navMeshAgent) { }
+        public GlitchStunState(AIController controller, EnemyAnimator animator, EnemyMover mover) 
+            : base(controller, animator, mover) { }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
-            if (NavMeshAgent != null && NavMeshAgent.isOnNavMesh)
+           
+            Mover.Stop();
+            
+            // Запускаем эффект глитча!
+            if (EnemyAnimator != null)
             {
-                NavMeshAgent.isStopped = true;
-            }
-            if (EnemyAnimator != null && EnemyAnimator._animator != null)
-            {
-                EnemyAnimator._animator.speed = 0f;
+                EnemyAnimator.StartGlitchStun();
             }
         }
 
-        public override void Execute()
+        protected  override void ExecuteAction()
         {
             
         }
 
-        public override void Exit()
+        protected  override void ExitAction()
         {
-            if (EnemyAnimator != null && EnemyAnimator._animator != null)
+            Mover.Resume();
+            
+            // Выключаем эффект и возвращаем анимации в норму
+            if (EnemyAnimator != null)
             {
-                EnemyAnimator._animator.speed = 1f;
-            }
-            if (NavMeshAgent != null && NavMeshAgent.isOnNavMesh)
-            {
-                NavMeshAgent.isStopped = false;
+                EnemyAnimator.StopGlitchStun();
             }
         }
     }

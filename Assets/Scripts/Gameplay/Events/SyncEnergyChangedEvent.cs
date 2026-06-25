@@ -6,5 +6,6 @@ namespace Gameplay.Events
     {
         public float CurrentEnergy;
         public float MaxEnergy;
+        public float EnergyPercent;
     }
 }

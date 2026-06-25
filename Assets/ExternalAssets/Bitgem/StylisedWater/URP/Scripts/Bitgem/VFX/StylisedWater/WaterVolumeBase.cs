@@ -1,12 +1,12 @@
 ﻿#region Using statements
 
 using System.Collections.Generic;
-using Bitgem.StylisedWater.URP.Scripts.Bitgem.Core;
+using ExternalAssets.Bitgem.StylisedWater.URP.Scripts.Bitgem.Core;
 using UnityEngine;
 
 #endregion
 
-namespace Bitgem.StylisedWater.URP.Scripts.Bitgem.VFX.StylisedWater
+namespace ExternalAssets.Bitgem.StylisedWater.URP.Scripts.Bitgem.VFX.StylisedWater
 {
     [ExecuteInEditMode]
     [RequireComponent(typeof(MeshFilter))]
@@ -79,10 +79,10 @@ namespace Bitgem.StylisedWater.URP.Scripts.Bitgem.VFX.StylisedWater
             if (mesh == null)
             {
                 mesh = meshFilter.sharedMesh;
-                if (mesh == null || mesh.name != "WaterVolume-" + gameObject.GetInstanceID())
+                if (mesh == null || mesh.name != "WaterVolume-" + gameObject.GetEntityId())
                 {
                     mesh = new UnityEngine.Mesh();
-                    mesh.name = "WaterVolume-" + gameObject.GetInstanceID();
+                    mesh.name = "WaterVolume-" + gameObject.GetEntityId();
                 }
             }
 

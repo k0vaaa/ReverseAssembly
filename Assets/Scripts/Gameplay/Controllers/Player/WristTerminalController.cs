@@ -1,40 +1,50 @@
-﻿using System;
 using Core.Bootstrap;
-using Core.DI;
 using Gameplay.Core;
+using Gameplay.UI.Views.Gameplay.Terminal;
+using Gameplay.UI.Windows;
+using Reflex.Attributes;
 using UnityEngine;
 using InputManager = Core.Input.InputManager;
 
 namespace Gameplay.Controllers.Player
 {
-    public class WristTerminalController : MonoBehaviour, IInjectable, IInitializable, IDisposable
+    public class WristTerminalController : MonoBehaviour, IInitializable
     {
         [Inject] private InputManager _inputManager;
-        [Inject] private BranchManager _branchManager;
         [Inject] private SyncEnergyManager _syncEnergyManager;
+        [Inject] private PlayerBrain _brain;
+        [Inject] private TerminalWindow _terminalWindow;
+        private TerminalView _terminalView;
+
+
+        public bool IsTerminalOpen { get; private set; }
 
         public void Init()
         {
-            _inputManager.OnBranchTogglePressed += HandleBranchToggle;
+            _terminalView = _terminalWindow.GetView<TerminalView>();
         }
 
-        private void HandleBranchToggle()
+
+        public void ToggleTerminal()
         {
-            if (_syncEnergyManager.TryConsumeEnergy())
+            IsTerminalOpen = !IsTerminalOpen;
+
+            SetTerminal(IsTerminalOpen);
+        }
+
+
+
+        public void SetTerminal(bool active)
+        {
+            if (active)
             {
-                // Здесь в будущем можно добавить проверку: если ХП < 20% или идет анимация атаки - не переключать
-                _branchManager.ToggleBranch();
-                // TODO: Вызвать анимацию левой руки (щелчок по терминалу) и звук
+                
+                _terminalWindow.Show();
             }
             else
             {
-                Debug.Log("Not enough Synchronization Energy to jump branches!");
+                _terminalWindow.Hide();
             }
-        }
-
-        public void Dispose()
-        {
-            _inputManager.OnBranchTogglePressed -= HandleBranchToggle;
         }
     }
 }

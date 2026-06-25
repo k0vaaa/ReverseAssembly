@@ -1,89 +1,58 @@
 using System.Collections.Generic;
-using System.Reflection;
-using Core.DI;
+using System.Linq;
+using Core.Events;
+using Gameplay.Bootstrap;
+using Gameplay.Events;
+using Reflex.Attributes;
 using UnityEngine;
+using Logger = Core.Utilities.Logger;
 
 namespace Core.Bootstrap
 {
-    [DefaultExecutionOrder(-999)]
+    [DefaultExecutionOrder(-1000)]
     public class GameEntryPoint : MonoBehaviour
     {
         public static bool IsGameReady = false;
-        [SerializeField] private Services _services;
-        private readonly DIContainer _diContainer = new();
 
-        private HashSet<IInjectable> _injectables = new();
+        [Inject] private IEnumerable<IInitializable> _installed;
+        [SerializeField] private BootstrapController _bootstrapController;
         private HashSet<IInitializable> _initializables = new();
 
 
         private void Awake()
         {
-            _diContainer.Register(_diContainer);
-            RegisterServices();
+            FindInitializables();
 
-            FindAndSortScripts();
-            
-            InjectAll();
-            
             InitializeAll();
-            
+
+            _bootstrapController.Boot();
+            EventBus.Raise(new GameReadyEvent());
             IsGameReady = true;
             print("Game is ready");
         }
 
-        private void FindAndSortScripts()
+        private void FindInitializables()
         {
             var scripts = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (var script in scripts)
             {
-                if (script is IInjectable injectable)
-                {
-                    _injectables.Add(injectable);
-                }
                 if (script is IInitializable initializable)
                 {
                     _initializables.Add(initializable);
                 }
             }
-        }
 
-        private void InjectAll()
-        {
-            foreach (var injectable in _injectables)
-            {
-                _diContainer.Inject(injectable);
-            }
+            _initializables = _initializables.Concat(_installed).ToHashSet();
         }
 
         private void InitializeAll()
         {
-            
             foreach (var initializable in _initializables)
             {
                 initializable.Init();
+                Logger.LogTyped(initializable.GetType(),"Initialized");
             }
         }
-
-
-        private void RegisterServices()
-        {
-            var type = _services.GetType();
-            var fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            foreach (var fieldInfo in fields)
-            {
-                var serviceInstance = fieldInfo.GetValue(_services);
-                if (serviceInstance == null) continue;
-                _diContainer.Register(fieldInfo.FieldType, serviceInstance);
-                if (serviceInstance is IInitializable initializable)
-                {
-                    _initializables.Add(initializable);
-                }
-                if (serviceInstance is IInjectable injectable)
-                {
-                    _injectables.Add(injectable);
-                }
-            }
-            
-        }
+        
     }
 }

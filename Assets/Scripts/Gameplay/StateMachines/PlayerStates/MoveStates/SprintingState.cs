@@ -10,19 +10,19 @@ namespace Gameplay.StateMachines.PlayerStates.MoveStates
         {
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
             PlayerAnimator.DoRun();
             MovementController.CurrentMoveSpeed = MovementController.RunSpeed;
             MonoBehaviour.print("Entering Sprinting State");
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
             MovementController.Move();
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
             MonoBehaviour.print("Exiting Sprinting State");
         }

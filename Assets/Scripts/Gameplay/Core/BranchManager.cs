@@ -1,15 +1,16 @@
 ﻿using Core.Bootstrap;
-using Core.DI;
+
 using Core.Events;
 using DG.Tweening;
 using Gameplay.Events;
+using Plugins.Demigiant.DOTween.Modules;
 using UnityEngine;
 
 namespace Gameplay.Core
 {
     public class BranchManager : MonoBehaviour, IInitializable
     {
-        public WorldBranch CurrentBranch { get; private set; }
+        public static WorldBranch CurrentBranch { get; private set; }
 
         [Header("Environments")]
         [SerializeField] private GameObject _mainBranchEnv;

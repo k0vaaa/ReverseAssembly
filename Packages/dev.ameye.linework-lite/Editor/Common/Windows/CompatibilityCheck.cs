@@ -11,7 +11,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.UIElements;
 
-namespace LineworkLite.Editor.Common.Windows
+namespace LineworkLite.Editor.Editor.Common.Windows
 {
     public class CompatibilityCheck : EditorWindow
     {

@@ -1,34 +1,33 @@
-﻿using Gameplay.Combat.Offensive.Base;
+using Gameplay.Combat.Offensive.Skills;
 using Gameplay.Controllers.Player;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace Gameplay.Enemies.BossStates
 {
     public class BossSuperAttackState : StatesBossConst
     {
-        private SkillsController _skillsController;
-        public BossSuperAttackState(BossController bossController, BossAnimator animator, NavMeshAgent navMeshAgent, SkillsController skillsController) : base(bossController, animator, navMeshAgent)
+        private AbilitiesController _abilitiesController;
+
+        public BossSuperAttackState(AIController controller, BossAnimator animator, EnemyMover mover, AbilitiesController abilitiesController) : base(controller, animator, mover)
         {
-            _skillsController = skillsController;
+            _abilitiesController = abilitiesController;
         }
 
-        public override void Enter()
+        protected override void EnterAction()
         {
-            _skillsController.Skills[SkillType.Heavy].Cast();
-            BossAnimator.DoSuperAttack();
-            NavMeshAgent.isStopped = true;
+            _abilitiesController.TryGetSkill<HeavyAttack>().TryCast();
             Debug.Log("Entering BOSS SUPER ATTACK");
+            Mover.Stop();
+            BossAnimator.DoSuperAttack();
         }
 
-        public override void Execute()
+        protected override void ExecuteAction()
         {
-            BossController.RotateToPlayer();
+            Mover.RotateToPlayer();
         }
 
-        public override void Exit()
+        protected override void ExitAction()
         {
-            Debug.Log("exit");
         }
     }
 }
