@@ -114,7 +114,7 @@ namespace Editor
                     if (showFolderMethod != null)
                     {
                         // Вызываем этот метод, передавая ему ID нашей папки
-                        showFolderMethod.Invoke(window, new object[] { folder.GetInstanceID(), true });
+                        showFolderMethod.Invoke(window, new object[] { folder.GetEntityId(), true });
                     }
                 }
             }
