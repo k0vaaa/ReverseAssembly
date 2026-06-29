@@ -5,7 +5,7 @@
 ## 🛠 Technical Stack
 * **Engine:** Unity 2022+ (C#)
 * **Architecture:** SOLID, Dependency Injection (Reflex DI), Event-Driven Architecture, FSM.
-* **Libraries:** DOTween, Newtonsoft JSON, QuickOutline.
+* **Libraries:** DOTween, Newtonsoft JSON.
 
 ## ⚙️ Architecture & Under the Hood
 
