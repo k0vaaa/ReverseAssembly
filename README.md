@@ -33,6 +33,6 @@ As a Gameplay/System Programmer, I focused on creating modular and decoupled sys
 <img width="1920" height="1080" alt="ReverseAssembly_sLWPwOMwrr" src="https://github.com/user-attachments/assets/f6e598ba-e75f-465d-9fe9-92433bb7a2a2" />
 
 ## Gameplay
-https://drive.google.com/file/d/1Ep5JZwLQCkewxUh1we6KeSTlqXvHjJTP/view?usp=sharing
+[Gameplay](https://rutube.ru/video/private/2bd48f8c8867b9913b9215816c13f93c/?p=R3bYmFmSTJ7tWz5IoYF6Uw)
 
 
