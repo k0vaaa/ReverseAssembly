@@ -27,7 +27,12 @@ As a Gameplay/System Programmer, I focused on creating modular and decoupled sys
 * **Dynamic Combat:** Combination of melee strikes, projectiles, and an interactive scanner to reveal weak points.
 * **Boss Fights:** Multi-phase boss logic orchestrated by a custom `BossDirector` and FSM.
 ---
-##Screenshots
+## Screenshots
 <img width="1920" height="1080" alt="ReverseAssembly_TsFsJcn6us" src="https://github.com/user-attachments/assets/6174a9ef-5223-4132-9a6c-9f270992d38f" />
 <img width="1920" height="1080" alt="ReverseAssembly_bG9cBxBPrH" src="https://github.com/user-attachments/assets/3447d020-1408-4c68-a10f-802d88bce66e" />
 <img width="1920" height="1080" alt="ReverseAssembly_sLWPwOMwrr" src="https://github.com/user-attachments/assets/f6e598ba-e75f-465d-9fe9-92433bb7a2a2" />
+
+## Gameplay
+https://drive.google.com/file/d/1Ep5JZwLQCkewxUh1we6KeSTlqXvHjJTP/view?usp=sharing
+
+
